@@ -4,19 +4,16 @@
 """The engine core holds the entry point into the game execution."""
 
 import collections
-import configparser
 import logging
-import os
 import time
 import warnings
 
 import sdl2
 import sdl2.ext
-
 from characteristic import Attribute, attributes
 
-import engine.systems
-import engine.exceptions
+import rootspace.engine.systems as systems
+import rootspace.engine.exceptions as exceptions
 
 
 @attributes([Attribute("_location", instance_of=str),
@@ -26,7 +23,7 @@ import engine.exceptions
              Attribute("_renderer", instance_of=sdl2.ext.Renderer),
              Attribute("_factory", instance_of=sdl2.ext.SpriteFactory),
              Attribute("_world", instance_of=sdl2.ext.World),
-             Attribute("_event_dispatcher", instance_of=engine.systems.EventDispatcher),
+             Attribute("_event_dispatcher", instance_of=systems.EventDispatcher),
              Attribute("_entities", instance_of=dict),
              Attribute("_systems", instance_of=collections.OrderedDict),
              Attribute("_delta_time", instance_of=float),
@@ -38,65 +35,32 @@ class Core(object):
     The Core is in a sense the general object manager.
     """
     @classmethod
-    def create_core(cls):
+    def create_core(cls, project_location, resource_dir, window_title, window_shape, clear_color, delta_time,
+                    max_frame_duration, epsilon):
         """
         Start up the Core.
 
-        1. Determine the location of the project in the directory structure. Load the configuration.
-        2. Configure the logging module and assign the internal logger
-           (the subclass logger will have to be assigned by the subclass).
-        3. Initialise SDL2
-        4. Create the resource database based on RESOURCE_DIR in generic.py
-        5. Create and show the window based on WINDOW_TITLE and WINDOW_SHAPE in generic.py
-        6. Create the renderer based on WINDOW_SHAPE and CLEAR_COLOR in generic.py
-        7. Create the world (using UpdateRenderWorld instead of sdl2.ext.World)
-        8. Create the sprite factory
-        9. Create custom systems and then the render system
-        10. Add all systems to the world in order of creation
-        11. Create and add custom entities to the world
+        1. Initialise SDL2
+        2. Create the resource database based on RESOURCE_DIR in generic.py
+        3. Create and show the window based on WINDOW_TITLE and WINDOW_SHAPE in generic.py
+        4. Create the renderer based on WINDOW_SHAPE and CLEAR_COLOR in generic.py
+        5. Create the world (using UpdateRenderWorld instead of sdl2.ext.World)
+        6. Create the sprite factory
+        7. Create custom systems and then the render system
+        8. Add all systems to the world in order of creation
+        9. Create and add custom entities to the world
+        10. Return the initialized Core instance
 
+        :param project_location:
+        :param resource_dir:
+        :param window_title:
+        :param window_shape:
+        :param clear_color:
+        :param delta_time:
+        :param max_frame_duration:
+        :param epsilon:
         :return:
         """
-        # ---- Where am I? ----
-        user_home = os.path.expanduser("~")
-        project_location, _ = os.path.split(os.path.abspath(__file__))
-
-        # ---- Load the configuration ----
-        config = configparser.ConfigParser()
-        config_custom = os.path.join(user_home, "rootspace-config.ini")
-        config_default = os.path.join(project_location, "config.ini")
-        if os.path.isfile(config_custom):
-            config.read(config_custom, encoding="utf-8")
-        elif os.path.isfile(config_default):
-            config.read(config_default, encoding="utf-8")
-        else:
-            raise engine.exceptions.SetupError("Could not find the configuration file. "
-                                               "You probably didn't install Rootspace correctly.")
-
-        # General settings
-        debug = config.getboolean("General", "Debug", fallback=False)
-        log_format = config.get("General", "Log format", fallback="%(asctime)s - %(name)s - %(levelname)s: %(message)s")
-        date_format = config.get("General", "Date format", fallback="%Y-%m-%dT%H:%M:%S%Z")
-
-        # Loop settings
-        delta_time = 1 / config.getfloat("Loop", "Frequency", fallback=100)
-        max_frame_duration = config.getfloat("Loop", "Maximum frame duration", fallback=0.25)
-        epsilon = config.getfloat("Loop", "Epsilon", fallback=0.00001)
-
-        # Project settings
-        window_title = config.get("Project", "Window title", fallback="")
-        window_shape = tuple([int(x) for x in config.get("Project", "Window shape", fallback="800, 600").split(",")])
-        resource_dir = config.get("Project", "Resource directory", fallback="resources")
-        clear_color = tuple([int(x) for x in config.get("Project", "Renderer clear color", fallback="0, 0, 0, 1").split(",")])
-
-        # ---- Configure the logging system ----
-        if debug:
-            logging.basicConfig(level=logging.DEBUG, format=log_format, datefmt=date_format)
-        else:
-            logging.basicConfig(level=logging.INFO, format=log_format, datefmt=date_format)
-        warnings.simplefilter("default")
-        logging.captureWarnings(True)
-
         # Get the Logger instance
         log = logging.getLogger(__name__)
         log.info("Starting up the Core.")
@@ -132,16 +96,16 @@ class Core(object):
         # Create the systems
         # Create your custom systems BEFORE the renderer (addition order dictates execution order)
         log.debug("Adding Systems to the World.")
-        systems = collections.OrderedDict()
+        syst = collections.OrderedDict()
         # TODO: self._create_systems()
-        systems['render_system'] = sdl2.ext.TextureSpriteRenderSystem(renderer)
+        syst['render_system'] = sdl2.ext.TextureSpriteRenderSystem(renderer)
 
         # Add all systems to the world
-        for system in systems.values():
+        for system in syst.values():
             world.add_system(system)
 
         # Create the event dispatcher
-        event_dispatcher = engine.systems.EventDispatcher(world)
+        event_dispatcher = systems.EventDispatcher(world)
 
         # Create the game entities
         log.debug("Adding Entities to the World.")
@@ -150,18 +114,6 @@ class Core(object):
 
         return cls(project_location, log, resources, window, renderer, factory, world, event_dispatcher, entities,
                    systems, delta_time, max_frame_duration, epsilon)
-
-    def execute(self):
-        """
-        Start up, run and shutdown the game.
-
-        :return:
-        """
-
-        try:
-            self._loop()
-        finally:
-            self._shutdown()
 
     def _create_systems(self):
         """
@@ -173,7 +125,7 @@ class Core(object):
         :return:
         """
 
-        warnings.warn("You are calling an abstract method. No Systems added.", engine.exceptions.NotImplementedWarning)
+        warnings.warn("You are calling an abstract method. No Systems added.", exceptions.NotImplementedWarning)
 
     def _add_entities(self):
         """
@@ -184,9 +136,9 @@ class Core(object):
         :return:
         """
 
-        warnings.warn("You are calling an abstract method. No Entities added.", engine.exceptions.NotImplementedWarning)
+        warnings.warn("You are calling an abstract method. No Entities added.", exceptions.NotImplementedWarning)
 
-    def _loop(self):
+    def loop(self):
         """
         Enter the fixed time-step loop of the game.
 
@@ -251,32 +203,17 @@ class Core(object):
 
         self._log.info("=========== All stop. ===========")
 
-    def _shutdown(self):
+    def shutdown(self):
         """
         Close down the Core.
 
         :return:
         """
-
-        # Destroy all references
-        self._log.debug("Deleting references to Entities, Systems, SpriteFactory, World, Renderer and Window.")
-        self._entities.clear()
-        self._systems.clear()
-        self._event_dispatcher = None
-        self._factory = None
-        self._world = None  # At this point, all references to entities and systems should have been deleted.
-        self._renderer = None  # This should have been the last reference to the renderer
-        self._window = None  # This should have been the last reference to the window
-        self._resources = None
-
         # Close down and clean up SDL2
         self._log.debug("Closing down SDL2.")
         sdl2.ext.quit()
 
         self._log.info("The Core has safely shut down.")
-        self._logger = None
-        self.__logger = None
-        logging.shutdown()
 
 
 class UpdateRenderWorld(sdl2.ext.World):
@@ -294,8 +231,8 @@ class UpdateRenderWorld(sdl2.ext.World):
         :return:
         """
         components = self.components
-        systems = [sys for sys in self._systems if not isinstance(sys, sdl2.ext.SpriteRenderSystem)]
-        for system in systems:
+        syst = [sys for sys in self._systems if not isinstance(sys, sdl2.ext.SpriteRenderSystem)]
+        for system in syst:
             s_process = system.process
             if getattr(system, "is_applicator", False):
                 comps = self.combined_components(system.componenttypes)

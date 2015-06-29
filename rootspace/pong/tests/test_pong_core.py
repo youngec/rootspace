@@ -5,12 +5,12 @@
 import unittest.mock
 
 import sdl2.ext
+
 import pytest
+
 import config.generic
-import engine.core
-import pong.core
-import pong.systems
-import pong.entities
+import rootspace.pong.systems
+import rootspace.pong.entities
 
 
 class TestPongCore(object):
@@ -21,7 +21,7 @@ class TestPongCore(object):
 
     @pytest.fixture
     def core(self):
-        return pong.core.PongCore()
+        return rootspace.pong.core.PongCore()
 
     def test_baseclass(self):
         """
@@ -30,7 +30,7 @@ class TestPongCore(object):
         :return:
         """
 
-        assert issubclass(pong.core.PongCore, engine.core.Core)
+        assert issubclass(rootspace.pong.core.PongCore, rootspace.engine.core.Core)
 
     def test_create_systems(self, monkeypatch, core):
         """
@@ -47,9 +47,9 @@ class TestPongCore(object):
         mock_collision = unittest.mock.MagicMock()
         mock_ai = unittest.mock.MagicMock()
 
-        monkeypatch.setattr(pong.systems, "MovementSystem", mock_movement)
-        monkeypatch.setattr(pong.systems, "CollisionSystem", mock_collision)
-        monkeypatch.setattr(pong.systems, "TrackingAIController", mock_ai)
+        monkeypatch.setattr(rootspace.pong.systems, "MovementSystem", mock_movement)
+        monkeypatch.setattr(rootspace.pong.systems, "CollisionSystem", mock_collision)
+        monkeypatch.setattr(rootspace.pong.systems, "TrackingAIController", mock_ai)
 
         core._create_systems()
 
@@ -81,8 +81,8 @@ class TestPongCore(object):
         mock_player = unittest.mock.MagicMock()
         mock_ball = unittest.mock.MagicMock()
 
-        monkeypatch.setattr(pong.entities, "Player", mock_player)
-        monkeypatch.setattr(pong.entities, "Ball", mock_ball)
+        monkeypatch.setattr(rootspace.pong.entities, "Player", mock_player)
+        monkeypatch.setattr(rootspace.pong.entities, "Ball", mock_ball)
 
         core._add_entities()
 

@@ -7,11 +7,13 @@ setup.py was assembled with help from https://packaging.python.org/en/latest/
 
 import sys
 from os import path
-from setuptools import setup, find_packages  # Always prefer setuptools over distutils
-from setuptools.command.test import test as TestCommand
 from codecs import open  # To use a consistent encodingA
 
-from engine.version import VERSION
+from setuptools import setup, find_packages  # Always prefer setuptools over distutils
+from setuptools.command.test import test as TestCommand
+
+from rootspace.version import VERSION
+
 
 class PyTest(TestCommand):
     user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
@@ -43,7 +45,7 @@ setup(
     url="",
     license="MIT",
     author="Eleanore Young",
-    author_emailA="",
+    author_email="",
     description="Rootspace",
     long_description=long_description,
     keywords="game, casual, point-and-click, hacking",
@@ -56,15 +58,14 @@ setup(
     ],
     packages=find_packages(exclude=["contrib", "docs", "tests", "puppet", "log"]),
     package_data={
-        "engine": ["config.ini"]
+        "rootspace": ["config.ini", "keymap.ini"]
     },
-    install_requires=["characteristic", "pillow", "numpy", "pysdl2"],
+    install_requires=["click", "characteristic", "pillow", "numpy", "pysdl2"],
     tests_require=["pytest"],
     cmdclass={"test": PyTest},
     entry_points={
         "console_scripts": [
-            "rootspace-engine=engine.loader:main",
-            "rootspace-pong=pong.loader:main",
+            "rootspace=rootspace.loader:main"
         ],
     },
 )

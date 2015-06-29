@@ -4,7 +4,8 @@
 """Collection of entities in an Entity-Component-System architecture."""
 
 import sdl2.ext
-from pong.components import PaddleControl, Velocity, Score
+
+import rootspace.pong.components as components
 
 
 class Player(sdl2.ext.Entity):
@@ -24,9 +25,9 @@ class Player(sdl2.ext.Entity):
         """
 
         self.sprite = sprite
-        self.paddlecontrol = PaddleControl()
-        self.velocity = Velocity()
-        self.score = Score()
+        self.paddlecontrol = components.PaddleControl()
+        self.velocity = components.Velocity()
+        self.score = components.Score()
 
         self.paddlecontrol.ai = ai
         self.sprite.position = position
@@ -48,6 +49,6 @@ class Ball(sdl2.ext.Entity):
         """
 
         self.sprite = sprite
-        self.velocity = Velocity()
+        self.velocity = components.Velocity()
 
         self.sprite.position = position

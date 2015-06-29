@@ -3,8 +3,8 @@
 """Docstring"""
 
 import sdl2.ext
-import pong.entities
-import pong.components
+
+import rootspace.pong.components
 
 
 class TestPlayer(object):
@@ -19,7 +19,7 @@ class TestPlayer(object):
         :return:
         """
 
-        assert issubclass(pong.entities.Player, sdl2.ext.Entity)
+        assert issubclass(rootspace.pong.entities.Player, sdl2.ext.Entity)
 
     def test_player(self):
         """
@@ -28,11 +28,11 @@ class TestPlayer(object):
         :return:
         """
 
-        player = pong.entities.Player(sdl2.ext.World(), sdl2.ext.Sprite())
+        player = rootspace.pong.entities.Player(sdl2.ext.World(), sdl2.ext.Sprite())
 
         assert isinstance(player.sprite, sdl2.ext.Sprite)
-        assert isinstance(player.velocity, pong.components.Velocity)
-        assert isinstance(player.playerdata, pong.components.PlayerData)
+        assert isinstance(player.velocity, rootspace.pong.components.Velocity)
+        assert isinstance(player.playerdata, rootspace.pong.components.PlayerData)
 
 
 class TestBall(object):
@@ -46,7 +46,7 @@ class TestBall(object):
 
         :return:
         """
-        assert issubclass(pong.entities.Ball, sdl2.ext.Entity)
+        assert issubclass(rootspace.pong.entities.Ball, sdl2.ext.Entity)
 
     def test_ball(self):
         """
@@ -55,7 +55,7 @@ class TestBall(object):
         :return:
         """
 
-        ball = pong.entities.Ball(sdl2.ext.World(), sdl2.ext.Sprite())
+        ball = rootspace.pong.entities.Ball(sdl2.ext.World(), sdl2.ext.Sprite())
 
         assert isinstance(ball.sprite, sdl2.ext.Sprite)
-        assert isinstance(ball.velocity, pong.components.Velocity)
+        assert isinstance(ball.velocity, rootspace.pong.components.Velocity)

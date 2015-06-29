@@ -4,11 +4,10 @@
 
 import logging
 import unittest.mock
+import collections
 
 import sdl2.ext
-import collections
 import pytest
-import engine.core
 
 
 class TestCore(object):
@@ -25,7 +24,7 @@ class TestCore(object):
         :return:
         """
 
-        return engine.core.Core()
+        return rootspace.engine.core.Core()
 
     def test_attrs(self, core):
         """
@@ -132,8 +131,8 @@ class TestCore(object):
 
         core._create_systems()
 
-        w = recwarn.pop(engine.core.NotImplementedWarning)
-        assert issubclass(w.category, engine.core.NotImplementedWarning)
+        w = recwarn.pop(rootspace.engine.core.NotImplementedWarning)
+        assert issubclass(w.category, rootspace.engine.core.NotImplementedWarning)
 
     def test_add_entities(self, recwarn, core):
         """
@@ -146,8 +145,8 @@ class TestCore(object):
 
         core._add_entities()
 
-        w = recwarn.pop(engine.core.NotImplementedWarning)
-        assert issubclass(w.category, engine.core.NotImplementedWarning)
+        w = recwarn.pop(rootspace.engine.core.NotImplementedWarning)
+        assert issubclass(w.category, rootspace.engine.core.NotImplementedWarning)
 
     @pytest.mark.xfail
     def test_loop(self):
@@ -164,8 +163,8 @@ class TestCore(object):
 
         core._process_event(None)
 
-        w = recwarn.pop(engine.core.NotImplementedWarning)
-        assert issubclass(w.category, engine.core.NotImplementedWarning)
+        w = recwarn.pop(rootspace.engine.core.NotImplementedWarning)
+        assert issubclass(w.category, rootspace.engine.core.NotImplementedWarning)
 
     def test_shutdown(self, monkeypatch, core):
         """
@@ -183,7 +182,7 @@ class TestCore(object):
         monkeypatch.setattr(sdl2.ext, 'quit', magic_sdl)
         monkeypatch.setattr(logging, 'shutdown', magic_logging)
 
-        core._shutdown()
+        core.shutdown()
 
         # Ensure that the entities and systems dictionaries are empty
         assert len(core._entities) == 0
@@ -208,7 +207,7 @@ class TestCore(object):
 class TestUpdateRenderWorld(object):
     @pytest.fixture
     def world(self):
-        return engine.core.UpdateRenderWorld()
+        return rootspace.engine.core.UpdateRenderWorld()
 
     @pytest.mark.xfail
     def test_update(self):

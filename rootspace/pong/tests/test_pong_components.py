@@ -5,7 +5,7 @@
 import math
 
 import pytest
-import pong.components
+
 import config.generic
 
 
@@ -16,7 +16,7 @@ class TestVelocity(object):
 
     @pytest.fixture
     def vel(self):
-        return pong.components.Velocity()
+        return rootspace.pong.components.Velocity()
 
     def test_velocity(self, vel):
         """
@@ -97,6 +97,6 @@ class TestPlayerData(object):
         :return:
         """
 
-        playerdata = pong.components.PlayerData()
+        playerdata = rootspace.pong.components.PlayerData()
 
         assert not playerdata.ai

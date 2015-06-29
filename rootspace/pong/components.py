@@ -4,14 +4,15 @@
 """Collection of components in an Entity-Component-System architecture."""
 
 import math
-
 import random
+
 import sdl2
-import engine.components
+
+import rootspace.engine.components as components
 import config.keymap
 
 
-class PaddleControl(engine.components.EventComponent):
+class PaddleControl(components.EventComponent):
     """
     The PaddleControl component stores an AI flag and the direction of
     the requested paddle movement. It reacts to events SDL_KEYDOWN and SDL_KEYUP.

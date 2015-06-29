@@ -4,15 +4,14 @@
 """Docstring"""
 
 import sdl2.ext
-
-import engine.components
+import rootspace.engine.components as components
 
 
 class EventDispatcher(sdl2.ext.System):
     def __init__(self, world):
         super(EventDispatcher, self).__init__()
 
-        self.componenttypes = (engine.components.EventComponent, )
+        self.componenttypes = (components.EventComponent, )
 
         self._world = world
 
@@ -47,13 +46,13 @@ class EventDispatcher(sdl2.ext.System):
                 for c in relevant_components:
                     self._dispatch_event(c, event)
 
-    def process(self, world, components):
+    def process(self, world, comps):
         """
         The EventDispatcher does not implement a process method by default. Manually
         use dispatch to send events to relevant components.
 
         :param world:
-        :param components:
+        :param comps:
         :return:
         """
         pass

@@ -6,16 +6,17 @@
 import logging
 
 import sdl2.ext
+
 import config.generic
-import pong.entities
-import pong.components
+import rootspace.pong.components as components
+import rootspace.pong.entities as entities
 
 
 class ControlSystem(sdl2.ext.Applicator):
     def __init__(self, minx, miny, maxx, maxy):
         super(ControlSystem, self).__init__()
 
-        self.componenttypes = pong.components.PaddleControl, pong.components.Velocity, sdl2.ext.Sprite
+        self.componenttypes = components.PaddleControl, components.Velocity, sdl2.ext.Sprite
 
         self.ball = None
         self.minx = minx
@@ -55,11 +56,11 @@ class ControlSystem(sdl2.ext.Applicator):
             else:
                 velocity.stop()
 
-    def process(self, world, components):
-        if not isinstance(self.ball, pong.entities.Ball):
+    def process(self, world, comps):
+        if not isinstance(self.ball, entities.Ball):
             raise TypeError("You have likely forgotten to set the ball field to a Ball instance.")
 
-        for pcontrol, vel, sprite in components:
+        for pcontrol, vel, sprite in comps:
             if pcontrol.ai:
                 self._control_npc(pcontrol, vel, sprite)
             else:
@@ -69,7 +70,7 @@ class ControlSystem(sdl2.ext.Applicator):
 class MovementSystem(sdl2.ext.Applicator):
     def __init__(self, minx, miny, maxx, maxy):
         super(MovementSystem, self).__init__()
-        self.componenttypes = pong.components.Velocity, sdl2.ext.Sprite
+        self.componenttypes = components.Velocity, sdl2.ext.Sprite
         self.minx = minx
         self.miny = miny
         self.maxx = maxx
@@ -115,16 +116,16 @@ class MovementSystem(sdl2.ext.Applicator):
         if pmaxy > self.maxy:
             sprite.y = self.maxy - sheight
 
-    def process(self, world, components):
+    def process(self, world, comps):
         """
         Process Entity movement.
 
         :param world:
-        :param components:
+        :param comps:
         :return:
         """
 
-        for velocity, sprite in components:
+        for velocity, sprite in comps:
             self._move(velocity, sprite)
             self._bound(sprite)
 
@@ -133,7 +134,7 @@ class CollisionSystem(sdl2.ext.Applicator):
     def __init__(self, minx, miny, maxx, maxy):
         super(CollisionSystem, self).__init__()
 
-        self.componenttypes = pong.components.Velocity, sdl2.ext.Sprite
+        self.componenttypes = components.Velocity, sdl2.ext.Sprite
 
         self.ball = None
         self.player1 = None
@@ -163,17 +164,17 @@ class CollisionSystem(sdl2.ext.Applicator):
 
         return bleft < right and bright > left and btop < bottom and bbottom > top
 
-    def _deflect(self, components):
+    def _deflect(self, comps):
         """
         Deflect a Ball impinging on a Paddle.
 
-        :param components:
+        :param comps:
         :return:
         """
 
         self.ball.velocity.vx = -self.ball.velocity.vx
 
-        sprite = components[0][1]
+        sprite = comps[0][1]
         ballcentery = self.ball.sprite.y + self.ball.sprite.size[1] / 2
         halfheight = sprite.size[1] / 2
         stepsize = halfheight / 10
@@ -221,22 +222,22 @@ class CollisionSystem(sdl2.ext.Applicator):
             self.ball.sprite.position = (390, 290)
             self.ball.velocity.reset()
 
-    def process(self, world, components):
+    def process(self, world, comps):
         """
         Process Ball collisions.
 
         :param world:
-        :param components:
+        :param comps:
         :return:
         """
 
-        if not isinstance(self.ball, pong.entities.Ball):
+        if not isinstance(self.ball, entities.Ball):
             raise TypeError("You have likely forgotten to set the ball field to a Ball instance.")
 
-        if not all([isinstance(p, pong.entities.Player) for p in (self.player1, self.player2)]):
+        if not all([isinstance(p, entities.Player) for p in (self.player1, self.player2)]):
             raise TypeError("You have likely forgotten to set the player1 and/or player2 fields to a Player instance.")
 
-        collitems = [comp for comp in components if self._overlap(comp)]
+        collitems = [comp for comp in comps if self._overlap(comp)]
         if collitems:
             self._deflect(collitems)
 
