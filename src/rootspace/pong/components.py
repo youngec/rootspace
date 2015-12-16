@@ -6,13 +6,12 @@
 import math
 import random
 
-import config.keymap
 import sdl2
 
-import rootspace.components as components
+from ..components import EventComponent
 
 
-class PaddleControl(components.EventComponent):
+class PaddleControl(EventComponent):
     """
     The PaddleControl component stores an AI flag and the direction of
     the requested paddle movement. It reacts to events SDL_KEYDOWN and SDL_KEYUP.

@@ -49,19 +49,26 @@ def main(context, debug, verbose):
         raise SetupError("Could not find the configuration file. You probably didn't install Rootspace correctly.")
 
     # Store the configuration within the application context
+    delta_time = 1 / config.getfloat("Loop", "Frequency", fallback=100)
+    max_frame_duration = config.getfloat("Loop", "Maximum frame duration", fallback=0.25)
+    epsilon = config.getfloat("Loop", "Epsilon", fallback=0.00001)
+    window_title = config.get("Project", "Window title", fallback="")
+    window_shape = tuple(int(x) for x in config.get("Project", "Window shape", fallback="800 600").split(" "))
+    resource_dir = config.get("Project", "Resource directory", fallback="resources")
+    clear_color = tuple(int(x) for x in config.get("Project", "Renderer clear color", fallback="0 0 0 1").split(" "))
     context.obj = dict(
         debug=debug,
         verbose=verbose,
         project_location=project_location,
         user_home=user_home,
         current_working_dir=current_working_dir,
-        delta_time=1 / config.getfloat("Loop", "Frequency", fallback=100),
-        max_frame_duration=config.getfloat("Loop", "Maximum frame duration", fallback=0.25),
-        epsilon=config.getfloat("Loop", "Epsilon", fallback=0.00001),
-        window_title=config.get("Project", "Window title", fallback=""),
-        window_shape=tuple(int(x) for x in config.get("Project", "Window shape", fallback="800 600").split(" ")),
-        resource_dir=config.get("Project", "Resource directory", fallback="resources"),
-        clear_color=tuple(int(x) for x in config.get("Project", "Renderer clear color", fallback="0 0 0 1").split(" "))
+        delta_time=delta_time,
+        max_frame_duration=max_frame_duration,
+        epsilon=epsilon,
+        window_title=window_title,
+        window_shape=window_shape,
+        resource_dir=resource_dir,
+        clear_color=clear_color
     )
 
     # Create the core instance

@@ -5,7 +5,7 @@
 
 import sdl2.ext
 
-from src import rootspace as components
+from .components import PaddleControl, Velocity, Score
 
 
 class Player(sdl2.ext.Entity):
@@ -25,9 +25,9 @@ class Player(sdl2.ext.Entity):
         """
 
         self.sprite = sprite
-        self.paddlecontrol = components.PaddleControl()
-        self.velocity = components.Velocity()
-        self.score = components.Score()
+        self.paddlecontrol = PaddleControl()
+        self.velocity = Velocity()
+        self.score = Score()
 
         self.paddlecontrol.ai = ai
         self.sprite.position = position
@@ -49,6 +49,6 @@ class Ball(sdl2.ext.Entity):
         """
 
         self.sprite = sprite
-        self.velocity = components.Velocity()
+        self.velocity = Velocity()
 
         self.sprite.position = position

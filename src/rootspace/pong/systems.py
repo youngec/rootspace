@@ -5,18 +5,17 @@
 
 import logging
 
-import config.generic
-import rootspace.pong.components as components
 import sdl2.ext
 
-import src.rootspace.pong.entities as entities
+from .components import PaddleControl, Velocity
+from .entities import Ball, Player
 
 
 class ControlSystem(sdl2.ext.Applicator):
     def __init__(self, minx, miny, maxx, maxy):
         super(ControlSystem, self).__init__()
 
-        self.componenttypes = components.PaddleControl, components.Velocity, sdl2.ext.Sprite
+        self.componenttypes = PaddleControl, Velocity, sdl2.ext.Sprite
 
         self.ball = None
         self.minx = minx
@@ -57,7 +56,7 @@ class ControlSystem(sdl2.ext.Applicator):
                 velocity.stop()
 
     def process(self, world, comps):
-        if not isinstance(self.ball, entities.Ball):
+        if not isinstance(self.ball, Ball):
             raise TypeError("You have likely forgotten to set the ball field to a Ball instance.")
 
         for pcontrol, vel, sprite in comps:
@@ -70,7 +69,7 @@ class ControlSystem(sdl2.ext.Applicator):
 class MovementSystem(sdl2.ext.Applicator):
     def __init__(self, minx, miny, maxx, maxy):
         super(MovementSystem, self).__init__()
-        self.componenttypes = components.Velocity, sdl2.ext.Sprite
+        self.componenttypes = Velocity, sdl2.ext.Sprite
         self.minx = minx
         self.miny = miny
         self.maxx = maxx
@@ -134,7 +133,7 @@ class CollisionSystem(sdl2.ext.Applicator):
     def __init__(self, minx, miny, maxx, maxy):
         super(CollisionSystem, self).__init__()
 
-        self.componenttypes = components.Velocity, sdl2.ext.Sprite
+        self.componenttypes = Velocity, sdl2.ext.Sprite
 
         self.ball = None
         self.player1 = None
@@ -231,10 +230,10 @@ class CollisionSystem(sdl2.ext.Applicator):
         :return:
         """
 
-        if not isinstance(self.ball, entities.Ball):
+        if not isinstance(self.ball, Ball):
             raise TypeError("You have likely forgotten to set the ball field to a Ball instance.")
 
-        if not all([isinstance(p, entities.Player) for p in (self.player1, self.player2)]):
+        if not all([isinstance(p, Player) for p in (self.player1, self.player2)]):
             raise TypeError("You have likely forgotten to set the player1 and/or player2 fields to a Player instance.")
 
         collitems = [comp for comp in comps if self._overlap(comp)]

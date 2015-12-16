@@ -5,34 +5,36 @@
 
 import sdl2.ext
 
-import rootspace.core as core
-import rootspace.pong.systems as systems
-import src.rootspace.pong.entities as entities
+from ..core import Core
+from .systems import ControlSystem, MovementSystem, CollisionSystem
+from .entities import Ball, Player
 
 
-class PongCore(core.Core):
-    def _create_systems(self):
+class PongCore(Core):
+    @classmethod
+    def _create_systems(cls):
         self._log.debug("Creating the paddle control movement system.")
-        self._systems["control"] = systems.ControlSystem(0, 0, *self._window.size)
+        self._systems["control"] = ControlSystem(0, 0, *self._window.size)
 
         self._log.debug("Creating movement system.")
-        self._systems["movement"] = systems.MovementSystem(0, 0, *self._window.size)
+        self._systems["movement"] = MovementSystem(0, 0, *self._window.size)
 
         self._log.debug("Creating collision system.")
-        self._systems["collision"] = systems.CollisionSystem(0, 0, *self._window.size)
+        self._systems["collision"] = CollisionSystem(0, 0, *self._window.size)
 
-    def _add_entities(self):
+    @classmethod
+    def _add_entities(cls):
         self._log.debug("Creating sprites.")
         sp_paddle1 = self._factory.from_color(sdl2.ext.Color(), size=(20, 100))
         sp_paddle2 = self._factory.from_color(sdl2.ext.Color(), size=(20, 100))
         sp_ball = self._factory.from_color(sdl2.ext.Color(), size=(20, 20))
 
         self._log.debug("Creating players.")
-        self._entities["player1"] = entities.Player(self._world, sp_paddle1, position=(0, 250))
-        self._entities["player2"] = entities.Player(self._world, sp_paddle2, position=(780, 250), ai=True)
+        self._entities["player1"] = Player(self._world, sp_paddle1, position=(0, 250))
+        self._entities["player2"] = Player(self._world, sp_paddle2, position=(780, 250), ai=True)
 
         self._log.debug("Creating ball.")
-        self._entities["ball"] = entities.Ball(self._world, sp_ball, position=(390, 290))
+        self._entities["ball"] = Ball(self._world, sp_ball, position=(390, 290))
         self._entities["ball"].velocity.reset()
         self._systems["collision"].ball = self._entities["ball"]
         self._systems["collision"].player1 = self._entities["player1"]

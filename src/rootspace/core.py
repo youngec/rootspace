@@ -99,7 +99,7 @@ class Core(object):
         # Create your custom systems BEFORE the renderer (addition order dictates execution order)
         log.debug("Adding Systems to the World.")
         systems = collections.OrderedDict()
-        # TODO: self._create_systems()
+        cls._create_systems()
         systems['render_system'] = sdl2.ext.TextureSpriteRenderSystem(renderer)
 
         # Add all systems to the world
@@ -112,13 +112,14 @@ class Core(object):
         # Create the game entities
         log.debug("Adding Entities to the World.")
         entities = dict()
-        # TODO: self._add_entities()
+        cls._add_entities()
 
         return cls(
             project_location, delta_time, max_frame_duration, epsilon, log, resources, window, renderer,
             factory, world, event_dispatcher, entities, systems)
 
-    def _create_systems(self):
+    @classmethod
+    def _create_systems(cls):
         """
         Create the systems that manipulate the world. They will later be added
         to the world automatically.
@@ -129,7 +130,8 @@ class Core(object):
         """
         warnings.warn("You are calling an abstract method. No Systems added.", NotImplementedWarning)
 
-    def _add_entities(self):
+    @classmethod
+    def _add_entities(cls):
         """
         Create and add entities to the world.
 
