@@ -5,7 +5,7 @@
 
 import sdl2.ext
 
-import rootspace.pong.components as components
+from src import rootspace as components
 
 
 class Player(sdl2.ext.Entity):

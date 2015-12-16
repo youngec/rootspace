@@ -6,10 +6,10 @@
 import math
 import random
 
+import config.keymap
 import sdl2
 
-import rootspace.engine.components as components
-import config.keymap
+import rootspace.components as components
 
 
 class PaddleControl(components.EventComponent):

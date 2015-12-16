@@ -5,8 +5,6 @@
 import pytest
 import sdl2.ext
 
-import rootspace.pong.components
-
 
 class TestMovementSystem(object):
     """
@@ -15,7 +13,7 @@ class TestMovementSystem(object):
 
     @pytest.fixture
     def system(self):
-        return rootspace.pong.systems.MovementSystem(0, 1, 100, 200)
+        return src.rootspace.pong.systems.MovementSystem(0, 1, 100, 200)
 
     def test_baseclass(self):
         """
@@ -24,7 +22,7 @@ class TestMovementSystem(object):
         :return:
         """
 
-        assert issubclass(rootspace.pong.systems.MovementSystem, sdl2.ext.Applicator)
+        assert issubclass(src.rootspace.pong.systems.MovementSystem, sdl2.ext.Applicator)
 
     def test_componenttypes(self, system):
         """
@@ -33,7 +31,7 @@ class TestMovementSystem(object):
         :return:
         """
 
-        assert issubclass(system.componenttypes[0], rootspace.pong.components.Velocity)
+        assert issubclass(system.componenttypes[0], src.rootspace.pong.components.Velocity)
         assert issubclass(system.componenttypes[1], sdl2.ext.Sprite)
 
     def test_boundaries(self, system):
@@ -68,7 +66,7 @@ class TestCollisionSystem(object):
 
     @pytest.fixture
     def system(self):
-        return rootspace.pong.systems.CollisionSystem(0, 1, 100, 200)
+        return src.rootspace.pong.systems.CollisionSystem(0, 1, 100, 200)
 
     def test_baseclass(self):
         """
@@ -77,7 +75,7 @@ class TestCollisionSystem(object):
         :return:
         """
 
-        assert issubclass(rootspace.pong.systems.CollisionSystem, sdl2.ext.Applicator)
+        assert issubclass(src.rootspace.pong.systems.CollisionSystem, sdl2.ext.Applicator)
 
     def test_componenttypes(self, system):
         """
@@ -86,7 +84,7 @@ class TestCollisionSystem(object):
         :return:
         """
 
-        assert issubclass(system.componenttypes[0], rootspace.pong.components.Velocity)
+        assert issubclass(system.componenttypes[0], src.rootspace.pong.components.Velocity)
         assert issubclass(system.componenttypes[1], sdl2.ext.Sprite)
 
     def test_boundaries(self, system):
@@ -135,7 +133,7 @@ class TestTrackingAIController(object):
 
     @pytest.fixture
     def system(self):
-        return rootspace.pong.systems.TrackingAIController(0, 1, 100, 200)
+        return src.rootspace.pong.systems.TrackingAIController(0, 1, 100, 200)
 
     def test_baseclass(self):
         """
@@ -144,7 +142,7 @@ class TestTrackingAIController(object):
         :return:
         """
 
-        assert issubclass(rootspace.pong.systems.TrackingAIController, sdl2.ext.Applicator)
+        assert issubclass(src.rootspace.pong.systems.TrackingAIController, sdl2.ext.Applicator)
 
     def test_componenttypes(self, system):
         """
@@ -153,8 +151,8 @@ class TestTrackingAIController(object):
         :return:
         """
 
-        assert issubclass(system.componenttypes[0], rootspace.pong.components.PlayerData)
-        assert issubclass(system.componenttypes[1], rootspace.pong.components.Velocity)
+        assert issubclass(system.componenttypes[0], src.rootspace.pong.components.PlayerData)
+        assert issubclass(system.componenttypes[1], src.rootspace.pong.components.Velocity)
         assert issubclass(system.componenttypes[2], sdl2.ext.Sprite)
 
     def test_boundaries(self, system):

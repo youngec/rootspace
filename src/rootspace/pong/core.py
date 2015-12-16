@@ -5,9 +5,9 @@
 
 import sdl2.ext
 
-import rootspace.engine.core as core
-import rootspace.pong.entities as entities
+import rootspace.core as core
 import rootspace.pong.systems as systems
+import src.rootspace.pong.entities as entities
 
 
 class PongCore(core.Core):

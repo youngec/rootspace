@@ -4,14 +4,15 @@
 """Docstring"""
 
 import sdl2.ext
-import rootspace.engine.components as components
+
+from .components import EventComponent
 
 
 class EventDispatcher(sdl2.ext.System):
     def __init__(self, world):
         super(EventDispatcher, self).__init__()
 
-        self.componenttypes = (components.EventComponent, )
+        self.componenttypes = (EventComponent, )
 
         self._world = world
 

@@ -10,33 +10,35 @@ import warnings
 
 import sdl2
 import sdl2.ext
-from characteristic import Attribute, attributes
+import attr
+from attr.validators import instance_of
 
-import rootspace.engine.systems as systems
-import rootspace.engine.exceptions as exceptions
+from .exceptions import NotImplementedWarning
+from .systems import EventDispatcher
 
 
-@attributes([Attribute("_location", instance_of=str),
-             Attribute("_log", instance_of=logging.Logger),
-             Attribute("_resources", instance_of=sdl2.ext.Resources),
-             Attribute("_window", instance_of=sdl2.ext.Window),
-             Attribute("_renderer", instance_of=sdl2.ext.Renderer),
-             Attribute("_factory", instance_of=sdl2.ext.SpriteFactory),
-             Attribute("_world", instance_of=sdl2.ext.World),
-             Attribute("_event_dispatcher", instance_of=systems.EventDispatcher),
-             Attribute("_entities", instance_of=dict),
-             Attribute("_systems", instance_of=collections.OrderedDict),
-             Attribute("_delta_time", instance_of=float),
-             Attribute("_max_frame_duration", instance_of=float),
-             Attribute("_epsilon", instance_of=float)],
-            apply_immutable=True)
+@attr.s
 class Core(object):
     """
     The Core is in a sense the general object manager.
     """
+    location = attr.ib(validator=instance_of(str))
+    delta_time = attr.ib(validator=instance_of(float))
+    max_frame_duration = attr.ib(validator=instance_of(float))
+    epsilon = attr.ib(validator=instance_of(float))
+    _log = attr.ib(validator=instance_of(logging.Logger))
+    _resources = attr.ib(validator=instance_of(sdl2.ext.Resources))
+    _window = attr.ib(validator=instance_of(sdl2.ext.Window))
+    _renderer = attr.ib(validator=instance_of(sdl2.ext.Renderer))
+    _factory = attr.ib(validator=instance_of(sdl2.ext.SpriteFactory))
+    _world = attr.ib(validator=instance_of(sdl2.ext.World))
+    _event_dispatcher = attr.ib(validator=instance_of(EventDispatcher))
+    _entities = attr.ib(validator=instance_of(dict))
+    _systems = attr.ib(validator=instance_of(collections.OrderedDict))
+
     @classmethod
-    def create_core(cls, project_location, resource_dir, window_title, window_shape, clear_color, delta_time,
-                    max_frame_duration, epsilon):
+    def create(cls, project_location, resource_dir, window_title, window_shape, clear_color, delta_time,
+               max_frame_duration, epsilon):
         """
         Start up the Core.
 
@@ -96,24 +98,25 @@ class Core(object):
         # Create the systems
         # Create your custom systems BEFORE the renderer (addition order dictates execution order)
         log.debug("Adding Systems to the World.")
-        syst = collections.OrderedDict()
+        systems = collections.OrderedDict()
         # TODO: self._create_systems()
-        syst['render_system'] = sdl2.ext.TextureSpriteRenderSystem(renderer)
+        systems['render_system'] = sdl2.ext.TextureSpriteRenderSystem(renderer)
 
         # Add all systems to the world
-        for system in syst.values():
+        for system in systems.values():
             world.add_system(system)
 
         # Create the event dispatcher
-        event_dispatcher = systems.EventDispatcher(world)
+        event_dispatcher = EventDispatcher(world)
 
         # Create the game entities
         log.debug("Adding Entities to the World.")
         entities = dict()
         # TODO: self._add_entities()
 
-        return cls(project_location, log, resources, window, renderer, factory, world, event_dispatcher, entities,
-                   systems, delta_time, max_frame_duration, epsilon)
+        return cls(
+            project_location, delta_time, max_frame_duration, epsilon, log, resources, window, renderer,
+            factory, world, event_dispatcher, entities, systems)
 
     def _create_systems(self):
         """
@@ -124,8 +127,7 @@ class Core(object):
 
         :return:
         """
-
-        warnings.warn("You are calling an abstract method. No Systems added.", exceptions.NotImplementedWarning)
+        warnings.warn("You are calling an abstract method. No Systems added.", NotImplementedWarning)
 
     def _add_entities(self):
         """
@@ -135,8 +137,7 @@ class Core(object):
 
         :return:
         """
-
-        warnings.warn("You are calling an abstract method. No Entities added.", exceptions.NotImplementedWarning)
+        warnings.warn("You are calling an abstract method. No Entities added.", NotImplementedWarning)
 
     def loop(self):
         """

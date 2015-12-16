@@ -5,11 +5,11 @@
 
 import logging
 
-import sdl2.ext
-
 import config.generic
 import rootspace.pong.components as components
-import rootspace.pong.entities as entities
+import sdl2.ext
+
+import src.rootspace.pong.entities as entities
 
 
 class ControlSystem(sdl2.ext.Applicator):
