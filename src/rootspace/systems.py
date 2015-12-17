@@ -35,7 +35,6 @@ class EventDispatcher(sdl2.ext.System):
         :param event:
         :return:
         """
-
         if event is None:
             return
 

@@ -6,15 +6,14 @@
 import collections
 import logging
 import time
-import warnings
 
 import sdl2
 import sdl2.ext
 import attr
 from attr.validators import instance_of
 
-from .exceptions import NotImplementedWarning
 from .systems import EventDispatcher
+from .ebs import World
 
 
 @attr.s
@@ -31,13 +30,13 @@ class Core(object):
     _window = attr.ib(validator=instance_of(sdl2.ext.Window))
     _renderer = attr.ib(validator=instance_of(sdl2.ext.Renderer))
     _factory = attr.ib(validator=instance_of(sdl2.ext.SpriteFactory))
-    _world = attr.ib(validator=instance_of(sdl2.ext.World))
+    _world = attr.ib(validator=instance_of(World))
     _event_dispatcher = attr.ib(validator=instance_of(EventDispatcher))
     _entities = attr.ib(validator=instance_of(dict))
     _systems = attr.ib(validator=instance_of(collections.OrderedDict))
 
     @classmethod
-    def create(cls, project_location, resource_dir, window_title, window_shape, clear_color, delta_time,
+    def create(cls, project_class, project_location, resource_dir, window_title, window_shape, clear_color, delta_time,
                max_frame_duration, epsilon):
         """
         Start up the Core.
@@ -53,14 +52,15 @@ class Core(object):
         9. Create and add custom entities to the world
         10. Return the initialized Core instance
 
-        :param project_location:
-        :param resource_dir:
-        :param window_title:
-        :param window_shape:
-        :param clear_color:
-        :param delta_time:
-        :param max_frame_duration:
-        :param epsilon:
+        :param Project project_class:
+        :param str project_location:
+        :param str resource_dir:
+        :param str window_title:
+        :param tuple[int] window_shape:
+        :param tuple[float] clear_color:
+        :param float delta_time:
+        :param float max_frame_duration:
+        :param float epsilon:
         :return:
         """
         # Get the Logger instance
@@ -89,17 +89,19 @@ class Core(object):
 
         # Create a world
         log.debug("Creating the World.")
-        world = UpdateRenderWorld()
+        world = World()
 
         # Create the sprite factory (use hardware accelerated rendering)
         log.debug("Creating the SpriteFactory with hardware accelerated rendering.")
         factory = sdl2.ext.SpriteFactory(sdl2.ext.TEXTURE, renderer=renderer)
 
+        # Create the project instance
+        proj = project_class.create(window, world, factory)
+
         # Create the systems
         # Create your custom systems BEFORE the renderer (addition order dictates execution order)
         log.debug("Adding Systems to the World.")
-        systems = collections.OrderedDict()
-        cls._create_systems()
+        systems = proj.init_systems(collections.OrderedDict())
         systems['render_system'] = sdl2.ext.TextureSpriteRenderSystem(renderer)
 
         # Add all systems to the world
@@ -111,35 +113,11 @@ class Core(object):
 
         # Create the game entities
         log.debug("Adding Entities to the World.")
-        entities = dict()
-        cls._add_entities()
+        entities = proj.init_entities(systems, dict())
 
         return cls(
             project_location, delta_time, max_frame_duration, epsilon, log, resources, window, renderer,
             factory, world, event_dispatcher, entities, systems)
-
-    @classmethod
-    def _create_systems(cls):
-        """
-        Create the systems that manipulate the world. They will later be added
-        to the world automatically.
-
-        Use: self._systems['name'] = System()
-
-        :return:
-        """
-        warnings.warn("You are calling an abstract method. No Systems added.", NotImplementedWarning)
-
-    @classmethod
-    def _add_entities(cls):
-        """
-        Create and add entities to the world.
-
-        Use: self._entities['name'] = Entity(self._world, *args, **kwargs)
-
-        :return:
-        """
-        warnings.warn("You are calling an abstract method. No Entities added.", NotImplementedWarning)
 
     def loop(self):
         """
@@ -195,7 +173,7 @@ class Core(object):
                 # This function should take both t and dt as arguments I
                 # circumvented this by creating a module_level constant in
                 # generic.py, DELTA_TIME.
-                world.process()
+                world.process(t, delta_time)
 
                 t += delta_time
                 accumulator -= delta_time
@@ -219,41 +197,34 @@ class Core(object):
         self._log.info("The Core has safely shut down.")
 
 
-class UpdateRenderWorld(sdl2.ext.World):
+@attr.s
+class Project(object):
     """
-    Re-implement the sdl2.ext.World to separate rendering from updating.
-    Why do this? If you check out the main loop in core.Core, you'll see that I use a fixed time-step
-    loop that ensures stable regular execution of the physics update, even if the rendering step takes long,
-    which is the case on slow machines. Thus, I need to keep these two steps (update, render) separated.
+    Base class for a project.
     """
+    _window = attr.ib(validator=instance_of(sdl2.ext.Window))
+    _world = attr.ib(validator=instance_of(World))
+    _factory = attr.ib(validator=instance_of(sdl2.ext.SpriteFactory))
 
-    def update(self):
+    @classmethod
+    def create(cls, window, world, factory):
+        return cls(window, world, factory)
+
+    def init_systems(self, systems):
         """
-        Processes all components within their corresponding systems, except for the render system.
+        Add project-specific systems.
 
+        :param dict systems:
         :return:
         """
-        components = self.components
-        syst = [sys for sys in self._systems if not isinstance(sys, sdl2.ext.SpriteRenderSystem)]
-        for system in syst:
-            s_process = system.process
-            if getattr(system, "is_applicator", False):
-                comps = self.combined_components(system.componenttypes)
-                s_process(self, comps)
-            else:
-                for ctype in system.componenttypes:
-                    s_process(self, components[ctype].values())
+        return systems
 
-    def render(self):
+    def init_entities(self, systems, entities):
         """
-        Process the components that correspond to the render system.
+        Add project-specific entities based on the supplied systems.
 
+        :param dict systems:
+        :param dict entities:
         :return:
         """
-
-        components = self.components
-        render_systems = [sys for sys in self._systems if isinstance(sys, sdl2.ext.SpriteRenderSystem)]
-        for system in render_systems:
-            s_process = system.process
-            for ctype in system.componenttypes:
-                s_process(self, components[ctype].values())
+        return entities
