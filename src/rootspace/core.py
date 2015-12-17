@@ -95,7 +95,7 @@ class Core(object):
         factory = sdl2.ext.SpriteFactory(sdl2.ext.TEXTURE, renderer=renderer)
 
         # Create the project instance
-        proj = project_class.create(window, world, factory)
+        proj = project_class(window, world, factory)
 
         # Create the systems
         # Create your custom systems BEFORE the renderer (addition order dictates execution order)
@@ -200,10 +200,6 @@ class Project(object):
     _window = attr.ib(validator=instance_of(sdl2.ext.Window))
     _world = attr.ib(validator=instance_of(World))
     _factory = attr.ib(validator=instance_of(sdl2.ext.SpriteFactory))
-
-    @classmethod
-    def create(cls, window, world, factory):
-        return cls(window, world, factory)
 
     def init_systems(self, systems):
         """
