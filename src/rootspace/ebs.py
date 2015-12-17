@@ -12,89 +12,76 @@ import sdl2.ext
 __docformat__ = 'restructuredtext'
 
 
-class Entity(object):
-    """A simple object entity.
-
-    An entity is a specific object living in the application world. It
-    does not carry any data or application logic, but merely acts as
-    identifier label for data that is maintained in the application
-    world itself.
-
-    As such, it is an composition of components, which would not exist
-    without the entity identifier. The entity itself is non-existent to
-    the application world as long as it does not carry any data that can
-    be processed by a system within the application world.
+@attr.s
+class EventComponent(object):
     """
-    def __new__(cls, world, *args, **kwargs):
-        if not isinstance(world, World):
-            raise TypeError("world must be a World")
-        entity = object.__new__(cls)
-        entity._id = uuid.uuid4()
-        entity._world = world
-        world.entities.add(entity)
-        return entity
+    EventComponent simply defines a common interface for components that react to events.
+    """
+    events = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
 
-    def __repr__(self):
-        return "Entity(id=%s)" % self._id
 
-    def __hash__(self):
-        return hash(self._id)
+@attr.s
+class System(object):
+    """
+    A processing system for component data.
 
-    def __getattr__(self, name):
-        """Gets the component data related to the Entity."""
-        if name in ("_id", "_world"):
-            return getattr(self, name)
-        try:
-            ctype = self._world._componenttypes[name]
-        except KeyError:
-            raise AttributeError("object '%r' has no attribute '%r'" % \
-                (self.__class__.__name__, name))
-        return self._world.components[ctype][self]
+    A processing system within an application world consumes the
+    components of all entities, for which it was set up. At time of
+    processing, the system does not know about any other component type
+    that might be bound to any entity.
 
-    def __setattr__(self, name, value):
-        """Sets the component data related to the Entity."""
-        if name in ("_id", "_world"):
-            object.__setattr__(self, name, value)
-        else:
-            # If the value is a compound component (e.g. a Button
-            # inheriting from a Sprite), it needs to be added to all
-            # supported component type instances.
-            mro = inspect.getmro(value.__class__)
-            if type in mro:
-                stop = mro.index(type)
-            else:
-                stop = mro.index(object)
-            mro = mro[0:stop]
-            wctypes = self._world.componenttypes
-            for clstype in mro:
-                if clstype not in wctypes:
-                    self._world.add_componenttype(clstype)
-                self._world.components[clstype][self] = value
+    Also, the processing system does not know about any specific entity,
+    but only is aware of the data carried by all entities.
+    """
+    component_types = attr.ib(default=tuple(), validator=instance_of(tuple))
+    is_applicator = attr.ib(default=False, validator=instance_of(bool))
 
-    def __delattr__(self, name):
-        """Deletes the component data related to the Entity."""
-        if name in ("_id", "_world"):
-            raise AttributeError("'%s' cannot be deleted.", name)
-        try:
-            ctype = self._world._componenttypes[name]
-        except KeyError:
-            raise AttributeError("object '%s' has no attribute '%s'" % \
-                (self.__class__.__name__, name))
-        del self._world.components[ctype][self]
+    def update(self, t, dt, world, components):
+        """
+        Processes component items.
 
-    def delete(self):
-        """Removes the Entity from the world it belongs to."""
-        self.world.delete(self)
+        :param float t:
+        :param float dt:
+        :param World world:
+        :param components:
+        :return:
+        """
+        pass
 
-    @property
-    def id(self):
-        """The id of the Entity."""
-        return self._id
 
-    @property
-    def world(self):
-        """The world the Entity resides in."""
-        return self._world
+@attr.s
+class EventDispatcher(System):
+    def __init__(self):
+        self.component_types = (EventComponent, )
+
+    def _dispatch_event(self, component, event):
+        """
+        Pass an event to a component. This does not check, whether the component may actually
+        handle the event.
+
+        :param component:
+        :param event:
+        :return:
+        """
+        component.events[event.type](event)
+
+    def dispatch(self, world, event):
+        """
+        Pass an event to all relevant objects within the world.
+
+        :param event:
+        :return:
+        """
+        if event is None:
+            return
+
+        for ctype in self.componenttypes:
+            all_components = world.get_components(ctype)
+            relevant_components = [c for c in all_components if event.type in c.events]
+
+            if len(relevant_components) > 0:
+                for c in relevant_components:
+                    self._dispatch_event(c, event)
 
 
 @attr.s
@@ -132,7 +119,7 @@ class World(object):
     @property
     def component_types(self):
         """Gets the supported component types of the world."""
-        return self._componenttypes.values()
+        return self._component_types.values()
 
     def combined_components(self, comp_types):
         comps = self.components
@@ -164,72 +151,31 @@ class World(object):
 
         self.entities -= ents
 
-    # def _system_is_valid(self, system):
-    #     """Checks, if the passed object fulfills the requirements for being
-    #     a processing system.
-    #     """
-    #     return hasattr(system, "componenttypes") and \
-    #         isiterable(system.componenttypes) and \
-    #         hasattr(system, "process") and \
-    #         callable(system.process)
-
-    def get_components(self, componenttype):
-        """Gets all existing components for a sepcific component type.
-
-        If no components could be found for the passed component types, an
-        empty list is returned.
-        """
-        if componenttype in self.components:
-            return self.components[componenttype].values()
-        return []
+    def get_components(self, comp_type):
+        if comp_type is self.components:
+            return self.components[comp_type].values()
+        else:
+            return []
 
     def get_entities(self, component):
-        """Gets the entities using the passed component.
-
-        Note: this will not perform an identity check on the component
-        but rely on its __eq__ implementation instead.
-        """
-        compset = self.components.get(component.__class__, None)
-        if compset is None:
-            return []
-        return [e for e in compset if compset[e] == component]
+        comp_set = self.components.get(component.__class__, [])
+        return [e for e in comp_set if comp_set[e] == component]
 
     def add_system(self, system):
-        """Adds a processing system to the world.
+        for class_type in system.component_types:
+            if class_type not in self.components:
+                self.add_component_type(class_type)
 
-        The system will be added as last item in the processing order. Every
-        object can be added as long as it contains
-
-           * a 'componenttypes' attribute that is iterable and contains the
-            class types to be processed
-           * a 'process()' method, receiving two arguments, the world and
-             components
-
-        If the object contains a 'is_applicator' attribute that evaluates to
-        True, the system will operate on combined sets of components.
-        """
-        if not self._system_is_valid(system):
-            raise ValueError("system must have componenttypes and a process method")
-        for classtype in system.componenttypes:
-            if classtype not in self.components:
-                self.add_componenttype(classtype)
         self._systems.append(system)
 
     def insert_system(self, index, system):
-        """Adds a processing system to the world.
+        for class_type in system.component_types:
+            if class_type not in self.components:
+                self.add_component_type(class_type)
 
-        The system will be added at the specific position of the
-        processing order.
-        """
-        if not self._system_is_valid(system):
-            raise ValueError("system must have componenttypes and a process method")
-        for classtype in system.componenttypes:
-            if classtype not in self.components:
-                self.add_componenttype(classtype)
         self._systems.insert(index, system)
 
     def remove_system(self, system):
-        """Removes a processing system from the world."""
         self._systems.remove(system)
 
     def update(self, t, dt):
@@ -240,15 +186,14 @@ class World(object):
         :param float dt:
         :return:
         """
-        components = self.components
-        syst = [sys for sys in self._systems if not isinstance(sys, sdl2.ext.SpriteRenderSystem)]
-        for system in syst:
-            if system.is_applicator:
-                comps = self.combined_components(system.componenttypes)
-                system.update(t, dt, self, comps)
-            else:
-                for ctype in system.componenttypes:
-                    system.update(t, dt, self, components[ctype].values())
+        for system in self._systems:
+            if not isinstance(system, sdl2.ext.SpriteRenderSystem):
+                if system.is_applicator:
+                    comps = self.combined_components(system.component_types)
+                    system.update(t, dt, self, comps)
+                else:
+                    for comp_type in system.component_types:
+                        system.update(t, dt, self, self.components[comp_type].values())
 
     def render(self):
         """
@@ -256,37 +201,53 @@ class World(object):
 
         :return:
         """
-        components = self.components
-        render_systems = [sys for sys in self._systems if isinstance(sys, sdl2.ext.SpriteRenderSystem)]
-        for system in render_systems:
-            for ctype in system.componenttypes:
-                system.process(self, components[ctype].values())
+        for system in self._systems:
+            if isinstance(system, sdl2.ext.SpriteRenderSystem):
+                for ctype in system.componenttypes:
+                    system.process(self, self.components[ctype].values())
 
 
 @attr.s
-class System(object):
-    """
-    A processing system for component data.
+class Entity(object):
+    _world = attr.ib(validator=instance_of(World))
+    _id = attr.ib(default=attr.Factory(uuid.uuid4), validator=instance_of(uuid.UUID))
 
-    A processing system within an application world consumes the
-    components of all entities, for which it was set up. At time of
-    processing, the system does not know about any other component type
-    that might be bound to any entity.
+    @classmethod
+    def create(cls, world, *args, **kwargs):
+        inst = cls(world, *args, **kwargs)
+        world.entities.add(inst)
+        return inst
 
-    Also, the processing system does not know about any specific entity,
-    but only is aware of the data carried by all entities.
-    """
-    component_types = attr.ib(default=tuple(), validator=instance_of(tuple))
-    is_applicator = attr.ib(default=False, validator=instance_of(bool))
+    def __getattr__(self, item):
+        try:
+            comp_type = self._world.component_types[item]
+        except KeyError:
+            raise AttributeError("{!r} has no attribute {!r}".format(self, item))
 
-    def update(self, t, dt, world, components):
-        """
-        Processes component items.
+        return self._world.components[comp_type][self]
 
-        :param float t:
-        :param float dt:
-        :param World world:
-        :param components:
-        :return:
-        """
-        raise NotImplementedError()
+    def __setattr__(self, key, value):
+        mro = inspect.getmro(value.__class__)
+        if type in mro:
+            stop = mro.index(type)
+        else:
+            stop = mro.index(object)
+
+        mro = mro[0:stop]
+        world_comp_types = self._world.component_types
+        for class_type in mro:
+            if class_type not in world_comp_types:
+                self._world.add_componenttype(class_type)
+            self._world.components[class_type][self] = value
+
+    def __delattr__(self, item):
+        try:
+            comp_type = self._world.component_types[item]
+        except KeyError:
+            raise AttributeError("{!r} has no attribute {!r}".format(self, item))
+
+        del self._world.components[comp_type][self]
+
+    def delete(self):
+        """Removes the Entity from the world it belongs to."""
+        self._world.delete(self)

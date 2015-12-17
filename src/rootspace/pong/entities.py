@@ -4,51 +4,27 @@
 """Collection of entities in an Entity-Component-System architecture."""
 
 import sdl2.ext
-
+import attr
+from attr.validators import instance_of, optional
+from ..ebs import Entity
 from .components import PaddleControl, Velocity, Score
 
 
-class Player(sdl2.ext.Entity):
+@attr.s
+class Player(Entity):
     """
     A Player is an Entity with a sprite, velocity and player data.
     """
-
-    def __init__(self, world, sprite, position=(0, 0), ai=False):
-        """
-        Construct a Player.
-
-        :param world: Containing World (used by __new__()!)
-        :param sprite: Sprite instance
-        :param position: Desired position of the Sprite
-        :param ai: AI flag
-        :return:
-        """
-
-        self.sprite = sprite
-        self.paddlecontrol = PaddleControl()
-        self.velocity = Velocity()
-        self.score = Score()
-
-        self.paddlecontrol.ai = ai
-        self.sprite.position = position
+    sprite = attr.ib(default=None, validator=optional(instance_of(sdl2.ext.Sprite)))
+    paddle_control = attr.ib(default=attr.Factory(PaddleControl), validator=instance_of(PaddleControl))
+    velocity = attr.ib(default=attr.Factory(Velocity), validator=instance_of(Velocity))
+    score = attr.ib(default=attr.Factory(Score), validator=instance_of(Score))
 
 
-class Ball(sdl2.ext.Entity):
+@attr.s
+class Ball(Entity):
     """
     A Ball is an Entity with a sprite and velocity.
     """
-
-    def __init__(self, world, sprite, position=(0, 0)):
-        """
-        Construct a Ball.
-
-        :param world: Containing World (used by __new__()!)
-        :param sprite: Sprite instance
-        :param position: Desired position of the Sprite
-        :return:
-        """
-
-        self.sprite = sprite
-        self.velocity = Velocity()
-
-        self.sprite.position = position
+    sprite = attr.ib(default=None, validator=optional(instance_of(sdl2.ext.Sprite)))
+    velocity = attr.ib(default=attr.Factory(Velocity), validator=instance_of(Velocity))

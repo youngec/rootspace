@@ -12,8 +12,7 @@ import sdl2.ext
 import attr
 from attr.validators import instance_of
 
-from .systems import EventDispatcher
-from .ebs import World
+from .ebs import World, EventDispatcher
 
 
 @attr.s
@@ -109,7 +108,7 @@ class Core(object):
             world.add_system(system)
 
         # Create the event dispatcher
-        event_dispatcher = EventDispatcher(world)
+        event_dispatcher = EventDispatcher()
 
         # Create the game entities
         log.debug("Adding Entities to the World.")
@@ -168,13 +167,9 @@ class Core(object):
                         running = False
                         break
                     else:
-                        dispatch(event)
+                        dispatch(world, event)
 
-                # This function should take both t and dt as arguments I
-                # circumvented this by creating a module_level constant in
-                # generic.py, DELTA_TIME.
                 world.process(t, delta_time)
-
                 t += delta_time
                 accumulator -= delta_time
 

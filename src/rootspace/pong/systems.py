@@ -3,27 +3,25 @@
 
 """Collection of systems in an Entity-Component-System architecture."""
 
-import logging
-
 import sdl2.ext
-
+import attr
+from attr.validators import instance_of, optional
+from ..ebs import System
 from .components import PaddleControl, Velocity
 from .entities import Ball, Player
 
 
-class ControlSystem(sdl2.ext.Applicator):
-    def __init__(self, minx, miny, maxx, maxy):
-        super(ControlSystem, self).__init__()
+@attr.s
+class ControlSystem(System):
+    minx = attr.ib(default=0, validator=instance_of(int))
+    miny = attr.ib(default=0, validator=instance_of(int))
+    maxx = attr.ib(default=640, validator=instance_of(int))
+    maxy = attr.ib(default=480, validator=instance_of(int))
+    ball = attr.ib(default=None, validator=optional(instance_of(Ball)))
 
-        self.componenttypes = PaddleControl, Velocity, sdl2.ext.Sprite
-
-        self.ball = None
-        self.minx = minx
-        self.miny = miny
-        self.maxx = maxx
-        self.maxy = maxy
-
-        self._logger = logging.getLogger(__name__)
+    def __init__(self):
+        self.component_types = (PaddleControl, Velocity, sdl2.ext.Sprite)
+        self.is_applicator = True
 
     def _control_pc(self, paddle_control, velocity, sprite):
         if paddle_control.movement == "up":
@@ -55,29 +53,26 @@ class ControlSystem(sdl2.ext.Applicator):
             else:
                 velocity.stop()
 
-    def process(self, world, comps):
-        if not isinstance(self.ball, Ball):
-            raise TypeError("You have likely forgotten to set the ball field to a Ball instance.")
-
-        for pcontrol, vel, sprite in comps:
+    def update(self, t, dt, world, components):
+        for pcontrol, vel, sprite in components:
             if pcontrol.ai:
                 self._control_npc(pcontrol, vel, sprite)
             else:
                 self._control_pc(pcontrol, vel, sprite)
 
 
-class MovementSystem(sdl2.ext.Applicator):
-    def __init__(self, minx, miny, maxx, maxy):
-        super(MovementSystem, self).__init__()
-        self.componenttypes = Velocity, sdl2.ext.Sprite
-        self.minx = minx
-        self.miny = miny
-        self.maxx = maxx
-        self.maxy = maxy
+@attr.s
+class MovementSystem(System):
+    minx = attr.ib(default=0, validator=instance_of(int))
+    miny = attr.ib(default=0, validator=instance_of(int))
+    maxx = attr.ib(default=640, validator=instance_of(int))
+    maxy = attr.ib(default=480, validator=instance_of(int))
 
-        self._logger = logging.getLogger(__name__)
+    def __init__(self):
+        self.component_types = (Velocity, sdl2.ext.Sprite)
+        self.is_applicator = True
 
-    def _move(self, velocity, sprite):
+    def _move(self, dt, velocity, sprite):
         """
         Move a Sprite according to the velocity of the parent Entity.
 
@@ -85,13 +80,12 @@ class MovementSystem(sdl2.ext.Applicator):
         :param sprite:
         :return:
         """
-
-        velocity.dx += velocity.vx * config.generic.DELTA_TIME
+        velocity.dx += velocity.vx * dt
         if abs(velocity.dx) >= 1:
             sprite.x += round(velocity.dx)
             velocity.dx = 0
 
-        velocity.dy += velocity.vy * config.generic.DELTA_TIME
+        velocity.dy += velocity.vy * dt
         if abs(velocity.dy) >= 1:
             sprite.y += round(velocity.dy)
             velocity.dy = 0
@@ -103,7 +97,6 @@ class MovementSystem(sdl2.ext.Applicator):
         :param sprite:
         :return:
         """
-
         sprite.x = max(self.minx, sprite.x)
         sprite.y = max(self.miny, sprite.y)
 
@@ -115,36 +108,25 @@ class MovementSystem(sdl2.ext.Applicator):
         if pmaxy > self.maxy:
             sprite.y = self.maxy - sheight
 
-    def process(self, world, comps):
-        """
-        Process Entity movement.
-
-        :param world:
-        :param comps:
-        :return:
-        """
-
-        for velocity, sprite in comps:
-            self._move(velocity, sprite)
+    def update(self, t, dt, world, components):
+        for velocity, sprite in components:
+            self._move(dt, velocity, sprite)
             self._bound(sprite)
 
 
-class CollisionSystem(sdl2.ext.Applicator):
-    def __init__(self, minx, miny, maxx, maxy):
-        super(CollisionSystem, self).__init__()
+@attr.s
+class CollisionSystem(System):
+    minx = attr.ib(default=0, validator=instance_of(int))
+    miny = attr.ib(default=0, validator=instance_of(int))
+    maxx = attr.ib(default=640, validator=instance_of(int))
+    maxy = attr.ib(default=480, validator=instance_of(int))
+    ball = attr.ib(default=None, validator=optional(instance_of(Ball)))
+    player1 = attr.ib(default=None, validator=optional(instance_of(Player)))
+    player2 = attr.ib(default=None, validator=optional(instance_of(Player)))
 
-        self.componenttypes = Velocity, sdl2.ext.Sprite
-
-        self.ball = None
-        self.player1 = None
-        self.player2 = None
-
-        self.minx = minx
-        self.miny = miny
-        self.maxx = maxx
-        self.maxy = maxy
-
-        self._logger = logging.getLogger(__name__)
+    def __init__(self):
+        self.component_types = (Velocity, sdl2.ext.Sprite)
+        self.is_applicator = True
 
     def _overlap(self, item):
         """
@@ -153,7 +135,6 @@ class CollisionSystem(sdl2.ext.Applicator):
         :param item:
         :return:
         """
-
         pos, sprite = item
         if sprite == self.ball.sprite:
             return False
@@ -170,7 +151,6 @@ class CollisionSystem(sdl2.ext.Applicator):
         :param comps:
         :return:
         """
-
         self.ball.velocity.vx = -self.ball.velocity.vx
 
         sprite = comps[0][1]
@@ -221,22 +201,8 @@ class CollisionSystem(sdl2.ext.Applicator):
             self.ball.sprite.position = (390, 290)
             self.ball.velocity.reset()
 
-    def process(self, world, comps):
-        """
-        Process Ball collisions.
-
-        :param world:
-        :param comps:
-        :return:
-        """
-
-        if not isinstance(self.ball, Ball):
-            raise TypeError("You have likely forgotten to set the ball field to a Ball instance.")
-
-        if not all([isinstance(p, Player) for p in (self.player1, self.player2)]):
-            raise TypeError("You have likely forgotten to set the player1 and/or player2 fields to a Player instance.")
-
-        collitems = [comp for comp in comps if self._overlap(comp)]
+    def update(self, t, dt, world, components):
+        collitems = [comp for comp in components if self._overlap(comp)]
         if collitems:
             self._deflect(collitems)
 
