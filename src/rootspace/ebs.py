@@ -50,6 +50,15 @@ class System(object):
 
 
 @attr.s
+class RenderSystem(System):
+    sort_func = attr.ib(default=lambda e: e.depth)
+    renderer = attr.ib()
+
+    def render(self, sprites):
+        raise NotImplementedError()
+
+
+@attr.s
 class EventDispatcher(System):
     def __init__(self):
         self.component_types = (EventComponent, )

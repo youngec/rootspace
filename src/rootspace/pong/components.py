@@ -10,7 +10,7 @@ import sdl2
 import attr
 from attr.validators import instance_of
 
-from ..ebs import EventComponent
+from ..abstract import EventComponent
 
 
 @attr.s
@@ -50,8 +50,8 @@ class Score(object):
 class Velocity(object):
     vx = attr.ib(default=0, validator=instance_of(float))
     vy = attr.ib(default=0, validator=instance_of(float))
-    dx = attr.ib(default=0)
-    dy = attr.ib(default=0)
+    dx = attr.ib(default=0, validator=instance_of(float))
+    dy = attr.ib(default=0, validator=instance_of(float))
     def_velocity = attr.ib(default=200, validator=instance_of(float))
 
     def reset(self):

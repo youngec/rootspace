@@ -12,7 +12,7 @@ import sdl2.ext
 import attr
 from attr.validators import instance_of
 
-from .ebs import World, EventDispatcher
+from .abstract import Project, World
 
 
 @attr.s
@@ -30,7 +30,6 @@ class Core(object):
     _renderer = attr.ib(validator=instance_of(sdl2.ext.Renderer))
     _factory = attr.ib(validator=instance_of(sdl2.ext.SpriteFactory))
     _world = attr.ib(validator=instance_of(World))
-    _event_dispatcher = attr.ib(validator=instance_of(EventDispatcher))
     _entities = attr.ib(validator=instance_of(dict))
     _systems = attr.ib(validator=instance_of(collections.OrderedDict))
 
@@ -51,7 +50,7 @@ class Core(object):
         9. Create and add custom entities to the world
         10. Return the initialized Core instance
 
-        :param Project project_class:
+        :param project_class:
         :param str project_location:
         :param str resource_dir:
         :param str window_title:
@@ -62,6 +61,9 @@ class Core(object):
         :param float epsilon:
         :return:
         """
+        if not issubclass(project_class, Project):
+            raise TypeError("Expected a subclass of Project.")
+
         # Get the Logger instance
         log = logging.getLogger(__name__)
         log.info("Starting up the Core.")
@@ -107,16 +109,13 @@ class Core(object):
         for system in systems.values():
             world.add_system(system)
 
-        # Create the event dispatcher
-        event_dispatcher = EventDispatcher()
-
         # Create the game entities
         log.debug("Adding Entities to the World.")
         entities = proj.init_entities(systems, dict())
 
         return cls(
             project_location, delta_time, max_frame_duration, epsilon, log, resources, window, renderer,
-            factory, world, event_dispatcher, entities, systems)
+            factory, world, entities, systems)
 
     def loop(self):
         """
@@ -135,7 +134,6 @@ class Core(object):
         # Eliminate as much lookup as possible during the game loop
         renderer = self._renderer
         world = self._world
-        dispatch = self._event_dispatcher.dispatch
         monotonic = time.monotonic
         min_fun = min
         max_frame_duration = self.max_frame_duration
@@ -167,7 +165,7 @@ class Core(object):
                         running = False
                         break
                     else:
-                        dispatch(world, event)
+                        world.dispatch(event)
 
                 world.process(t, delta_time)
                 t += delta_time
@@ -190,32 +188,3 @@ class Core(object):
         sdl2.ext.quit()
 
         self._log.info("The Core has safely shut down.")
-
-
-@attr.s
-class Project(object):
-    """
-    Base class for a project.
-    """
-    _window = attr.ib(validator=instance_of(sdl2.ext.Window))
-    _world = attr.ib(validator=instance_of(World))
-    _factory = attr.ib(validator=instance_of(sdl2.ext.SpriteFactory))
-
-    def init_systems(self, systems):
-        """
-        Add project-specific systems.
-
-        :param dict systems:
-        :return:
-        """
-        return systems
-
-    def init_entities(self, systems, entities):
-        """
-        Add project-specific entities based on the supplied systems.
-
-        :param dict systems:
-        :param dict entities:
-        :return:
-        """
-        return entities

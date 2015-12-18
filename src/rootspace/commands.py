@@ -82,7 +82,7 @@ def main(context, game, debug, verbose):
     )
 
     try:
-        project_core_module = importlib.import_module("rootspace.{}.core".format(project_name))
+        project_core_module = importlib.import_module("rootspace.{}.project".format(project_name))
         print(dir(project_core_module))
         project_class = getattr(project_core_module, underscore_to_camelcase(project_name))
 
