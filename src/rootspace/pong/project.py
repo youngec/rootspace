@@ -5,7 +5,7 @@
 
 import sdl2.ext
 
-from ..core import Project
+from ..abstract import Project
 from .systems import ControlSystem, MovementSystem, CollisionSystem
 from .entities import Ball, Player
 from .components import PaddleControl, Velocity, Score

@@ -10,7 +10,7 @@ import sdl2
 import attr
 from attr.validators import instance_of
 
-from ..ebs import EventComponent
+from ..abstract import EventComponent
 
 
 @attr.s

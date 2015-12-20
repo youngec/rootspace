@@ -6,13 +6,13 @@
 import sdl2.ext
 import attr
 from attr.validators import instance_of, optional
-from ..ebs import System
+from ..abstract import Applicator
 from .components import PaddleControl, Velocity
 from .entities import Ball, Player
 
 
 @attr.s
-class ControlSystem(System):
+class ControlSystem(Applicator):
     minx = attr.ib(default=0, validator=instance_of(int))
     miny = attr.ib(default=0, validator=instance_of(int))
     maxx = attr.ib(default=640, validator=instance_of(int))
@@ -21,7 +21,6 @@ class ControlSystem(System):
 
     def __init__(self):
         self.component_types = (PaddleControl, Velocity, sdl2.ext.Sprite)
-        self.is_applicator = True
 
     def _control_pc(self, paddle_control, velocity, sprite):
         if paddle_control.movement == "up":
@@ -62,7 +61,7 @@ class ControlSystem(System):
 
 
 @attr.s
-class MovementSystem(System):
+class MovementSystem(Applicator):
     minx = attr.ib(default=0, validator=instance_of(int))
     miny = attr.ib(default=0, validator=instance_of(int))
     maxx = attr.ib(default=640, validator=instance_of(int))
@@ -70,7 +69,6 @@ class MovementSystem(System):
 
     def __init__(self):
         self.component_types = (Velocity, sdl2.ext.Sprite)
-        self.is_applicator = True
 
     def _move(self, dt, velocity, sprite):
         """
@@ -115,7 +113,7 @@ class MovementSystem(System):
 
 
 @attr.s
-class CollisionSystem(System):
+class CollisionSystem(Applicator):
     minx = attr.ib(default=0, validator=instance_of(int))
     miny = attr.ib(default=0, validator=instance_of(int))
     maxx = attr.ib(default=640, validator=instance_of(int))
@@ -126,7 +124,6 @@ class CollisionSystem(System):
 
     def __init__(self):
         self.component_types = (Velocity, sdl2.ext.Sprite)
-        self.is_applicator = True
 
     def _overlap(self, item):
         """
