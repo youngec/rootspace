@@ -39,8 +39,7 @@ def main(verbose, debug, profile):
     root_logger = logging.getLogger("rootspace")
     logging_default_handler = logging.StreamHandler()
     logging_default_formatter = logging.Formatter(
-        fmt="%(asctime)s - %(name)s - %(levelname)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        fmt="[%(name)s:%(levelname)s] %(message)s"
     )
     logging_default_handler.setFormatter(logging_default_formatter)
     root_logger.addHandler(logging_default_handler)
