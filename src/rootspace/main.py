@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import warnings
-import os
 import os.path
+import warnings
 
 import click
 
 from ._version import get_versions
+from .core import Engine
+from .ebs import Project
 
 
 @click.command()
@@ -23,8 +24,8 @@ def main(verbose, debug, profile):
     """
     # Determine the project location.
     user_home = os.path.expanduser("~")
-    working_dir = os.getcwd()
     project_location = os.path.dirname(os.path.realpath(__file__))
+    resource_path = os.path.join(project_location, "resources")
 
     # Determine the log level.
     log_level = logging.WARN
@@ -47,8 +48,11 @@ def main(verbose, debug, profile):
     warnings.simplefilter("default")
     logging.captureWarnings(True)
 
+    # Create the project
+    project = Project.create("rootspace", user_home, resource_path, debug=debug)
+
     # Create the engine instance
-    engine = object()
+    engine = Engine(project, debug)
 
     # Run the engine instance
     root_logger.debug("Dispatching: {}".format(engine))

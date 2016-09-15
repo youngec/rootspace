@@ -8,36 +8,43 @@ import logging
 import time
 
 import sdl2
+import sdl2.video
 import sdl2.ext
 import attr
 from attr.validators import instance_of
 
-from .abstract import Project, World
+from .ebs import Project, World
 
 
 @attr.s
-class Core(object):
+class Engine(object):
     """
-    The Core is in a sense the general object manager.
+    The engine manages the execution of a particular game environment.
     """
-    location = attr.ib(validator=instance_of(str))
-    delta_time = attr.ib(validator=instance_of(float))
-    max_frame_duration = attr.ib(validator=instance_of(float))
-    epsilon = attr.ib(validator=instance_of(float))
-    _log = attr.ib(validator=instance_of(logging.Logger))
-    _resources = attr.ib(validator=instance_of(sdl2.ext.Resources))
-    _window = attr.ib(validator=instance_of(sdl2.ext.Window))
-    _renderer = attr.ib(validator=instance_of(sdl2.ext.Renderer))
-    _factory = attr.ib(validator=instance_of(sdl2.ext.SpriteFactory))
-    _world = attr.ib(validator=instance_of(World))
-    _entities = attr.ib(validator=instance_of(dict))
-    _systems = attr.ib(validator=instance_of(collections.OrderedDict))
+    _project = attr.ib(validator=instance_of(Project))
+    _debug = attr.ib(default=False, validator=instance_of(bool))
+    _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
 
-    @classmethod
-    def create(cls, project_class, project_location, resource_dir, window_title, window_shape, clear_color, delta_time,
-               max_frame_duration, epsilon):
+    def run(self):
         """
-        Start up the Core.
+        Run the engine.
+
+        1. Create the context
+        2. Execute within the context
+        3. Tear down the context
+
+        :return:
+        """
+        context = dict()
+        try:
+            context = self._initialize()
+            self._loop(context)
+        finally:
+            self._teardown(context)
+
+    def _initialize(self):
+        """
+        Initialize the engine context.
 
         1. Initialise SDL2
         2. Create the resource database based on RESOURCE_DIR in generic.py
@@ -48,76 +55,72 @@ class Core(object):
         7. Create custom systems and then the render system
         8. Add all systems to the world in order of creation
         9. Create and add custom entities to the world
-        10. Return the initialized Core instance
 
-        :param project_class:
-        :param str project_location:
-        :param str resource_dir:
-        :param str window_title:
-        :param tuple[int] window_shape:
-        :param tuple[float] clear_color:
-        :param float delta_time:
-        :param float max_frame_duration:
-        :param float epsilon:
         :return:
         """
-        if not issubclass(project_class, Project):
-            raise TypeError("Expected a subclass of Project.")
+        self._nfo("Initializing all components of the project.")
+        ctx = dict()
 
-        # Get the Logger instance
-        log = logging.getLogger(__name__)
-        log.info("Starting up the Core.")
-
-        # Start up SDL2
-        log.debug("Initialising SDL2.")
+        self._dbg("Initializing SDL2.")
         sdl2.ext.init()
 
-        # Create the resource manager
-        log.debug("Creating the resource manager.")
-        resources = sdl2.ext.Resources(project_location, resource_dir)
+        self._dbg("Creating the resource manager.")
+        ctx["resources"] = sdl2.ext.Resources(self._project.configuration["resource_path"])
 
-        # Create a window
-        log.debug("Creating the Window with title '{}' and shape {}.".format(window_title, window_shape))
-        window = sdl2.ext.Window(window_title, window_shape, flags=sdl2.SDL_WINDOW_RESIZABLE)
-        window.show()
+        self._dbg("Creating the window.")
+        ctx["window"] = sdl2.ext.Window(
+            self._project.configuration["window_title"],
+            self._project.configuration["window_shape"],
+            flags=self._project.configuration["window_flags"]
+        )
 
-        # Create the renderer and set the clear color
-        log.debug("Creating the Renderer with clear color {}.".format(clear_color))
-        sdl2.SDL_SetHint(sdl2.SDL_HINT_RENDER_SCALE_QUALITY, b"0")  # Use nearest neighbour scaling
-        renderer = sdl2.ext.Renderer(window)
-        sdl2.SDL_RenderSetLogicalSize(renderer.renderer, *window_shape)
-        renderer.color = sdl2.ext.Color(*clear_color)
+        self._dbg("Creating the renderer.")
+        sdl2.SDL_SetHint(sdl2.SDL_HINT_RENDER_SCALE_QUALITY, self._project.configuration["render_scale_quality"])
+        ctx["renderer"] = sdl2.ext.Renderer(ctx["window"])
+        sdl2.SDL_RenderSetLogicalSize(ctx["renderer"].renderer, *self._project.configuration["window_shape"])
+        ctx["renderer"].color = sdl2.ext.Color(*self._project.configuration["render_color"])
 
-        # Create a world
-        log.debug("Creating the World.")
-        world = World()
+        self._dbg("Creating the world.")
+        ctx["world"] = World()
 
-        # Create the sprite factory (use hardware accelerated rendering)
-        log.debug("Creating the SpriteFactory with hardware accelerated rendering.")
-        factory = sdl2.ext.SpriteFactory(sdl2.ext.TEXTURE, renderer=renderer)
+        self._dbg("Creating the sprite factory.")
+        ctx["factory"] = sdl2.ext.SpriteFactory(sdl2.ext.TEXTURE, renderer=ctx["renderer"])
 
-        # Create the project instance
-        proj = project_class(window, world, factory)
+        self._dbg("Creating the EBS systems.")
+        ctx["systems"] = collections.OrderedDict()
+        ctx["systems"].update(self._project.create_systems())
+        #ctx["systems"]["render_system"] = sdl2.ext.TextureSpriteRenderSystem(ctx["renderer"])
 
-        # Create the systems
-        # Create your custom systems BEFORE the renderer (addition order dictates execution order)
-        log.debug("Adding Systems to the World.")
-        systems = proj.init_systems(collections.OrderedDict())
-        systems['render_system'] = sdl2.ext.TextureSpriteRenderSystem(renderer)
+        self._dbg("Adding systems to the world.")
+        for system in ctx["systems"].values():
+            ctx["world"].add_system(system)
 
-        # Add all systems to the world
-        for system in systems.values():
-            world.add_system(system)
+        if "render_system" in ctx["systems"] and len(ctx["systems"]) == 1:
+            self._wrn("Only the render system is present in the world.")
+        elif "render_system" not in ctx["systems"]:
+            raise RuntimeError("Cannot run the engine without a valid render system.")
 
-        # Create the game entities
-        log.debug("Adding Entities to the World.")
-        entities = proj.init_entities(systems, dict())
+        self._dbg("Creating the EBS entities.")
+        ctx["entities"] = list()
+        ctx["entities"].extend(self._project.create_entities())
 
-        return cls(
-            project_location, delta_time, max_frame_duration, epsilon, log, resources, window, renderer,
-            factory, world, entities, systems)
+        if len(ctx["entities"]) == 0:
+            self._wrn("No entities are present in the world.")
 
-    def loop(self):
+        return ctx
+
+    def _teardown(self, ctx):
+        """
+        Tear down the engine context.
+
+        :param ctx:
+        :return:
+        """
+        # Close down and clean up SDL2
+        self._nfo("Closing down SDL2.")
+        sdl2.ext.quit()
+
+    def _loop(self, ctx):
         """
         Enter the fixed time-step loop of the game.
 
@@ -126,18 +129,19 @@ class Core(object):
         to let it take its time even on slow computers without jeopardizing the physics simulation.
         The maximum duration of a frame is set to FRAME_TIME_MAX in generic.py.
 
+        :param ctx:
         :return:
         """
-        # Execute the main loop
-        self._log.info("=========== Engage. ===========")
+        self._nfo("Executing within the engine context.")
 
         # Eliminate as much lookup as possible during the game loop
-        renderer = self._renderer
-        world = self._world
+        renderer = ctx["renderer"]
+        world = ctx["world"]
         monotonic = time.monotonic
         min_fun = min
-        max_frame_duration = self.max_frame_duration
-        delta_time = self.delta_time
+        delta_time = self._project.configuration["delta_time"]
+        max_frame_duration = self._project.configuration["max_frame_duration"]
+        epsilon = self._project.configuration["epsilon"]
 
         # Define the time for the event loop
         t = 0.0
@@ -159,15 +163,15 @@ class Core(object):
             # rendering step.
             while accumulator >= delta_time:
                 # Process SDL events
-                events = sdl2.ext.get_events()
-                for event in events:
-                    if event.type == sdl2.SDL_QUIT:
-                        running = False
-                        break
-                    else:
-                        world.dispatch(event)
+                # events = sdl2.ext.get_events()
+                # for event in events:
+                #     if event.type == sdl2.SDL_QUIT:
+                #         running = False
+                #         break
+                #     else:
+                #         world.dispatch(event)
 
-                world.process(t, delta_time)
+                world.update(t, delta_time)
                 t += delta_time
                 accumulator -= delta_time
 
@@ -175,16 +179,29 @@ class Core(object):
             renderer.clear()
             world.render()
 
-        self._log.info("=========== All stop. ===========")
-
-    def shutdown(self):
+    def _dbg(self, message):
         """
-        Close down the Core.
+        Send a debug message.
 
+        :param message:
         :return:
         """
-        # Close down and clean up SDL2
-        self._log.debug("Closing down SDL2.")
-        sdl2.ext.quit()
+        self._log.debug(message)
 
-        self._log.info("The Core has safely shut down.")
+    def _nfo(self, message):
+        """
+        Send an info message.
+
+        :param message:
+        :return:
+        """
+        self._log.info(message)
+
+    def _wrn(self, message):
+        """
+        Send a warning message.
+
+        :param message:
+        :return:
+        """
+        self._log.warn(message)
