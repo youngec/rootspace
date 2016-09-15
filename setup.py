@@ -83,6 +83,9 @@ if __name__ == "__main__":
             "numpy",
             "pysdl2"
         ],
+        test_requires=[
+            "pytest"
+        ],
         entry_points={
             "console_scripts": [
                 "rootspace = rootspace.loader:main"
