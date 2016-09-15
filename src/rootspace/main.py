@@ -52,6 +52,7 @@ def main(verbose, debug, profile):
     engine = object()
 
     # Run the engine instance
+    root_logger.debug("Dispatching: {}".format(engine))
     if profile:
         import cProfile
         cProfile.runctx("engine.run()", None, {"engine": engine}, sort="time")
