@@ -88,7 +88,7 @@ if __name__ == "__main__":
         ],
         entry_points={
             "console_scripts": [
-                "rootspace = rootspace.loader:main"
+                "rootspace = rootspace.main:main"
             ]
         },
         packages=find_packages(where="src", exclude=("historical", "tests", "specs")),
