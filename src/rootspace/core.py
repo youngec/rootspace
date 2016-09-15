@@ -13,7 +13,7 @@ import sdl2.ext
 import attr
 from attr.validators import instance_of
 
-from .ebs import Project, World
+from .ebs import Project, World, TextureSpriteRenderSystem
 
 
 @attr.s
@@ -89,7 +89,7 @@ class Engine(object):
         self._dbg("Creating the EBS systems.")
         ctx["systems"] = collections.OrderedDict()
         ctx["systems"].update(self._project.create_systems())
-        #ctx["systems"]["render_system"] = sdl2.ext.TextureSpriteRenderSystem(ctx["renderer"])
+        ctx["systems"]["render_system"] = TextureSpriteRenderSystem.create(ctx["renderer"])
 
         self._dbg("Adding systems to the world.")
         for system in ctx["systems"].values():

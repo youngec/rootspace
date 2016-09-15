@@ -3,10 +3,13 @@
 import inspect
 import os.path
 import uuid
+import collections
 
 import attr
 import sdl2.ext
 import sdl2.video
+import sdl2.rect
+import sdl2.render
 from attr.validators import instance_of
 
 from .util import merge_configurations
@@ -17,7 +20,7 @@ __docformat__ = 'restructuredtext'
 @attr.s
 class System(object):
     """
-    A processing system for component data.
+    A processing system for component data. Business logic variant.
 
     A processing system within an application world consumes the
     components of all entities, for which it was set up. At time of
@@ -41,6 +44,86 @@ class System(object):
         :return:
         """
         raise NotImplementedError()
+
+
+@attr.s
+class SpriteRenderSystem(object):
+    """
+    A processing system for component data. Rendering variant.
+
+    A processing system within an application world consumes the
+    components of all entities, for which it was set up. At time of
+    processing, the system does not know about any other component type
+    that might be bound to any entity.
+
+    Also, the processing system does not know about any specific entity,
+    but only is aware of the data carried by all entities.
+    """
+    component_types = attr.ib(validator=instance_of(tuple))
+    is_applicator = attr.ib(validator=instance_of(bool))
+    sort_func = attr.ib()
+
+    def render(self, world, components):
+        """
+        Render the current world.
+
+        :param world:
+        :param components:
+        :return:
+        """
+        raise NotImplementedError()
+
+
+@attr.s
+class TextureSpriteRenderSystem(SpriteRenderSystem):
+    _renderer = attr.ib(validator=instance_of(sdl2.ext.Renderer))
+
+    @classmethod
+    def create(cls, target):
+        if isinstance(target, sdl2.ext.Renderer):
+            renderer = target
+        else:
+            raise TypeError("Unsupported target type.")
+
+        return cls(
+            component_types=(sdl2.ext.TextureSprite,),
+            is_applicator=False,
+            sort_func=lambda e: e.depth,
+            renderer=renderer
+        )
+
+    def render(self, world, components):
+        """Draws the passed sprites (or sprite).
+
+        x and y are optional arguments that can be used as relative
+        drawing location for sprites. If set to None, the location
+        information of the sprites are used. If set and sprites is an
+        iterable, such as a list of TextureSprite objects, x and y are
+        relative location values that will be added to each individual
+        sprite's position. If sprites is a single TextureSprite, x and y
+        denote the absolute position of the TextureSprite, if set.
+        """
+        sprites = sorted(components, key=self.sort_func)
+        renderer = self._renderer.renderer
+        r = sdl2.rect.SDL_Rect(0, 0, 0, 0)
+        if isinstance(sprites, collections.Iterable):
+            rcopy = sdl2.render.SDL_RenderCopy
+
+            x = 0
+            y = 0
+            for sp in sprites:
+                r.x = x + sp.x
+                r.y = y + sp.y
+                r.w, r.h = sp.size
+                if rcopy(renderer, sp.texture, None, r) == -1:
+                    raise sdl2.ext.SDLError()
+        else:
+            r.x = sprites.x
+            r.y = sprites.y
+            r.w, r.h = sprites.size
+            sdl2.render.SDL_RenderCopy(renderer, sprites.texture, None, r)
+
+        sdl2.render.SDL_RenderPresent(renderer)
 
 
 @attr.s
@@ -160,14 +243,14 @@ class World(object):
         :param system:
         :return:
         """
-        if isinstance(system, (System, sdl2.ext.SpriteRenderSystem)):
+        if self._valid_system(system):
             for component_type in system.component_types:
                 if component_type not in self.components:
                     self.add_component_type(component_type)
 
             self._systems.append(system)
         else:
-            raise TypeError("The specified system must be an instance of System.")
+            raise TypeError("The specified system cannot be used as such.")
 
     def remove_system(self, system):
         """
@@ -187,7 +270,7 @@ class World(object):
         :return:
         """
         for system in self._systems:
-            if not isinstance(system, sdl2.ext.TextureSpriteRenderSystem):
+            if hasattr(system, "update"):
                 if system.is_applicator:
                     comps = self.combined_components(system.component_types)
                     system.update(time, delta_time, self, comps)
@@ -202,9 +285,23 @@ class World(object):
         :return:
         """
         for system in self._systems:
-            if isinstance(system, sdl2.ext.TextureSpriteRenderSystem):
-                for ctype in system.componenttypes:
-                    system.process(self, self.components[ctype].values())
+            if hasattr(system, "render"):
+                for comp_type in system.component_types:
+                    system.render(self, self.components[comp_type].values())
+
+    def _valid_system(self, system):
+        """
+        Determine if a supplied system can be used as such.
+
+        :param system:
+        :return:
+        """
+        comp_types = hasattr(system, "component_types") and isinstance(system.component_types, collections.Iterable)
+        applicator = hasattr(system, "is_applicator") and isinstance(system.is_applicator, bool)
+        update = hasattr(system, "update") and callable(system.update)
+        render = hasattr(system, "render") and callable(system.render)
+
+        return comp_types and applicator and (update or render)
 
 
 @attr.s
@@ -327,7 +424,7 @@ class Project(object):
             "name": "Epsilon"
         },
         "window_title": {
-            "value": "",
+            "value": "Untitled",
             "section": "Display",
             "name": "Window title"
         },
@@ -335,16 +432,6 @@ class Project(object):
             "value": (800, 600),
             "section": "Display",
             "name": "Window shape"
-        },
-        "window_width": {
-            "value": 800,
-            "section": "Display",
-            "name": "Window width"
-        },
-        "window_height": {
-            "value": 600,
-            "section": "Display",
-            "name": "Window height",
         },
         "window_flags": {
             "value": sdl2.video.SDL_WINDOW_SHOWN | sdl2.video.SDL_WINDOW_RESIZABLE,
