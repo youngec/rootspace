@@ -289,6 +289,15 @@ class World(object):
                 for comp_type in system.component_types:
                     system.render(self, self.components[comp_type].values())
 
+    def dispatch(self, event):
+        """
+        Dispatch an SDL2 event.
+
+        :param event:
+        :return:
+        """
+        pass
+
     def _valid_system(self, system):
         """
         Determine if a supplied system can be used as such.
@@ -474,7 +483,7 @@ class Project(object):
         return cls(name, configuration, debug)
 
     def create_systems(self):
-        return dict()
+        return collections.OrderedDict()
 
     def create_entities(self):
         return list()

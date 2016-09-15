@@ -31,7 +31,7 @@ def main(verbose, debug, profile):
     log_level = logging.WARN
     if verbose == 1:
         log_level = logging.INFO
-    elif verbose == 2:
+    elif verbose == 2 or debug:
         log_level = logging.DEBUG
     else:
         click.echo("Only three verbosity levels are understood: 0, 1 and 2.")
