@@ -5,6 +5,8 @@ import collections
 import attr
 from attr.validators import instance_of
 
+from .utilities import camelcase_to_underscore
+
 
 @attr.s
 class World(object):
@@ -33,26 +35,8 @@ class World(object):
     """
     entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
     components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
-    _systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-    _component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
-
-    @property
-    def systems(self):
-        """
-        Gets the systems bound to the world.
-
-        :returns:
-        """
-        return tuple(self._systems)
-
-    @property
-    def component_types(self):
-        """
-        Gets the supported component types of the world.
-
-        :returns:
-        """
-        return self._component_types.values()
+    systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
 
     def combined_components(self, comp_types):
         """
@@ -76,13 +60,22 @@ class World(object):
         :param component_type:
         :return:
         """
-        if component_type in self._component_types.values():
+        if component_type in self.component_types.values():
             return
 
         self.components[component_type] = dict()
-        self._component_types[component_type.__name__.lower()] = component_type
+        self.component_types[camelcase_to_underscore(component_type.__name__)] = component_type
 
-    def delete(self, entity):
+    def add_entity(self, entity):
+        """
+        Add an entity to the world.
+
+        :param entity:
+        :return:
+        """
+        self.entities.add(entity)
+
+    def delete_entity(self, entity):
         """
         Remove an entity and all its data from the world.
 
@@ -128,7 +121,7 @@ class World(object):
                 if component_type not in self.components:
                     self.add_component_type(component_type)
 
-            self._systems.append(system)
+            self.systems.append(system)
         else:
             raise TypeError("The specified system cannot be used as such.")
 
@@ -139,7 +132,7 @@ class World(object):
         :param system:
         :return:
         """
-        self._systems.remove(system)
+        self.systems.remove(system)
 
     def update(self, time, delta_time):
         """
@@ -149,7 +142,7 @@ class World(object):
         :param float delta_time:
         :return:
         """
-        for system in self._systems:
+        for system in self.systems:
             if hasattr(system, "update"):
                 if system.is_applicator:
                     comps = self.combined_components(system.component_types)
@@ -164,7 +157,7 @@ class World(object):
 
         :return:
         """
-        for system in self._systems:
+        for system in self.systems:
             if hasattr(system, "render"):
                 for comp_type in system.component_types:
                     system.render(self, self.components[comp_type].values())
