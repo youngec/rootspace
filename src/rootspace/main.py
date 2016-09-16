@@ -9,7 +9,7 @@ import click
 
 from ._version import get_versions
 from .core import Engine
-from .projects import Project
+from .projects import RootSpace
 
 
 @click.command()
@@ -49,7 +49,7 @@ def main(verbose, debug, profile):
     logging.captureWarnings(True)
 
     # Create the project
-    project = Project.create("rootspace", user_home, resource_path, debug=debug)
+    project = RootSpace.create(user_home, resource_path, debug=debug)
 
     # Create the engine instance
     engine = Engine(project, debug)

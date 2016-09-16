@@ -8,6 +8,7 @@ import sdl2.video
 from attr.validators import instance_of
 
 from .utilities import merge_configurations
+from .entities import LocalComputer
 
 
 @attr.s
@@ -67,8 +68,44 @@ class Project(object):
     def configuration(self):
         return self._configuration
 
+    def create_systems(self, world):
+        """
+        Create the systems that are part of a project.
+
+        :param world:
+        :return: collections.OrderedDict
+        """
+        raise NotImplementedError()
+
+    def create_entities(self, world):
+        """
+        Create the entities that are part of a project.
+
+        :param world:
+        :return: iterable
+        """
+        raise NotImplementedError()
+
+
+@attr.s
+class RootSpace(Project):
+    """
+    Implementation of the Rootspace project.
+    """
     @classmethod
-    def create(cls, name, user_home, resource_path, config_path="", debug=False, **kwargs):
+    def create(cls, user_home, resource_path, config_path="", debug=False, **kwargs):
+        """
+        Create a root space project.
+
+        :param user_home:
+        :param resource_path:
+        :param config_path:
+        :param debug:
+        :param kwargs:
+        :return:
+        """
+        name = "rootspace"
+
         # Define configuration search paths (giving precedence to user configurations)
         cfg_paths = (
             config_path,
@@ -82,8 +119,22 @@ class Project(object):
 
         return cls(name, configuration, debug)
 
-    def create_systems(self):
+    def create_systems(self, world):
+        """
+        Create all necessary systems.
+
+        :param world:
+        :return:
+        """
         return collections.OrderedDict()
 
-    def create_entities(self):
-        return list()
+    def create_entities(self, world):
+        """
+        Create all necessary entities.
+
+        :param world:
+        :return:
+        """
+        entities = tuple()
+        entities = (LocalComputer.create(world),)
+        return entities
