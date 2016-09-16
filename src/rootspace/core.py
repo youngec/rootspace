@@ -13,7 +13,7 @@ import sdl2.ext
 import attr
 from attr.validators import instance_of
 
-from .ebs import Project, World, TextureSpriteRenderSystem
+from .entities import Project, World, TextureSpriteRenderSystem
 
 
 @attr.s
