@@ -3,7 +3,8 @@
 import collections
 
 import attr
-import sdl2.ext
+import sdl2.ext.window
+import sdl2.ext.sprite
 from attr.validators import instance_of
 
 
@@ -37,7 +38,7 @@ class System(object):
 
 
 @attr.s
-class SpriteRenderSystem(object):
+class RenderSystem(object):
     """
     A processing system for component data. Rendering variant.
 
@@ -65,8 +66,8 @@ class SpriteRenderSystem(object):
 
 
 @attr.s
-class TextureSpriteRenderSystem(SpriteRenderSystem):
-    _renderer = attr.ib(validator=instance_of(sdl2.ext.Renderer))
+class TextureSpriteRenderSystem(RenderSystem):
+    _renderer = attr.ib(validator=instance_of(sdl2.ext.sprite.Renderer))
 
     @classmethod
     def create(cls, target):
@@ -76,7 +77,7 @@ class TextureSpriteRenderSystem(SpriteRenderSystem):
             raise TypeError("Unsupported target type.")
 
         return cls(
-            component_types=(sdl2.ext.TextureSprite,),
+            component_types=(sdl2.ext.sprite.TextureSprite,),
             is_applicator=False,
             sort_func=lambda e: e.depth,
             renderer=renderer
