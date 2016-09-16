@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import abc
 import collections
 
 import attr
@@ -9,7 +10,7 @@ from attr.validators import instance_of
 
 
 @attr.s
-class System(object):
+class System(object, metaclass=abc.ABCMeta):
     """
     A processing system for component data. Business logic variant.
 
@@ -24,6 +25,7 @@ class System(object):
     component_types = attr.ib(validator=instance_of(tuple))
     is_applicator = attr.ib(validator=instance_of(bool))
 
+    @abc.abstractmethod
     def update(self, time, delta_time, world, components):
         """
         Processes component items.
@@ -34,11 +36,11 @@ class System(object):
         :param components:
         :return:
         """
-        raise NotImplementedError()
+        pass
 
 
 @attr.s
-class RenderSystem(object):
+class RenderSystem(object, metaclass=abc.ABCMeta):
     """
     A processing system for component data. Rendering variant.
 
@@ -54,6 +56,7 @@ class RenderSystem(object):
     is_applicator = attr.ib(validator=instance_of(bool))
     sort_func = attr.ib()
 
+    @abc.abstractmethod
     def render(self, world, components):
         """
         Render the current world.
@@ -62,7 +65,7 @@ class RenderSystem(object):
         :param components:
         :return:
         """
-        raise NotImplementedError()
+        pass
 
 
 @attr.s
