@@ -47,6 +47,14 @@ class Entity(object):
         world.entities.add(inst)
         return inst
 
+    def delete(self):
+        """
+        Removes the entity from the parent world.
+
+        :return:
+        """
+        self._world.delete(self)
+
     def __hash__(self):
         return hash(self._ident)
 
@@ -96,11 +104,3 @@ class Entity(object):
             raise AttributeError("{!r} has no attribute {!r}".format(self, item))
 
         del self._world.components[comp_type][self]
-
-    def delete(self):
-        """
-        Removes the entity from the parent world.
-
-        :return:
-        """
-        self._world.delete(self)
