@@ -85,8 +85,8 @@ class Engine(object):
         self._dbg("Creating the world.")
         ctx["world"] = World()
 
-        self._dbg("Creating the sprite factory.")
-        ctx["factory"] = sdl2.ext.SpriteFactory(sdl2.ext.TEXTURE, renderer=ctx["renderer"])
+        # self._dbg("Creating the sprite factory.")
+        # ctx["factory"] = sdl2.ext.SpriteFactory(sdl2.ext.TEXTURE, renderer=ctx["renderer"])
 
         self._dbg("Creating the ECS systems.")
         ctx["systems"] = collections.OrderedDict()
