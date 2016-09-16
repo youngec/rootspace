@@ -17,6 +17,7 @@ from .projects import Project
 from .worlds import World
 from .systems import TextureSpriteRenderSystem
 
+
 @attr.s
 class Engine(object):
     """
@@ -87,9 +88,9 @@ class Engine(object):
         self._dbg("Creating the sprite factory.")
         ctx["factory"] = sdl2.ext.SpriteFactory(sdl2.ext.TEXTURE, renderer=ctx["renderer"])
 
-        self._dbg("Creating the EBS systems.")
+        self._dbg("Creating the ECS systems.")
         ctx["systems"] = collections.OrderedDict()
-        ctx["systems"].update(self._project.create_systems())
+        ctx["systems"].update(self._project.create_systems(ctx["world"]))
         ctx["systems"]["render_system"] = TextureSpriteRenderSystem.create(ctx["renderer"])
 
         self._dbg("Adding systems to the world.")
@@ -101,9 +102,9 @@ class Engine(object):
         elif "render_system" not in ctx["systems"]:
             raise RuntimeError("Cannot run the engine without a valid render system.")
 
-        self._dbg("Creating the EBS entities.")
+        self._dbg("Creating the ECS entities.")
         ctx["entities"] = list()
-        ctx["entities"].extend(self._project.create_entities())
+        ctx["entities"].extend(self._project.create_entities(ctx["world"]))
 
         if len(ctx["entities"]) == 0:
             self._wrn("No entities are present in the world.")
@@ -169,8 +170,6 @@ class Engine(object):
                     if event.type == sdl2.SDL_QUIT:
                         running = False
                         break
-                    else:
-                        world.dispatch(event)
 
                 world.update(t, delta_time)
                 t += delta_time
