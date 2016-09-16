@@ -4,6 +4,7 @@ import abc
 import collections
 
 import attr
+import sdl2.ext.common
 import sdl2.ext.window
 import sdl2.ext.sprite
 from attr.validators import instance_of
@@ -73,12 +74,7 @@ class TextureSpriteRenderSystem(RenderSystem):
     _renderer = attr.ib(validator=instance_of(sdl2.ext.sprite.Renderer))
 
     @classmethod
-    def create(cls, target):
-        if isinstance(target, sdl2.ext.Renderer):
-            renderer = target
-        else:
-            raise TypeError("Unsupported target type.")
-
+    def create(cls, renderer):
         return cls(
             component_types=(sdl2.ext.sprite.TextureSprite,),
             is_applicator=False,
@@ -110,7 +106,7 @@ class TextureSpriteRenderSystem(RenderSystem):
                 r.y = y + sp.y
                 r.w, r.h = sp.size
                 if rcopy(renderer, sp.texture, None, r) == -1:
-                    raise sdl2.ext.SDLError()
+                    raise sdl2.ext.common.SDLError()
         else:
             r.x = sprites.x
             r.y = sprites.y
