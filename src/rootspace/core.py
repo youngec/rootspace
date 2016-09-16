@@ -13,8 +13,9 @@ import sdl2.ext
 import attr
 from attr.validators import instance_of
 
-from .entities import Project, World, TextureSpriteRenderSystem
-
+from .projects import Project
+from .worlds import World
+from .systems import TextureSpriteRenderSystem
 
 @attr.s
 class Engine(object):

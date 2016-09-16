@@ -9,7 +9,7 @@ import click
 
 from ._version import get_versions
 from .core import Engine
-from .entities import Project
+from .projects import Project
 
 
 @click.command()
