@@ -108,3 +108,53 @@ class Entity(object):
             raise AttributeError("{!r} has no attribute {!r}".format(self, item))
 
         return self._world.components[comp_type][self]
+
+
+@attr.s
+class Computer(Entity):
+    """
+    Define an entity that models a computer.
+    """
+    machine_state = attr.ib(validator=instance_of(MachineState), hash=False)
+    network_state = attr.ib(validator=instance_of(NetworkState), hash=False)
+    file_system = attr.ib(validator=instance_of(FileSystem), hash=False)
+
+    @classmethod
+    def create(cls, world, **kwargs):
+        """
+        Create a computer.
+
+        :param world:
+        :param kwargs:
+        :return:
+        """
+        return super(Computer, cls).create(
+            world,
+            machine_state=MachineState(),
+            network_state=NetworkState(),
+            file_system=FileSystem(),
+            **kwargs
+        )
+
+
+@attr.s
+class LocalComputer(Computer):
+    """
+    Define an entity that models the local computer.
+    """
+    terminal_display = attr.ib(validator=instance_of(TerminalDisplay), hash=False)
+
+    @classmethod
+    def create(cls, world, **kwargs):
+        """
+        Create a local computer.
+
+        :param world:
+        :param kwargs:
+        :return:
+        """
+        return super(LocalComputer, cls).create(
+            world,
+            terminal_display=TerminalDisplay(),
+            **kwargs
+        )
