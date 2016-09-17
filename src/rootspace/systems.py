@@ -116,7 +116,7 @@ class SpriteRenderSystem(RenderSystem):
         else:
             r.x = sprites.x
             r.y = sprites.y
-            r.w, r.h = sprites.size
+            r.w, r.h = sprites.shape
             sdl2.render.SDL_RenderCopy(renderer, sprites.texture, None, r)
 
         sdl2.render.SDL_RenderPresent(renderer)
