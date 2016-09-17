@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import re
 import configparser
 import os.path
+import re
 
 from .exceptions import SetupError
-
 
 __docformat__ = 'restructuredtext'
 FIRST_CAP_RE = re.compile(r"(.)([A-Z][a-z]+)")

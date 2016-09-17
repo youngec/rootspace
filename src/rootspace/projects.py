@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import collections
-import os.path
 import abc
+import os.path
 
 import attr
 import sdl2.video
 from attr.validators import instance_of
 
-from .utilities import merge_configurations
 from .entities import LocalComputer
+from .utilities import merge_configurations
 
 
 @attr.s
@@ -119,6 +118,7 @@ class RootSpace(Project):
     """
     Implementation of the Rootspace project.
     """
+
     def load_scene(self, world, renderer, systems, entities, scene=None):
         if scene is None:
             entities.append(LocalComputer.create(world, renderer=renderer))

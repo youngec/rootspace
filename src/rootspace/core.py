@@ -3,19 +3,18 @@
 
 """The engine core holds the entry point into the game execution."""
 
-import collections
 import logging
 import time
 
-import sdl2
-import sdl2.video
-import sdl2.ext
 import attr
+import sdl2
+import sdl2.ext
+import sdl2.video
 from attr.validators import instance_of
 
 from .projects import Project
-from .worlds import World
 from .systems import SpriteRenderSystem
+from .worlds import World
 
 
 @attr.s

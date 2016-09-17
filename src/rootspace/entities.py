@@ -6,8 +6,8 @@ import uuid
 import attr
 from attr.validators import instance_of
 
-from .worlds import World
 from .components import MachineState, NetworkState, FileSystem, TerminalFrameBuffer, Sprite
+from .worlds import World
 
 
 @attr.s
@@ -156,7 +156,8 @@ class LocalComputer(Computer):
         """
         position = (0, 0)
         shape = (80, 25)
-        args = {k: kwargs.pop(k) for k in ("depth", "renderer", "pixel_format", "access", "bpp", "masks") if k in kwargs}
+        args = {k: kwargs.pop(k) for k in ("depth", "renderer", "pixel_format", "access", "bpp", "masks") if
+                k in kwargs}
 
         return super(LocalComputer, cls).create(
             world=world,

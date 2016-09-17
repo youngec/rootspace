@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import attr
 import enum
-from attr.validators import instance_of
+
+import attr
+import sdl2.pixels
+import sdl2.render
 import sdl2.stdinc
 import sdl2.surface
-import sdl2.render
-import sdl2.pixels
 import sdl2.surface
+from attr.validators import instance_of
 
 from .exceptions import SDLError
 
@@ -123,6 +124,7 @@ class MachineState(object):
     """
     Describe whether a particular entity is in working order or not.
     """
+
     class MSE(enum.Enum):
         """
         Enumeration of the machine states.

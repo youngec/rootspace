@@ -4,8 +4,8 @@ import abc
 import collections
 
 import attr
-import sdl2.ext.window
 import sdl2.ext.sprite
+import sdl2.ext.window
 from attr.validators import instance_of
 
 from .components import Sprite
@@ -76,7 +76,7 @@ class SpriteRenderSystem(RenderSystem):
     """
     Render sprites as components of entities.
     """
-    #FIXME: Handle software sprites as well!
+    # FIXME: Handle software sprites as well!
     _renderer = attr.ib(validator=instance_of(sdl2.ext.sprite.Renderer))
 
     @classmethod
