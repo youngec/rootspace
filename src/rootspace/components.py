@@ -3,6 +3,7 @@
 import enum
 
 import attr
+import numpy
 import sdl2.pixels
 import sdl2.render
 import sdl2.stdinc
@@ -13,7 +14,7 @@ from attr.validators import instance_of
 from .exceptions import SDLError
 
 
-@attr.s()
+@attr.s(slots=True)
 class Sprite(object):
     x = attr.ib(validator=instance_of(int))
     y = attr.ib(validator=instance_of(int))
@@ -185,5 +186,18 @@ class FileSystem(object):
 
 
 @attr.s(slots=True)
-class TerminalFrameBuffer(object):
-    pass
+class TerminalDisplayBuffer(object):
+    """
+    Describe the state of the display buffer of the simulated display.
+    """
+    buffer = attr.ib(validator=instance_of(numpy.ndarray))
+
+    @classmethod
+    def create(cls, buffer_shape):
+        """
+        Create a TerminalDisplayBuffer
+
+        :param buffer_shape:
+        :return:
+        """
+        return cls(numpy.zeros(buffer_shape, dtype=str))
