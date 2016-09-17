@@ -100,11 +100,12 @@ class Project(object, metaclass=abc.ABCMeta):
         )
 
     @abc.abstractmethod
-    def load_scene(self, world, systems, entities, scene=None):
+    def load_scene(self, world, renderer, systems, entities, scene=None):
         """
         Load the specified scene.
 
         :param world:
+        :param renderer:
         :param systems:
         :param entities:
         :param scene:
@@ -118,6 +119,6 @@ class RootSpace(Project):
     """
     Implementation of the Rootspace project.
     """
-    def load_scene(self, world, systems, entities, scene=None):
+    def load_scene(self, world, renderer, systems, entities, scene=None):
         if scene is None:
-            entities.append(LocalComputer.create(world))
+            entities.append(LocalComputer.create(world, renderer=renderer))

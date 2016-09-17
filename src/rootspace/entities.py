@@ -7,7 +7,7 @@ import attr
 from attr.validators import instance_of
 
 from .worlds import World
-from .components import MachineState, NetworkState, FileSystem, TerminalDisplay
+from .components import MachineState, NetworkState, FileSystem, TerminalFrameBuffer, TextureSprite
 
 
 @attr.s
@@ -142,7 +142,8 @@ class LocalComputer(Computer):
     """
     Define an entity that models the local computer.
     """
-    terminal_display = attr.ib(validator=instance_of(TerminalDisplay), hash=False)
+    sprite = attr.ib(validator=instance_of(TextureSprite), hash=False)
+    terminal_frame_buffer = attr.ib(validator=instance_of(TerminalFrameBuffer), hash=False)
 
     @classmethod
     def create(cls, world, **kwargs):
@@ -153,8 +154,16 @@ class LocalComputer(Computer):
         :param kwargs:
         :return:
         """
+        renderer = kwargs.pop("renderer")
+        texture_sprite = TextureSprite.create(
+            renderer=renderer,
+            width=80,
+            height=25
+        )
+
         return super(LocalComputer, cls).create(
             world=world,
-            terminal_display=TerminalDisplay(),
+            sprite=texture_sprite,
+            terminal_frame_buffer=TerminalFrameBuffer(),
             **kwargs
         )
