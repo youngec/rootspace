@@ -76,13 +76,13 @@ def merge_configurations(func_params, config_paths, default_config):
                 raise ValueError("The value for parameter '{}' must be of type '{}'.".format(key, value_type))
         else:
             if isinstance(value["value"], int):
-                configuration[key] = cfg.getint(value["section"], value["name"])
+                configuration[key] = cfg.getint(value["section"], value["name"], fallback=value["value"])
             elif isinstance(value["value"], float):
-                configuration[key] = cfg.getfloat(value["section"], value["name"])
+                configuration[key] = cfg.getfloat(value["section"], value["name"], fallback=value["value"])
             elif isinstance(value["value"], str):
-                configuration[key] = cfg.get(value["section"], value["name"])
+                configuration[key] = cfg.get(value["section"], value["name"], fallback=value["value"])
             elif isinstance(value["value"], bool):
-                configuration[key] = cfg.getboolean(value["section"], value["name"])
+                configuration[key] = cfg.getboolean(value["section"], value["name"], fallback=value["value"])
             else:
                 configuration[key] = value["value"]
 
