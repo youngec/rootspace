@@ -8,7 +8,7 @@ import sdl2.ext.sprite
 import sdl2.ext.window
 from attr.validators import instance_of
 
-from .components import Sprite
+from .components import Sprite, TerminalDisplayBuffer
 from .exceptions import SDLError
 
 
@@ -110,7 +110,7 @@ class SpriteRenderSystem(RenderSystem):
             for sp in sprites:
                 r.x = x + sp.x
                 r.y = y + sp.y
-                r.w, r.h = sp.size
+                r.w, r.h = sp.shape
                 if rcopy(renderer, sp.texture, None, r) == -1:
                     raise SDLError("Cannot copy the texture to the renderer by SDL_RenderCopy.")
         else:
@@ -120,3 +120,20 @@ class SpriteRenderSystem(RenderSystem):
             sdl2.render.SDL_RenderCopy(renderer, sprites.texture, None, r)
 
         sdl2.render.SDL_RenderPresent(renderer)
+
+
+@attr.s
+class TerminalDisplaySystem(System):
+    """
+    Copy the data from the terminal display buffer to a texture.
+    """
+    @classmethod
+    def create(cls):
+        return cls(
+            component_types=(Sprite, TerminalDisplayBuffer),
+            is_applicator=True,
+        )
+
+    def update(self, time, delta_time, world, components):
+        for sprite, tdb in components:
+            pass
