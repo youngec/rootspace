@@ -73,6 +73,14 @@ class Sprite(object):
         """
         self._depth = value
 
+    @property
+    def surface(self):
+        return self._surface
+
+    @property
+    def texture(self):
+        return self._texture
+
     @classmethod
     def create(cls, position, shape, depth=0,
                renderer=None, pixel_format=sdl2.pixels.SDL_PIXELFORMAT_RGBA8888,
