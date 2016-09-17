@@ -51,12 +51,12 @@ def read_configurations(cfg_paths):
     return cfg
 
 
-def merge_configurations(config_paths, func_params, default_config):
+def merge_configurations(func_params, config_paths, default_config):
     """
     Merge configurations from configuration files, function parameters and default values.
 
-    :param config_paths:
     :param func_params:
+    :param config_paths:
     :param default_config:
     :return:
     """

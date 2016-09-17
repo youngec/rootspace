@@ -129,7 +129,7 @@ class Computer(Entity):
         :return:
         """
         return super(Computer, cls).create(
-            world,
+            world=world,
             machine_state=MachineState(),
             network_state=NetworkState(),
             file_system=FileSystem(),
@@ -154,7 +154,7 @@ class LocalComputer(Computer):
         :return:
         """
         return super(LocalComputer, cls).create(
-            world,
+            world=world,
             terminal_display=TerminalDisplay(),
             **kwargs
         )

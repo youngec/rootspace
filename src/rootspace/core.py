@@ -88,26 +88,21 @@ class Engine(object):
         # self._dbg("Creating the sprite factory.")
         # ctx["factory"] = sdl2.ext.SpriteFactory(sdl2.ext.TEXTURE, renderer=ctx["renderer"])
 
-        self._dbg("Creating the ECS systems.")
-        ctx["systems"] = collections.OrderedDict()
-        ctx["systems"].update(self._project.create_systems(ctx["world"]))
-        ctx["systems"]["render_system"] = TextureSpriteRenderSystem.create(ctx["renderer"])
-
-        self._dbg("Adding systems to the world.")
-        for system in ctx["systems"].values():
-            ctx["world"].add_system(system)
-
-        if "render_system" in ctx["systems"] and len(ctx["systems"]) == 1:
-            self._wrn("Only the render system is present in the world.")
-        elif "render_system" not in ctx["systems"]:
-            raise RuntimeError("Cannot run the engine without a valid render system.")
-
-        self._dbg("Creating the ECS entities.")
+        self._dbg("Creating the initial scene.")
+        ctx["systems"] = list()
         ctx["entities"] = list()
-        ctx["entities"].extend(self._project.create_entities(ctx["world"]))
+        self._project.load_scene(ctx["world"], ctx["systems"], ctx["entities"])
+        ctx["systems"].append(TextureSpriteRenderSystem.create(ctx["renderer"]))
+
+        if len(ctx["systems"]) == 1 and isinstance(ctx["systems"][0], TextureSpriteRenderSystem):
+            self._wrn("Only the render system is present in the world.")
 
         if len(ctx["entities"]) == 0:
             self._wrn("No entities are present in the world.")
+
+        self._dbg("Loading the initial scene.")
+        for system in ctx["systems"]:
+            ctx["world"].add_system(system)
 
         return ctx
 

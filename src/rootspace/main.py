@@ -22,11 +22,6 @@ def main(verbose, debug, profile):
     Start a game using the rootspace game engine.
     Command line parameters take precedence over configuration values.
     """
-    # Determine the project location.
-    user_home = os.path.expanduser("~")
-    project_location = os.path.dirname(os.path.realpath(__file__))
-    resource_path = os.path.join(project_location, "resources")
-
     # Determine the log level.
     log_level = logging.WARN
     if verbose == 1:
@@ -49,7 +44,11 @@ def main(verbose, debug, profile):
     logging.captureWarnings(True)
 
     # Create the project
-    project = RootSpace.create(user_home, resource_path, debug=debug)
+    user_home = os.path.expanduser("~")
+    engine_location = os.path.dirname(os.path.realpath(__file__))
+    resource_path = os.path.join(engine_location, "resources", "rootspace")
+    config_path = os.path.join(user_home, ".config", "rootspace", "config.ini")
+    project = RootSpace.create(resource_path, config_path=config_path, debug=debug)
 
     # Create the engine instance
     engine = Engine(project, debug)

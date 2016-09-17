@@ -2,6 +2,7 @@
 
 import collections
 import os.path
+import abc
 
 import attr
 import sdl2.video
@@ -12,8 +13,7 @@ from .entities import LocalComputer
 
 
 @attr.s
-class Project(object):
-    _name = attr.ib(validator=instance_of(str))
+class Project(object, metaclass=abc.ABCMeta):
     _configuration = attr.ib(validator=instance_of(dict))
     _debug = attr.ib(validator=instance_of(bool))
 
@@ -57,34 +57,60 @@ class Project(object):
             "value": (0, 0, 0, 1),
             "section": "Display",
             "name": "Render clear color"
+        },
+        "resource_path": {
+            "value": "resources",
+            "section": "Resources",
+            "name": "Path"
         }
     }
-
-    @property
-    def name(self):
-        return self._name
 
     @property
     def configuration(self):
         return self._configuration
 
-    def create_systems(self, world):
+    @classmethod
+    def create(cls, resource_path, config_path="", debug=False, **kwargs):
         """
-        Create the systems that are part of a project.
+        Create a project instance.
+
+        :param resource_path:
+        :param config_path:
+        :param debug:
+        :param kwargs:
+        :return:
+        """
+        # Define configuration search paths (giving precedence to user configurations)
+        cfg_paths = (
+            config_path,
+            os.path.join(resource_path, "config.ini")
+        )
+
+        # Update the default configuration
+        default_config = cls._default_config.copy()
+        default_config["resource_path"]["value"] = resource_path
+
+        # Load the conglomerate configuration
+        configuration = merge_configurations(kwargs, cfg_paths, default_config)
+
+        return cls(
+            configuration=configuration,
+            debug=debug,
+            **kwargs
+        )
+
+    @abc.abstractmethod
+    def load_scene(self, world, systems, entities, scene=None):
+        """
+        Load the specified scene.
 
         :param world:
-        :return: collections.OrderedDict
+        :param systems:
+        :param entities:
+        :param scene:
+        :return:
         """
-        raise NotImplementedError()
-
-    def create_entities(self, world):
-        """
-        Create the entities that are part of a project.
-
-        :param world:
-        :return: iterable
-        """
-        raise NotImplementedError()
+        pass
 
 
 @attr.s
@@ -92,49 +118,6 @@ class RootSpace(Project):
     """
     Implementation of the Rootspace project.
     """
-    @classmethod
-    def create(cls, user_home, resource_path, config_path="", debug=False, **kwargs):
-        """
-        Create a root space project.
-
-        :param user_home:
-        :param resource_path:
-        :param config_path:
-        :param debug:
-        :param kwargs:
-        :return:
-        """
-        name = "rootspace"
-
-        # Define configuration search paths (giving precedence to user configurations)
-        cfg_paths = (
-            config_path,
-            os.path.join(user_home, ".config", name, "config.ini"),
-            os.path.join(resource_path, name, "config.ini")
-        )
-
-        # Load the conglomerate configuration
-        configuration = merge_configurations(cfg_paths, kwargs, cls._default_config)
-        configuration["resource_path"] = resource_path
-
-        return cls(name, configuration, debug)
-
-    def create_systems(self, world):
-        """
-        Create all necessary systems.
-
-        :param world:
-        :return:
-        """
-        return collections.OrderedDict()
-
-    def create_entities(self, world):
-        """
-        Create all necessary entities.
-
-        :param world:
-        :return:
-        """
-        entities = tuple()
-        entities = (LocalComputer.create(world),)
-        return entities
+    def load_scene(self, world, systems, entities, scene=None):
+        if scene is None:
+            entities.append(LocalComputer.create(world))
