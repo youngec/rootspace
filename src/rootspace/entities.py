@@ -45,45 +45,44 @@ class Entity(object):
         :param kwargs:
         :return:
         """
-        ident = uuid.uuid4()
-
-        if len(kwargs) > 0:
-            inst = cls(world, ident, **kwargs)
-        else:
-            inst = cls(world, ident)
-
+        inst = cls(world, uuid.uuid4(), **kwargs)
         world.add_entity(inst)
+
         return inst
 
-    def get_component(self, name):
+    def register_component(self, instance):
         """
-        Return a reference to an attached component.
+        Register a component with the world.
 
-        :param name:
+        :param instance:
         :return:
         """
-        return self.__getattr__(name)
-
-    def set_component(self, name, value):
-        mro = inspect.getmro(value.__class__)
+        # If the value is a compound component (e.g. a Button
+        # inheriting from a Sprite), it needs to be added to all
+        # supported component type instances.
+        mro = inspect.getmro(instance.__class__)
         if type in mro:
             stop = mro.index(type)
         else:
             stop = mro.index(object)
 
-        mro = mro[0:stop]
-        world_comp_types = self._world.component_types
-        for class_type in mro:
-            if class_type not in world_comp_types:
-                self._world.add_componenttype(class_type)
-            self._world.components[class_type][self] = value
+        for comp_type in mro[0:stop]:
+            if comp_type not in self._world.component_types:
+                self._world.add_component_type(comp_type)
+            self._world.components[comp_type][self] = instance
 
-    def delete_component(self, name):
+    def get_component(self, name):
+        """
+        Get a reference to a registered component.
+
+        :param name:
+        :return:
+        """
         comp_type = self._world.component_types.get(name)
         if comp_type is None:
             raise AttributeError("{!r} has no attribute {!r}".format(self, name))
 
-        del self._world.components[comp_type][self]
+        return self._world.components[comp_type][self]
 
     def delete(self):
         """
@@ -92,22 +91,6 @@ class Entity(object):
         :return:
         """
         self._world.delete_entity(self)
-
-    def __hash__(self):
-        return hash(self._ident)
-
-    def __getattr__(self, item):
-        """
-        Allow access to attached component data.
-
-        :param item:
-        :return:
-        """
-        comp_type = self._world.component_types.get(item)
-        if comp_type is None:
-            raise AttributeError("{!r} has no attribute {!r}".format(self, item))
-
-        return self._world.components[comp_type][self]
 
 
 @attr.s
@@ -128,13 +111,20 @@ class Computer(Entity):
         :param kwargs:
         :return:
         """
-        return super(Computer, cls).create(
+        inst = super(Computer, cls).create(
             world=world,
             machine_state=MachineState(),
             network_state=NetworkState(),
             file_system=FileSystem(),
             **kwargs
         )
+
+        # Register the components
+        inst.register_component(inst.machine_state)
+        inst.register_component(inst.network_state)
+        inst.register_component(inst.file_system)
+
+        return inst
 
 
 @attr.s
@@ -159,9 +149,13 @@ class LocalComputer(Computer):
         args = {k: kwargs.pop(k) for k in ("depth", "renderer", "pixel_format", "access", "bpp", "masks") if
                 k in kwargs}
 
-        return super(LocalComputer, cls).create(
+        inst = super(LocalComputer, cls).create(
             world=world,
             sprite=Sprite.create(position, shape, **args),
             terminal_display_buffer=TerminalDisplayBuffer.create(shape),
             **kwargs
         )
+
+        # Register the components
+        inst.register_component(inst.sprite)
+        inst.register_component(inst.terminal_display_buffer)
