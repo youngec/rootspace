@@ -162,6 +162,6 @@ class LocalComputer(Computer):
         return super(LocalComputer, cls).create(
             world=world,
             sprite=Sprite.create(position, shape, **args),
-            terminal_display_buffer=TerminalDisplayBuffer(),
+            terminal_display_buffer=TerminalDisplayBuffer.create(shape),
             **kwargs
         )
