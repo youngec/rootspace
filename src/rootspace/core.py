@@ -96,7 +96,7 @@ class Engine(object):
         self._dbg("Creating the initial scene.")
         ctx["systems"] = list()
         ctx["entities"] = list()
-        self._project.load_scene(ctx["world"], ctx["renderer"], ctx["systems"], ctx["entities"])
+        self._project.load_scene(ctx["world"], ctx["renderer"], ctx["resources"], ctx["systems"], ctx["entities"])
         ctx["systems"].append(SpriteRenderSystem.create(ctx["renderer"]))
 
         if len(ctx["systems"]) == 1 and isinstance(ctx["systems"][0], SpriteRenderSystem):
@@ -118,9 +118,6 @@ class Engine(object):
         :param ctx:
         :return:
         """
-        self._nfo("Closing down SDL2 TTF.")
-        sdl2.sdlttf.TTF_Quit()
-
         self._nfo("Closing down SDL2.")
         sdl2.ext.quit()
 

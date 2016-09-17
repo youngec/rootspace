@@ -22,7 +22,6 @@ class Sprite(object):
     _height = attr.ib(validator=instance_of(int))
     _depth = attr.ib(validator=instance_of(int))
     _renderer = attr.ib(default=None)
-    _free = attr.ib(default=True)
     _surface = attr.ib(default=None)
     _texture = attr.ib(default=None)
 
@@ -108,7 +107,7 @@ class Sprite(object):
 
             return cls(
                 position[0], position[1], shape[0], shape[1], depth,
-                surface=surf.contents, free=True
+                surface=surf.contents
             )
 
     def __del__(self):
@@ -118,9 +117,7 @@ class Sprite(object):
         :return:
         """
         if self._surface is not None:
-            if self._free:
-                sdl2.surface.SDL_FreeSurface(self._surface)
-
+            sdl2.surface.SDL_FreeSurface(self._surface)
             self._surface = None
 
         if self._texture is not None:

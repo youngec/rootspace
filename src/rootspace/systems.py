@@ -2,10 +2,12 @@
 
 import abc
 import collections
+import ctypes
 
 import attr
 import sdl2.ext.sprite
 import sdl2.ext.window
+import sdl2.sdlttf
 from attr.validators import instance_of
 
 from .components import Sprite, TerminalDisplayBuffer
@@ -127,13 +129,29 @@ class TerminalDisplaySystem(System):
     """
     Copy the data from the terminal display buffer to a texture.
     """
+    _font = attr.ib(validator=instance_of(sdl2.sdlttf.TTF_Font))
+
     @classmethod
-    def create(cls):
+    def create(cls, resource_manager, font_name="Courier New", font_size_pt=10):
+        """
+        Create a terminal display system.
+
+        :return:
+        """
+        fname = ctypes.c_char_p(resource_manager.get_path(font_name + ".ttf").encode("utf-8"))
+        font = sdl2.sdlttf.TTF_OpenFont(fname, font_size_pt)
+
         return cls(
             component_types=(Sprite, TerminalDisplayBuffer),
             is_applicator=True,
+            font=font.contents
         )
 
     def update(self, time, delta_time, world, components):
         for sprite, tdb in components:
             pass
+
+    def __del__(self):
+        if self._font is not None:
+            sdl2.sdlttf.TTF_CloseFont(self._font)
+            self._font = None
