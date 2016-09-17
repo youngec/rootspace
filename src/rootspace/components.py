@@ -1,22 +1,28 @@
 # -*- coding: utf-8 -*-
 
-import abc
 import attr
 import enum
 from attr.validators import instance_of
 import sdl2.stdinc
+import sdl2.surface
 import sdl2.render
 import sdl2.pixels
-from ctypes import byref, c_int
+import sdl2.surface
 
 from .exceptions import SDLError
 
 
-@attr.s(slots=True)
-class Sprite(object, metaclass=abc.ABCMeta):
+@attr.s()
+class Sprite(object):
     x = attr.ib(validator=instance_of(int))
     y = attr.ib(validator=instance_of(int))
-    depth = attr.ib(validator=instance_of(int))
+    _width = attr.ib(validator=instance_of(int))
+    _height = attr.ib(validator=instance_of(int))
+    _depth = attr.ib(validator=instance_of(int))
+    _renderer = attr.ib(default=None)
+    _free = attr.ib(default=True)
+    _surface = attr.ib(default=None)
+    _texture = attr.ib(default=None)
 
     @property
     def position(self):
@@ -35,105 +41,81 @@ class Sprite(object, metaclass=abc.ABCMeta):
         :param value:
         :return:
         """
-        self.x = value[0]
-        self.y = value[1]
+        self.x, self.y = value
 
     @property
-    @abc.abstractmethod
-    def size(self):
+    def shape(self):
         """
         Return the size of the Sprite as tuple.
 
         :return:
         """
-        pass
+        return self._width, self._height
 
     @property
-    def area(self):
+    def depth(self):
         """
-        Return the rectangle occupied by the sprite as tuple.
+        Return the render depth of the Sprite.
 
         :return:
         """
-        return self.x, self.y, self.x + self.size[0], self.y + self.size[1]
+        return self._depth
+
+    @depth.setter
+    def depth(self, value):
+        """
+        Set the render depth.
+
+        :param value:
+        :return:
+        """
+        self._depth = value
 
     @classmethod
-    @abc.abstractmethod
-    def create(cls, x=0, y=0, depth=0, **kwargs):
-        """
-        Create a sprite.
+    def create(cls, position, shape, depth=0,
+               renderer=None, pixel_format=sdl2.pixels.SDL_PIXELFORMAT_RGBA8888,
+               access=sdl2.render.SDL_TEXTUREACCESS_STATIC, bpp=32, masks=(0, 0, 0, 0)):
+        if renderer is not None:
+            sdl_renderer = renderer.renderer
+            tex = sdl2.render.SDL_CreateTexture(
+                sdl_renderer, pixel_format, access, shape[0], shape[1]
+            )
 
-        :param x:
-        :param y:
-        :param depth:
-        :param kwargs:
-        :return:
-        """
-        return cls(x, y, depth, **kwargs)
+            if tex is None:
+                raise SDLError("Could not create texture by SDL_CreateTexture.")
 
+            return cls(
+                position[0], position[1], shape[0], shape[1], depth,
+                texture=tex.contents
+            )
+        else:
+            surf = sdl2.surface.SDL_CreateRGBSurface(
+                0, shape[0], shape[1], bpp, *masks
+            )
 
-@attr.s(slots=True)
-class TextureSprite(Sprite):
-    """
-    A simple texture-based sprite.
-    """
-    texture = attr.ib(validator=instance_of(sdl2.render.SDL_Texture))
+            if surf is None:
+                raise SDLError("Cannot create a surface by SDL_CreateRGBSurface.")
 
-    @property
-    def size(self):
-        flags = sdl2.stdinc.Uint32()
-        access = c_int()
-        w = c_int()
-        h = c_int()
-        if sdl2.render.SDL_QueryTexture(self.texture, byref(flags), byref(access), byref(w), byref(h)) == -1:
-            raise SDLError("Cannot determine the texture size by SDL_QueryTexture().")
-
-        return w.value, h.value
-
-    @classmethod
-    def create(cls, x=0, y=0, depth=0, **kwargs):
-        """
-        Create a texture sprite.
-
-        :param x:
-        :param y:
-        :param depth:
-        :param kwargs:
-        :keyword renderer:
-        :keyword width:
-        :keyword height:
-        :keyword pixel_format:
-        :keyword access:
-        :return:
-        """
-        sdl_renderer = kwargs.pop("renderer").renderer
-        width = kwargs.pop("width")
-        height = kwargs.pop("height")
-        pixel_format = kwargs.pop("pixel_format", sdl2.pixels.SDL_PIXELFORMAT_RGBA8888)
-        access = kwargs.pop("access", sdl2.render.SDL_TEXTUREACCESS_STATIC)
-        texture = sdl2.render.SDL_CreateTexture(
-            sdl_renderer,
-            pixel_format,
-            access,
-            width,
-            height
-        )
-
-        if texture is None:
-            raise SDLError("Could not create texture by SDL_CreateTexture.")
-
-        return super(TextureSprite, cls).create(x=x, y=y, depth=depth, texture=texture.contents, **kwargs)
+            return cls(
+                position[0], position[1], shape[0], shape[1], depth,
+                surface=surf.contents, free=True
+            )
 
     def __del__(self):
         """
-        Free the SDL_Texture.
+        Frees the resources bound to the sprite.
 
         :return:
         """
-        if self.texture is not None:
-            sdl2.render.SDL_DestroyTexture(self.texture)
+        if self._surface is not None:
+            if self._free:
+                sdl2.surface.SDL_FreeSurface(self._surface)
 
-        self.texture = None
+            self._surface = None
+
+        if self._texture is not None:
+            sdl2.render.SDL_DestroyTexture(self._texture)
+            self._texture = None
 
 
 @attr.s(slots=True)
