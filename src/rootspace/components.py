@@ -92,7 +92,7 @@ class Sprite(object):
             )
 
             if tex is None:
-                raise SDLError("Could not create texture by SDL_CreateTexture.")
+                raise SDLError()
 
             return cls(
                 position[0], position[1], shape[0], shape[1], depth,
@@ -104,7 +104,7 @@ class Sprite(object):
             )
 
             if surf is None:
-                raise SDLError("Cannot create a surface by SDL_CreateRGBSurface.")
+                raise SDLError()
 
             return cls(
                 position[0], position[1], shape[0], shape[1], depth,

@@ -10,11 +10,13 @@ import attr
 import sdl2
 import sdl2.ext
 import sdl2.video
+import sdl2.sdlttf
 from attr.validators import instance_of
 
 from .projects import Project
 from .systems import SpriteRenderSystem
 from .worlds import World
+from .exceptions import SDLTTFError
 
 
 @attr.s
@@ -65,6 +67,10 @@ class Engine(object):
         self._dbg("Initializing SDL2.")
         sdl2.ext.init()
 
+        self._dbg("Initializing SDL2 TTF.")
+        if sdl2.sdlttf.TTF_Init() != 0:
+            raise SDLTTFError()
+
         self._dbg("Creating the resource manager.")
         ctx["resources"] = sdl2.ext.Resources(self._project.configuration["resource_path"])
 
@@ -112,7 +118,9 @@ class Engine(object):
         :param ctx:
         :return:
         """
-        # Close down and clean up SDL2
+        self._nfo("Closing down SDL2 TTF.")
+        sdl2.sdlttf.TTF_Quit()
+
         self._nfo("Closing down SDL2.")
         sdl2.ext.quit()
 

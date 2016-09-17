@@ -112,7 +112,7 @@ class SpriteRenderSystem(RenderSystem):
                 r.y = y + sp.y
                 r.w, r.h = sp.shape
                 if rcopy(renderer, sp.texture, None, r) == -1:
-                    raise SDLError("Cannot copy the texture to the renderer by SDL_RenderCopy.")
+                    raise SDLError()
         else:
             r.x = sprites.x
             r.y = sprites.y
