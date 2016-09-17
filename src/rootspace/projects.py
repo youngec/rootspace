@@ -8,6 +8,7 @@ import sdl2.video
 from attr.validators import instance_of
 
 from .entities import LocalComputer
+from .systems import TerminalDisplaySystem
 from .utilities import merge_configurations
 
 
@@ -118,7 +119,7 @@ class RootSpace(Project):
     """
     Implementation of the Rootspace project.
     """
-
     def load_scene(self, world, renderer, systems, entities, scene=None):
         if scene is None:
+            systems.append(TerminalDisplaySystem.create())
             entities.append(LocalComputer.create(world, renderer=renderer))
