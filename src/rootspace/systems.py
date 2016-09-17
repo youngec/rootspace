@@ -8,7 +8,7 @@ import sdl2.ext.window
 import sdl2.ext.sprite
 from attr.validators import instance_of
 
-from .components import TextureSprite
+from .components import Sprite
 from .exceptions import SDLError
 
 
@@ -72,13 +72,17 @@ class RenderSystem(object, metaclass=abc.ABCMeta):
 
 
 @attr.s
-class TextureSpriteRenderSystem(RenderSystem):
+class SpriteRenderSystem(RenderSystem):
+    """
+    Render sprites as components of entities.
+    """
+    #FIXME: Handle software sprites as well!
     _renderer = attr.ib(validator=instance_of(sdl2.ext.sprite.Renderer))
 
     @classmethod
     def create(cls, renderer):
         return cls(
-            component_types=(TextureSprite,),
+            component_types=(Sprite,),
             is_applicator=False,
             sort_func=lambda e: e.depth,
             renderer=renderer

@@ -15,7 +15,7 @@ from attr.validators import instance_of
 
 from .projects import Project
 from .worlds import World
-from .systems import TextureSpriteRenderSystem
+from .systems import SpriteRenderSystem
 
 
 @attr.s
@@ -92,9 +92,9 @@ class Engine(object):
         ctx["systems"] = list()
         ctx["entities"] = list()
         self._project.load_scene(ctx["world"], ctx["renderer"], ctx["systems"], ctx["entities"])
-        ctx["systems"].append(TextureSpriteRenderSystem.create(ctx["renderer"]))
+        ctx["systems"].append(SpriteRenderSystem.create(ctx["renderer"]))
 
-        if len(ctx["systems"]) == 1 and isinstance(ctx["systems"][0], TextureSpriteRenderSystem):
+        if len(ctx["systems"]) == 1 and isinstance(ctx["systems"][0], SpriteRenderSystem):
             self._wrn("Only the render system is present in the world.")
 
         if len(ctx["entities"]) == 0:
