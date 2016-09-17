@@ -6,6 +6,7 @@ import enum
 from attr.validators import instance_of
 import sdl2.stdinc
 import sdl2.render
+import sdl2.pixels
 from ctypes import byref, c_int
 
 from .exceptions import SDLError
@@ -56,6 +57,20 @@ class Sprite(object, metaclass=abc.ABCMeta):
         """
         return self.x, self.y, self.x + self.size[0], self.y + self.size[1]
 
+    @classmethod
+    @abc.abstractmethod
+    def create(cls, x=0, y=0, depth=0, **kwargs):
+        """
+        Create a sprite.
+
+        :param x:
+        :param y:
+        :param depth:
+        :param kwargs:
+        :return:
+        """
+        return cls(x, y, depth, **kwargs)
+
 
 @attr.s(slots=True)
 class TextureSprite(Sprite):
@@ -71,9 +86,54 @@ class TextureSprite(Sprite):
         w = c_int()
         h = c_int()
         if sdl2.render.SDL_QueryTexture(self.texture, byref(flags), byref(access), byref(w), byref(h)) == -1:
-            raise SDLError("Cannot determine the TextureSprite size by SDL_QueryTexture().")
+            raise SDLError("Cannot determine the texture size by SDL_QueryTexture().")
 
         return w.value, h.value
+
+    @classmethod
+    def create(cls, x=0, y=0, depth=0, **kwargs):
+        """
+        Create a texture sprite.
+
+        :param x:
+        :param y:
+        :param depth:
+        :param kwargs:
+        :keyword renderer:
+        :keyword width:
+        :keyword height:
+        :keyword pixel_format:
+        :keyword access:
+        :return:
+        """
+        sdl_renderer = kwargs.pop("renderer").renderer
+        width = kwargs.pop("width")
+        height = kwargs.pop("height")
+        pixel_format = kwargs.pop("pixel_format", sdl2.pixels.SDL_PIXELFORMAT_RGBA8888)
+        access = kwargs.pop("access", sdl2.render.SDL_TEXTUREACCESS_STATIC)
+        texture = sdl2.render.SDL_CreateTexture(
+            sdl_renderer,
+            pixel_format,
+            access,
+            width,
+            height
+        )
+
+        if texture is None:
+            raise SDLError("Could not create texture by SDL_CreateTexture.")
+
+        return super(TextureSprite, cls).create(x=x, y=y, depth=depth, texture=texture.contents, **kwargs)
+
+    def __del__(self):
+        """
+        Free the SDL_Texture.
+
+        :return:
+        """
+        if self.texture is not None:
+            sdl2.render.SDL_DestroyTexture(self.texture)
+
+        self.texture = None
 
 
 @attr.s(slots=True)
@@ -141,5 +201,5 @@ class FileSystem(object):
 
 
 @attr.s(slots=True)
-class TerminalDisplay(object):
+class TerminalFrameBuffer(object):
     pass
