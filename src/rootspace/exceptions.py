@@ -13,5 +13,8 @@ class SetupError(Exception):
     pass
 
 
-class NotImplementedWarning(UserWarning):
+class SDLError(Exception):
+    """
+    This exception indicates that there was an issue with the SDL2 library.
+    """
     pass

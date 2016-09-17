@@ -4,10 +4,12 @@ import abc
 import collections
 
 import attr
-import sdl2.ext.common
 import sdl2.ext.window
 import sdl2.ext.sprite
 from attr.validators import instance_of
+
+from .components import TextureSprite
+from .exceptions import SDLError
 
 
 @attr.s
@@ -29,7 +31,7 @@ class System(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def update(self, time, delta_time, world, components):
         """
-        Processes component items.
+        Update the current world.
 
         :param float time:
         :param float delta_time:
@@ -60,7 +62,7 @@ class RenderSystem(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def render(self, world, components):
         """
-        Render the current world.
+        Render the current world to display.
 
         :param world:
         :param components:
@@ -76,7 +78,7 @@ class TextureSpriteRenderSystem(RenderSystem):
     @classmethod
     def create(cls, renderer):
         return cls(
-            component_types=(sdl2.ext.sprite.TextureSprite,),
+            component_types=(TextureSprite,),
             is_applicator=False,
             sort_func=lambda e: e.depth,
             renderer=renderer
@@ -106,7 +108,7 @@ class TextureSpriteRenderSystem(RenderSystem):
                 r.y = y + sp.y
                 r.w, r.h = sp.size
                 if rcopy(renderer, sp.texture, None, r) == -1:
-                    raise sdl2.ext.common.SDLError()
+                    raise SDLError("Cannot copy the texture to the renderer by SDL_RenderCopy.")
         else:
             r.x = sprites.x
             r.y = sprites.y

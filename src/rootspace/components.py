@@ -4,13 +4,18 @@ import abc
 import attr
 import enum
 from attr.validators import instance_of
+import sdl2.stdinc
+import sdl2.render
+from ctypes import byref, c_int
+
+from .exceptions import SDLError
 
 
 @attr.s(slots=True)
 class Sprite(object, metaclass=abc.ABCMeta):
-    x = attr.ib(default=0, validator=instance_of(int))
-    y = attr.ib(default=0, validator=instance_of(int))
-    depth = attr.ib(default=0, validator=instance_of(int))
+    x = attr.ib(validator=instance_of(int))
+    y = attr.ib(validator=instance_of(int))
+    depth = attr.ib(validator=instance_of(int))
 
     @property
     def position(self):
@@ -53,6 +58,25 @@ class Sprite(object, metaclass=abc.ABCMeta):
 
 
 @attr.s(slots=True)
+class TextureSprite(Sprite):
+    """
+    A simple texture-based sprite.
+    """
+    texture = attr.ib(validator=instance_of(sdl2.render.SDL_Texture))
+
+    @property
+    def size(self):
+        flags = sdl2.stdinc.Uint32()
+        access = c_int()
+        w = c_int()
+        h = c_int()
+        if sdl2.render.SDL_QueryTexture(self.texture, byref(flags), byref(access), byref(w), byref(h)) == -1:
+            raise SDLError("Cannot determine the TextureSprite size by SDL_QueryTexture().")
+
+        return w.value, h.value
+
+
+@attr.s(slots=True)
 class MachineState(object):
     """
     Describe whether a particular entity is in working order or not.
@@ -84,6 +108,7 @@ class FileSystem(object):
     """
     Describe the state of the file system.
     """
+    # FIXME: This design does not account for permissions.
     default_hierarchy = {
         "/": {
             "bin": {},
@@ -113,3 +138,8 @@ class FileSystem(object):
 
     hierarchy = attr.ib(default=default_hierarchy, validator=instance_of(dict))
     database = attr.ib(default=default_database, validator=instance_of(dict))
+
+
+@attr.s(slots=True)
+class TerminalDisplay(object):
+    pass
