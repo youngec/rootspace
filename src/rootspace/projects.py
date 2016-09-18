@@ -122,5 +122,5 @@ class RootSpace(Project):
     """
     def load_scene(self, world, renderer, resource_manager, systems, entities, scene=None):
         if scene is None:
-            systems.append(TerminalDisplaySystem.create(resource_manager))
+            systems.append(TerminalDisplaySystem.create(renderer, resource_manager))
             entities.append(LocalComputer.create(world, renderer=renderer))
