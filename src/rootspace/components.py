@@ -80,6 +80,15 @@ class Sprite(object):
     def texture(self):
         return self._texture
 
+    @texture.setter
+    def texture(self, value):
+        sdl2.render.SDL_DestroyTexture(self._texture)
+        self._texture = value
+
+    @texture.deleter
+    def texture(self):
+        sdl2.render.SDL_DestroyTexture(self._texture)
+
     @classmethod
     def create(cls, position, shape, depth=0,
                renderer=None, pixel_format=sdl2.pixels.SDL_PIXELFORMAT_RGBA8888,
