@@ -140,14 +140,15 @@ class TerminalDisplaySystem(System):
 
     @classmethod
     def create(cls, renderer, resource_manager,
-               font_name="Courier New.ttf", font_size=20, font_color=(0xff, 0xff, 0xff, 0xff)):
+               font_name="FantasqueSansMono-Regular.ttf", font_size=20, font_color=(0xff, 0xff, 0xff, 0xff)):
         """
         Create a terminal display system.
 
         :return:
         """
         color = sdl2.pixels.SDL_Color(*font_color)
-        font = sdl2.sdlttf.TTF_OpenFont(resource_manager.get_path(font_name).encode("utf-8"), font_size)
+        font_path = resource_manager.get_path(font_name)
+        font = sdl2.sdlttf.TTF_OpenFont(font_path.encode("utf-8"), font_size)
         if font is None:
             raise SDLTTFError()
 
