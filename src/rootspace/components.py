@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import enum
+import string
+import uuid
 
 import attr
 import numpy
@@ -82,12 +84,14 @@ class Sprite(object):
 
     @texture.setter
     def texture(self, value):
-        sdl2.render.SDL_DestroyTexture(self._texture)
+        if self._texture is not None:
+            sdl2.render.SDL_DestroyTexture(self._texture)
         self._texture = value
 
     @texture.deleter
     def texture(self):
-        sdl2.render.SDL_DestroyTexture(self._texture)
+        if self._texture is not None:
+            sdl2.render.SDL_DestroyTexture(self._texture)
 
     @classmethod
     def create(cls, position, shape, depth=0,
@@ -204,14 +208,38 @@ class TerminalDisplayBuffer(object):
     """
     Describe the state of the display buffer of the simulated display.
     """
-    buffer = attr.ib(validator=instance_of(numpy.ndarray))
+    _buffer = attr.ib(validator=instance_of(numpy.ndarray))
+    _ident = attr.ib(validator=instance_of(uuid.UUID))
+
+    @property
+    def buffer(self):
+        return self._buffer
+
+    @property
+    def ident(self):
+        return self._ident
 
     @classmethod
-    def create(cls, buffer_shape):
+    def create(cls, buffer_shape, fill_buffer=True):
         """
         Create a TerminalDisplayBuffer
 
         :param buffer_shape:
+        :param fill_buffer:
         :return:
         """
-        return cls(numpy.zeros(buffer_shape, dtype=str))
+        if fill_buffer:
+            buffer = numpy.random.choice(tuple(string.ascii_letters), size=buffer_shape)
+        else:
+            buffer = numpy.zeros(buffer_shape, dtype="<U1")
+
+        return cls(buffer, uuid.uuid4())
+
+    def to_string(self):
+        """
+        Merge the entire buffer to a string, preserving lines.
+
+        :return:
+        """
+        merge = "\n".join("".join(tuple(self._buffer[i, :])) for i in range(self._buffer.shape[0]))
+        return merge.rstrip()

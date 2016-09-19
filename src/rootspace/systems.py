@@ -2,7 +2,6 @@
 
 import abc
 import collections
-import ctypes
 
 import attr
 import sdl2.pixels
@@ -11,6 +10,7 @@ import sdl2.ext.window
 import sdl2.sdlttf
 import sdl2.render
 import sdl2.surface
+import xxhash
 from attr.validators import instance_of
 
 from .components import Sprite, TerminalDisplayBuffer
@@ -132,9 +132,11 @@ class TerminalDisplaySystem(System):
     """
     Copy the data from the terminal display buffer to a texture.
     """
-    _font = attr.ib(validator=instance_of(sdl2.sdlttf.TTF_Font))
-    _font_color = attr.ib(validator=instance_of(sdl2.pixels.SDL_Color))
-    _renderer = attr.ib(validator=instance_of(sdl2.render.SDL_Renderer))
+    _font = attr.ib()
+    _font_color = attr.ib()
+    _renderer = attr.ib()
+    _hasher = attr.ib(validator=instance_of(xxhash.xxh64))
+    _hash_table = attr.ib(validator=instance_of(dict))
 
     @classmethod
     def create(cls, renderer, resource_manager,
@@ -145,17 +147,18 @@ class TerminalDisplaySystem(System):
         :return:
         """
         color = sdl2.pixels.SDL_Color(*font_color)
-        fname = ctypes.c_char_p(resource_manager.get_path(font_name).encode("utf-8"))
-        font = sdl2.sdlttf.TTF_OpenFont(fname, font_size)
+        font = sdl2.sdlttf.TTF_OpenFont(resource_manager.get_path(font_name).encode("utf-8"), font_size)
         if font is None:
             raise SDLTTFError()
 
         return cls(
             component_types=(Sprite, TerminalDisplayBuffer),
             is_applicator=True,
-            font=font.contents,
+            font=font,
             font_color=color,
-            renderer=renderer.renderer.contents
+            renderer=renderer.renderer,
+            hasher=xxhash.xxh64(),
+            hash_table=dict()
         )
 
     def update(self, time, delta_time, world, components):
@@ -171,19 +174,28 @@ class TerminalDisplaySystem(System):
         :return:
         """
         for sprite, buffer in components:
-            flat_buffer = ctypes.c_char_p("Help!".encode("latin1"))
+            self._hasher.reset()
+            self._hasher.update(buffer.buffer)
+            digest = self._hasher.digest()
+            if digest != self._hash_table.get(buffer.ident, b""):
+                self._hash_table[buffer.ident] = digest
+                flat_buffer = buffer.to_string()
+                if len(flat_buffer) > 0:
+                    txt_surface = sdl2.sdlttf.TTF_RenderUTF8_Blended(
+                        self._font, flat_buffer.encode("utf-8"), self._font_color
+                    )
+                    if txt_surface is None:
+                        raise SDLTTFError()
 
-            txt_surface = sdl2.sdlttf.TTF_RenderText_Solid(self._font, flat_buffer, self._font_color)
-            if txt_surface is None:
-                raise SDLTTFError()
+                    txt_texture = sdl2.render.SDL_CreateTextureFromSurface(
+                        self._renderer, txt_surface
+                    )
+                    if txt_texture is None:
+                        raise SDLError()
 
-            txt_texture = sdl2.render.SDL_CreateTextureFromSurface(self._renderer, txt_surface.contents)
-            if txt_texture is None:
-                raise SDLError()
+                    sdl2.surface.SDL_FreeSurface(txt_surface.contents)
 
-            sdl2.surface.SDL_FreeSurface(txt_surface.contents)
-
-            sprite.texture = txt_texture.contents
+                    sprite.texture = txt_texture.contents
 
     def __del__(self):
         if self._font is not None:

@@ -80,7 +80,8 @@ if __name__ == "__main__":
             "click",
             "attrs",
             "numpy",
-            "pysdl2"
+            "pysdl2",
+            "xxhash"
         ],
         test_requires=[
             "pytest"
