@@ -6,7 +6,7 @@ import uuid
 import attr
 from attr.validators import instance_of
 
-from .components import MachineState, NetworkState, FileSystem, TerminalDisplayBuffer, Sprite
+from .components import MachineState, NetworkState, FileSystem, DisplayBuffer, Sprite
 from .worlds import World
 
 
@@ -133,7 +133,7 @@ class LocalComputer(Computer):
     Define an entity that models the local computer.
     """
     sprite = attr.ib(validator=instance_of(Sprite), hash=False)
-    terminal_display_buffer = attr.ib(validator=instance_of(TerminalDisplayBuffer), hash=False)
+    terminal_display_buffer = attr.ib(validator=instance_of(DisplayBuffer), hash=False)
 
     @classmethod
     def create(cls, world, **kwargs):
@@ -152,7 +152,7 @@ class LocalComputer(Computer):
         inst = super(LocalComputer, cls).create(
             world=world,
             sprite=Sprite.create(position, shape, **args),
-            terminal_display_buffer=TerminalDisplayBuffer.create(shape),
+            terminal_display_buffer=DisplayBuffer.create(shape),
             **kwargs
         )
 

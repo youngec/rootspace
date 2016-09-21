@@ -10,10 +10,9 @@ import sdl2.ext.window
 import sdl2.sdlttf
 import sdl2.render
 import sdl2.surface
-import xxhash
 from attr.validators import instance_of
 
-from .components import Sprite, TerminalDisplayBuffer
+from .components import Sprite, DisplayBuffer
 from .exceptions import SDLError, SDLTTFError
 
 
@@ -135,8 +134,6 @@ class TerminalDisplaySystem(System):
     _font = attr.ib()
     _font_color = attr.ib()
     _renderer = attr.ib()
-    _hasher = attr.ib(validator=instance_of(xxhash.xxh64))
-    _hash_table = attr.ib(validator=instance_of(dict))
 
     @classmethod
     def create(cls, renderer, resource_manager,
@@ -153,19 +150,17 @@ class TerminalDisplaySystem(System):
             raise SDLTTFError()
 
         return cls(
-            component_types=(Sprite, TerminalDisplayBuffer),
+            component_types=(Sprite, DisplayBuffer),
             is_applicator=True,
             font=font,
             font_color=color,
-            renderer=renderer.renderer,
-            hasher=xxhash.xxh64(),
-            hash_table=dict()
+            renderer=renderer.renderer
         )
 
     def update(self, time, delta_time, world, components):
         """
-        For each entity which has a Sprite and a TerminalDisplayBuffer,
-        copy the contents of the TerminalDisplayBuffer to the Sprite for
+        For each entity which has a Sprite and a DisplayBuffer,
+        copy the contents of the DisplayBuffer to the Sprite for
         rendering.
 
         :param time:
@@ -175,11 +170,7 @@ class TerminalDisplaySystem(System):
         :return:
         """
         for sprite, buffer in components:
-            self._hasher.reset()
-            self._hasher.update(buffer.buffer)
-            digest = self._hasher.digest()
-            if digest != self._hash_table.get(buffer.ident, b""):
-                self._hash_table[buffer.ident] = digest
+            if buffer.modified:
                 flat_buffer = buffer.to_string()
                 if len(flat_buffer) > 0:
                     txt_surface = sdl2.sdlttf.TTF_RenderUTF8_Blended(

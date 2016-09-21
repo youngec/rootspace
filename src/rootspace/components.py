@@ -11,6 +11,7 @@ import sdl2.render
 import sdl2.stdinc
 import sdl2.surface
 import sdl2.surface
+import xxhash
 from attr.validators import instance_of
 
 from .exceptions import SDLError
@@ -204,12 +205,14 @@ class FileSystem(object):
 
 
 @attr.s(slots=True)
-class TerminalDisplayBuffer(object):
+class DisplayBuffer(object):
     """
     Describe the state of the display buffer of the simulated display.
     """
     _buffer = attr.ib(validator=instance_of(numpy.ndarray))
     _ident = attr.ib(validator=instance_of(uuid.UUID))
+    _hasher = attr.ib(validator=instance_of(xxhash.xxh64))
+    _digest = attr.ib(validator=instance_of(bytes))
 
     @property
     def buffer(self):
@@ -218,6 +221,17 @@ class TerminalDisplayBuffer(object):
     @property
     def ident(self):
         return self._ident
+
+    @property
+    def modified(self):
+        self._hasher.reset()
+        self._hasher.update(self._buffer)
+        digest = self._hasher.digest()
+        if digest != self._digest:
+            self._digest = digest
+            return True
+        else:
+            return False
 
     @classmethod
     def create(cls, buffer_shape, fill_buffer=True):
@@ -233,7 +247,7 @@ class TerminalDisplayBuffer(object):
         else:
             buffer = numpy.zeros(buffer_shape, dtype="<U1")
 
-        return cls(buffer, uuid.uuid4())
+        return cls(buffer, uuid.uuid4(), xxhash.xxh64(), b"")
 
     def to_string(self):
         """
