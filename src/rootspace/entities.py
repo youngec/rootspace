@@ -145,14 +145,15 @@ class LocalComputer(Computer):
         :return:
         """
         position = (0, 0)
-        shape = (80, 25)
+        display_shape = (700, 500)
+        text_matrix_shape = (2, 2)
         args = {k: kwargs.pop(k) for k in ("depth", "renderer", "pixel_format", "access", "bpp", "masks") if
                 k in kwargs}
 
         inst = super(LocalComputer, cls).create(
             world=world,
-            sprite=Sprite.create(position, shape, **args),
-            terminal_display_buffer=DisplayBuffer.create(shape),
+            sprite=Sprite.create(position, display_shape, **args),
+            terminal_display_buffer=DisplayBuffer.create(text_matrix_shape),
             **kwargs
         )
 

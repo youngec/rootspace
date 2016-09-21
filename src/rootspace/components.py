@@ -210,9 +210,9 @@ class DisplayBuffer(object):
     Describe the state of the display buffer of the simulated display.
     """
     _buffer = attr.ib(validator=instance_of(numpy.ndarray))
-    _ident = attr.ib(validator=instance_of(uuid.UUID))
-    _hasher = attr.ib(validator=instance_of(xxhash.xxh64))
-    _digest = attr.ib(validator=instance_of(bytes))
+    _ident = attr.ib(default=attr.Factory(uuid.uuid4), validator=instance_of(uuid.UUID))
+    _hasher = attr.ib(default=attr.Factory(xxhash.xxh64), validator=instance_of(xxhash.xxh64))
+    _digest = attr.ib(default=b"", validator=instance_of(bytes))
 
     @property
     def buffer(self):
@@ -247,7 +247,16 @@ class DisplayBuffer(object):
         else:
             buffer = numpy.zeros(buffer_shape, dtype="<U1")
 
-        return cls(buffer, uuid.uuid4(), xxhash.xxh64(), b"")
+        return cls(buffer)
+
+    def get_line(self, line_idx):
+        """
+        Merge the specified line to a string.
+
+        :param line_idx:
+        :return:
+        """
+        return "".join(tuple(self._buffer[line_idx, :]))
 
     def to_string(self):
         """
@@ -257,3 +266,20 @@ class DisplayBuffer(object):
         """
         merge = "\n".join("".join(tuple(self._buffer[i, :])) for i in range(self._buffer.shape[0]))
         return merge.rstrip()
+
+
+@attr.s(slots=True)
+class IOStream(object):
+    """
+    Model input and output streams.
+    """
+    _input = attr.ib()
+    _output = attr.ib()
+
+
+@attr.s(slots=True, frozen=True)
+class BuiltinCommands(object):
+    """
+    Model a database of executable commands.
+    """
+    pass

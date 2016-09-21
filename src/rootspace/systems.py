@@ -2,6 +2,7 @@
 
 import abc
 import collections
+import ctypes
 
 import attr
 import sdl2.pixels
@@ -131,13 +132,14 @@ class TerminalDisplaySystem(System):
     """
     Copy the data from the terminal display buffer to a texture.
     """
-    _font = attr.ib()
-    _font_color = attr.ib()
-    _renderer = attr.ib()
+    _font = attr.ib(validator=instance_of(sdl2.sdlttf.TTF_Font))
+    _font_color = attr.ib(validator=instance_of(sdl2.pixels.SDL_Color))
+    _font_size = attr.ib(validator=instance_of(int))
+    _renderer = attr.ib(validator=instance_of(sdl2.render.SDL_Renderer))
 
     @classmethod
     def create(cls, renderer, resource_manager,
-               font_name="FantasqueSansMono-Regular.ttf", font_size=20, font_color=(0xff, 0xff, 0xff, 0xff)):
+               font_name="FantasqueSansMono-Regular.ttf", font_size=12, font_color=(0xff, 0xff, 0xff, 0xff)):
         """
         Create a terminal display system.
 
@@ -152,9 +154,10 @@ class TerminalDisplaySystem(System):
         return cls(
             component_types=(Sprite, DisplayBuffer),
             is_applicator=True,
-            font=font,
+            font=font.contents,
             font_color=color,
-            renderer=renderer.renderer
+            font_size=font_size,
+            renderer=renderer.renderer.contents
         )
 
     def update(self, time, delta_time, world, components):
@@ -173,8 +176,13 @@ class TerminalDisplaySystem(System):
             if buffer.modified:
                 flat_buffer = buffer.to_string()
                 if len(flat_buffer) > 0:
-                    txt_surface = sdl2.sdlttf.TTF_RenderUTF8_Blended(
-                        self._font, flat_buffer.encode("utf-8"), self._font_color
+                    txt_width = ctypes.c_int
+                    txt_height = ctypes.c_int
+                    if sdl2.sdlttf.TTF_SizeUTF8(self._font, buffer.get_line(0).encode("utf-8"), ctypes.byref(txt_width), ctypes.byref(txt_height)) != 0:
+                        raise SDLTTFError()
+
+                    txt_surface = sdl2.sdlttf.TTF_RenderUTF8_Blended_Wrapped(
+                        self._font, flat_buffer.encode("utf-8"), self._font_color, txt_width.value
                     )
                     if txt_surface is None:
                         raise SDLTTFError()
@@ -193,3 +201,29 @@ class TerminalDisplaySystem(System):
         if self._font is not None:
             sdl2.sdlttf.TTF_CloseFont(self._font)
             self._font = None
+
+
+@attr.s
+class TerminalInterpreterSystem(System):
+    """
+    Parse the default output stream and write the result to the display buffer.
+    """
+    @classmethod
+    def create(cls):
+        return cls(
+            component_types=tuple(),
+            is_applicator=True
+        )
+
+    def update(self, time, delta_time, world, components):
+        """
+        For each entity with a DisplayBuffer, interpret the default output buffer
+        registered with the entity and output the result to the DisplayBuffer.
+
+        :param time:
+        :param delta_time:
+        :param world:
+        :param components:
+        :return:
+        """
+        pass
