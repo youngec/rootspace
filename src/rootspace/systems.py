@@ -139,7 +139,7 @@ class TerminalDisplaySystem(System):
 
     @classmethod
     def create(cls, renderer, resource_manager,
-               font_name="FantasqueSansMono-Regular.ttf", font_size=12, font_color=(0xff, 0xff, 0xff, 0xff)):
+               font_name="FantasqueSansMono-Regular.ttf", font_size=10, font_color=(0xff, 0xff, 0xff, 0xff)):
         """
         Create a terminal display system.
 
@@ -173,29 +173,71 @@ class TerminalDisplaySystem(System):
         :return:
         """
         for sprite, buffer in components:
-            if buffer.modified:
-                flat_buffer = buffer.to_string()
-                if len(flat_buffer) > 0:
-                    txt_width = ctypes.c_int
-                    txt_height = ctypes.c_int
-                    if sdl2.sdlttf.TTF_SizeUTF8(self._font, buffer.get_line(0).encode("utf-8"), ctypes.byref(txt_width), ctypes.byref(txt_height)) != 0:
+            if not buffer.empty and buffer.modified:
+                wrap_width = min(self._get_text_shape(buffer.get_line(0).encode("utf-8"))[0], sprite.shape[0])
+
+                surf = sdl2.sdlttf.TTF_RenderUTF8_Blended_Wrapped(
+                    self._font, buffer.to_bytes("utf-8"), self._font_color, wrap_width
+                )
+                if surf is None:
+                    raise SDLTTFError()
+
+                try:
+                    tx = sdl2.render.SDL_CreateTextureFromSurface(
+                        self._renderer, surf.contents
+                    )
+                    if tx is None:
                         raise SDLTTFError()
 
-                    txt_surface = sdl2.sdlttf.TTF_RenderUTF8_Blended_Wrapped(
-                        self._font, flat_buffer.encode("utf-8"), self._font_color, txt_width.value
-                    )
-                    if txt_surface is None:
-                        raise SDLTTFError()
+                    try:
+                        min_shape = [min(a, b) for a, b in zip(self._get_tx_shape(tx), sprite.shape)]
+                        dest_rect = sdl2.render.SDL_Rect(0, 0, *min_shape)
 
-                    txt_texture = sdl2.render.SDL_CreateTextureFromSurface(
-                        self._renderer, txt_surface
-                    )
-                    if txt_texture is None:
-                        raise SDLError()
+                        old_target = sdl2.render.SDL_GetRenderTarget(self._renderer)
+                        if old_target is None:
+                            raise SDLError()
 
-                    sdl2.surface.SDL_FreeSurface(txt_surface.contents)
+                        if sdl2.render.SDL_SetRenderTarget(self._renderer, sprite.texture) != 0:
+                            raise SDLError()
 
-                    sprite.texture = txt_texture.contents
+                        if sdl2.render.SDL_RenderClear(self._renderer) != 0:
+                            raise SDLError()
+
+                        if sdl2.render.SDL_RenderCopy(self._renderer, tx.contents, None, dest_rect) != 0:
+                            raise SDLError()
+
+                        if sdl2.render.SDL_SetRenderTarget(self._renderer, old_target) != 0:
+                            raise SDLError()
+                    finally:
+                        sdl2.render.SDL_DestroyTexture(tx)
+
+                finally:
+                    sdl2.surface.SDL_FreeSurface(surf)
+
+    def _get_text_shape(self, text_bytes):
+        text_width = ctypes.c_int()
+        text_height = ctypes.c_int()
+        if sdl2.sdlttf.TTF_SizeUTF8(self._font, text_bytes, ctypes.byref(text_width), ctypes.byref(text_height)) != 0:
+            raise SDLTTFError()
+
+        return text_width.value, text_height.value
+
+    def _get_tx_shape(self, texture):
+        """
+        Determine the texture shape.
+
+        :param texture:
+        :return:
+        """
+        flags = ctypes.c_uint32()
+        access = ctypes.c_int()
+        width = ctypes.c_int()
+        height = ctypes.c_int()
+        if sdl2.render.SDL_QueryTexture(
+                texture, ctypes.byref(flags), ctypes.byref(access), ctypes.byref(width), ctypes.byref(height)) != 0:
+            raise SDLError()
+
+        return width.value, height.value
 
     def __del__(self):
         if self._font is not None:

@@ -87,12 +87,9 @@ class Sprite(object):
     def texture(self, value):
         if self._texture is not None:
             sdl2.render.SDL_DestroyTexture(self._texture)
-        self._texture = value
 
-    @texture.deleter
-    def texture(self):
-        if self._texture is not None:
-            sdl2.render.SDL_DestroyTexture(self._texture)
+        # FIXME: Utilise sdl2.render.SDL_QueryTexture()
+        self._texture = value
 
     @classmethod
     def create(cls, position, shape, depth=0,
@@ -168,7 +165,7 @@ class NetworkState(object):
 
 
 @attr.s(slots=True)
-class FileSystem(object):
+class FileSystemState(object):
     """
     Describe the state of the file system.
     """
@@ -224,6 +221,10 @@ class DisplayBuffer(object):
 
     @property
     def modified(self):
+        """
+        Determine if the buffer was modified since the last access to this property.
+        :return:
+        """
         self._hasher.reset()
         self._hasher.update(self._buffer)
         digest = self._hasher.digest()
@@ -232,6 +233,15 @@ class DisplayBuffer(object):
             return True
         else:
             return False
+
+    @property
+    def empty(self):
+        """
+        Determine if the buffer is empty.
+
+        :return:
+        """
+        return numpy.count_nonzero(self._buffer) == 0
 
     @classmethod
     def create(cls, buffer_shape, fill_buffer=True):
@@ -256,16 +266,23 @@ class DisplayBuffer(object):
         :param line_idx:
         :return:
         """
-        return "".join(tuple(self._buffer[line_idx, :]))
+        return "".join(self._buffer[line_idx, :].flatten())
 
-    def to_string(self):
+    def to_bytes(self, encoding="utf-8"):
         """
-        Merge the entire buffer to a string, preserving lines.
+        Merge the entire buffer to a byte string.
 
         :return:
         """
-        merge = "\n".join("".join(tuple(self._buffer[i, :])) for i in range(self._buffer.shape[0]))
-        return merge.rstrip()
+        return self.to_string().encode(encoding)
+
+    def to_string(self):
+        """
+        Merge the entire buffer to a string.
+
+        :return:
+        """
+        return "".join(self._buffer.flatten())
 
 
 @attr.s(slots=True)

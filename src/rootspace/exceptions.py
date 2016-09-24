@@ -24,7 +24,7 @@ class SDLError(Exception):
         super(SDLError, self).__init__()
 
         if msg is None:
-            self.msg = sdl2.error.SDL_GetError()
+            self.msg = sdl2.error.SDL_GetError().decode("utf-8")
         else:
             self.msg = msg
 
@@ -40,7 +40,7 @@ class SDLTTFError(Exception):
         super(SDLTTFError, self).__init__()
 
         if msg is None:
-            self.msg = sdl2.sdlttf.TTF_GetError()
+            self.msg = sdl2.sdlttf.TTF_GetError().decode("utf-8")
         else:
             self.msg = msg
 

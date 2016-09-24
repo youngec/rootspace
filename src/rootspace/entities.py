@@ -4,9 +4,10 @@ import inspect
 import uuid
 
 import attr
+import sdl2.render
 from attr.validators import instance_of
 
-from .components import MachineState, NetworkState, FileSystem, DisplayBuffer, Sprite
+from .components import MachineState, NetworkState, FileSystemState, DisplayBuffer, Sprite
 from .worlds import World
 
 
@@ -100,7 +101,7 @@ class Computer(Entity):
     """
     machine_state = attr.ib(validator=instance_of(MachineState), hash=False)
     network_state = attr.ib(validator=instance_of(NetworkState), hash=False)
-    file_system = attr.ib(validator=instance_of(FileSystem), hash=False)
+    file_system_state = attr.ib(validator=instance_of(FileSystemState), hash=False)
 
     @classmethod
     def create(cls, world, **kwargs):
@@ -115,14 +116,14 @@ class Computer(Entity):
             world=world,
             machine_state=MachineState(),
             network_state=NetworkState(),
-            file_system=FileSystem(),
+            file_system_state=FileSystemState(),
             **kwargs
         )
 
         # Register the components
         inst.register_component(inst.machine_state)
         inst.register_component(inst.network_state)
-        inst.register_component(inst.file_system)
+        inst.register_component(inst.file_system_state)
 
         return inst
 
@@ -146,13 +147,13 @@ class LocalComputer(Computer):
         """
         position = (0, 0)
         display_shape = (700, 500)
-        text_matrix_shape = (2, 2)
-        args = {k: kwargs.pop(k) for k in ("depth", "renderer", "pixel_format", "access", "bpp", "masks") if
+        text_matrix_shape = (10, 10)
+        args = {k: kwargs.pop(k) for k in ("depth", "renderer", "pixel_format", "bpp", "masks") if
                 k in kwargs}
 
         inst = super(LocalComputer, cls).create(
             world=world,
-            sprite=Sprite.create(position, display_shape, **args),
+            sprite=Sprite.create(position, display_shape, access=sdl2.render.SDL_TEXTUREACCESS_TARGET, **args),
             terminal_display_buffer=DisplayBuffer.create(text_matrix_shape),
             **kwargs
         )
