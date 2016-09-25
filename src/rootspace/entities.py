@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import inspect
 import uuid
 
 import attr
@@ -58,19 +57,7 @@ class Entity(object):
         :param instance:
         :return:
         """
-        # If the value is a compound component (e.g. a Button
-        # inheriting from a Sprite), it needs to be added to all
-        # supported component type instances.
-        mro = inspect.getmro(instance.__class__)
-        if type in mro:
-            stop = mro.index(type)
-        else:
-            stop = mro.index(object)
-
-        for comp_type in mro[0:stop]:
-            if comp_type not in self._world.component_types:
-                self._world.add_component_type(comp_type)
-            self._world.components[comp_type][self] = instance
+        self._world.add_component(self, instance)
 
     def get_component(self, name):
         """

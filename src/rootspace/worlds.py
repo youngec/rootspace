@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import collections
+import inspect
 
 import attr
 from attr.validators import instance_of
@@ -33,10 +34,10 @@ class World(object):
     The order in which data is processed depends on the order of the
     added systems.
     """
-    entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
-    components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
-    systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-    component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+    _entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
+    _components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+    _systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    _component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
 
     def combined_components(self, comp_types):
         """
@@ -45,7 +46,7 @@ class World(object):
         :param comp_types:
         :return:
         """
-        comps = self.components
+        comps = self._components
         key_sets = [set(comps[ctype]) for ctype in comp_types]
         value_sets = [comps[ctype] for ctype in comp_types]
         entities = key_sets[0].intersection(*key_sets[1:])
@@ -60,11 +61,30 @@ class World(object):
         :param component_type:
         :return:
         """
-        if component_type in self.component_types.values():
-            return
+        if component_type not in self._component_types.values():
+            self._components[component_type] = dict()
+            self._component_types[camelcase_to_underscore(component_type.__name__)] = component_type
 
-        self.components[component_type] = dict()
-        self.component_types[camelcase_to_underscore(component_type.__name__)] = component_type
+    def add_component(self, entity, component):
+        """
+        Add a supported component instance to the world.
+
+        :param entity:
+        :param component:
+        :return:
+        """
+        # If the value is a compound component (e.g. a Button
+        # inheriting from a Sprite), it needs to be added to all
+        # supported component type instances.
+        mro = inspect.getmro(component.__class__)
+        if type in mro:
+            stop = mro.index(type)
+        else:
+            stop = mro.index(object)
+
+        for comp_type in mro[0:stop]:
+            self.add_component_type(comp_type)
+            self._components[comp_type][entity] = component
 
     def add_entity(self, entity):
         """
@@ -73,7 +93,7 @@ class World(object):
         :param entity:
         :return:
         """
-        self.entities.add(entity)
+        self._entities.add(entity)
 
     def delete_entity(self, entity):
         """
@@ -82,10 +102,10 @@ class World(object):
         :param entity:
         :return:
         """
-        for comp_set in self.components.values():
+        for comp_set in self._components.values():
             comp_set.pop(entity, None)
 
-        self.entities.discard(entity)
+        self._entities.discard(entity)
 
     def get_components(self, comp_type):
         """
@@ -94,8 +114,8 @@ class World(object):
         :param comp_type:
         :return:
         """
-        if comp_type is self.components:
-            return self.components[comp_type].values()
+        if comp_type is self._components:
+            return self._components[comp_type].values()
         else:
             return []
 
@@ -106,7 +126,7 @@ class World(object):
         :param component:
         :return:
         """
-        comp_set = self.components.get(component.__class__, [])
+        comp_set = self._components.get(component.__class__, [])
         return [e for e in comp_set if comp_set[e] == component]
 
     def add_system(self, system):
@@ -118,10 +138,10 @@ class World(object):
         """
         if self._valid_system(system):
             for component_type in system.component_types:
-                if component_type not in self.components:
+                if component_type not in self._components:
                     self.add_component_type(component_type)
 
-            self.systems.append(system)
+            self._systems.append(system)
         else:
             raise TypeError("The specified system cannot be used as such.")
 
@@ -132,7 +152,7 @@ class World(object):
         :param system:
         :return:
         """
-        self.systems.remove(system)
+        self._systems.remove(system)
 
     def update(self, time, delta_time):
         """
@@ -142,14 +162,14 @@ class World(object):
         :param float delta_time:
         :return:
         """
-        for system in self.systems:
+        for system in self._systems:
             if hasattr(system, "update"):
                 if system.is_applicator:
                     comps = self.combined_components(system.component_types)
                     system.update(time, delta_time, self, comps)
                 else:
                     for comp_type in system.component_types:
-                        system.update(time, delta_time, self, self.components[comp_type].values())
+                        system.update(time, delta_time, self, self._components[comp_type].values())
 
     def render(self):
         """
@@ -157,10 +177,10 @@ class World(object):
 
         :return:
         """
-        for system in self.systems:
+        for system in self._systems:
             if hasattr(system, "render"):
                 for comp_type in system.component_types:
-                    system.render(self, self.components[comp_type].values())
+                    system.render(self, self._components[comp_type].values())
 
     def dispatch(self, event):
         """
@@ -169,14 +189,14 @@ class World(object):
         :param event:
         :return:
         """
-        for system in self.systems:
-            if hasattr(system, "dispatch"):
+        for system in self._systems:
+            if hasattr(system, "dispatch") and event.type in system.event_types:
                 if system.is_applicator:
                     comps = self.combined_components(system.component_types)
                     system.dispatch(event, self, comps)
                 else:
                     for comp_type in system.component_types:
-                        system.dispatch(event, self, self.components[comp_type].values())
+                        system.dispatch(event, self, self._components[comp_type].values())
 
     def _valid_system(self, system):
         """
