@@ -294,7 +294,12 @@ class TerminalInterpreterSystem(UpdateSystem):
         :param components:
         :return:
         """
-        pass
+        for buffer, iostream in components:
+            if len(iostream.output) > 0:
+                try:
+                    pass
+                finally:
+                    iostream.output.clear()
 
 
 @attr.s
@@ -302,12 +307,17 @@ class TextInputSystem(EventSystem):
     """
     Handle input from Human Input Devices and send them to the default input stream.
     """
+    _line_separator = attr.ib(validator=instance_of(bytes))
+    _encoding = attr.ib(validator=instance_of(str))
+
     @classmethod
-    def create(cls):
+    def create(cls, encoding="utf-8"):
         return cls(
             component_types=(InputOutputStream,),
             is_applicator=False,
-            event_types=(SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP)
+            event_types=(SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP),
+            line_separator=os.linesep.encode(encoding),
+            encoding=encoding
         )
 
     def dispatch(self, event, world, components):
@@ -324,7 +334,7 @@ class TextInputSystem(EventSystem):
                 iostream.input.extend(event.text.text)
             elif event.type == SDL_KEYDOWN:
                 if event.key.keysym.sym in (SDLK_RETURN, SDLK_RETURN2):
-                    iostream.input.extend(os.linesep.encode("utf-8"))
+                    iostream.input.extend(self._line_separator)
 
 
 @attr.s
@@ -333,22 +343,36 @@ class ShellSystem(UpdateSystem):
     Manage the relationship between the input and output stream. In other words, provide a shell.
     """
     _echo = attr.ib(validator=instance_of(bool))
-    _keyword_separator = attr.ib(validator=instance_of(str))
+    _keyword_separator = attr.ib(validator=instance_of(bytes))
+    _line_separator = attr.ib(validator=instance_of(bytes))
+    _encoding = attr.ib(validator=instance_of(str))
 
     @classmethod
-    def create(cls):
+    def create(cls, encoding="utf-8"):
+
         return cls(
             component_types=(ShellEnvironment, InputOutputStream),
             is_applicator=True,
             echo=True,
-            keyword_separator=" "
+            keyword_separator=b" ",
+            line_separator=os.linesep.encode(encoding),
+            encoding=encoding
         )
 
     def update(self, time, delta_time, world, components):
         for shell, iostream in components:
-            if len(iostream.input) > 0 and os.linesep.encode("utf-8") in iostream.input:
-                ibuf = iostream.input.strip().decode("utf-8")
-                iostream.input.clear()
-                print(repr(ibuf))
-                print(repr(iostream.input))
+            if len(iostream.input) > 0:
+                try:
+                    if self._echo:
+                        iostream.output.extend(iostream.input)
+                        print("Input: {!r}, Output: {!r}".format(iostream.input, iostream.output))
+
+                    if self._line_separator in iostream.input:
+                        shell.line_buffer = bytearray(b" ".join(shell.line_buffer.strip().split()))
+                        print("Shell line buffer: {!r}".format(shell.line_buffer))
+                    else:
+                        shell.line_buffer.extend(iostream.input)
+
+                finally:
+                    iostream.input.clear()
 

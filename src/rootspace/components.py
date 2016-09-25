@@ -308,3 +308,4 @@ class ShellEnvironment(object):
     }
 
     environment = attr.ib(default=default_environment, validator=instance_of(dict))
+    line_buffer = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
