@@ -11,14 +11,15 @@ import sdl2.ext.window
 import sdl2.sdlttf
 import sdl2.render
 import sdl2.surface
+import sdl2.events
 from attr.validators import instance_of
 
-from .components import Sprite, DisplayBuffer
+from .components import Sprite, DisplayBuffer, IOStream, BuiltinCommands
 from .exceptions import SDLError, SDLTTFError
 
 
 @attr.s
-class System(object, metaclass=abc.ABCMeta):
+class UpdateSystem(object, metaclass=abc.ABCMeta):
     """
     A processing system for component data. Business logic variant.
 
@@ -91,6 +92,7 @@ class EventSystem(object, metaclass=abc.ABCMeta):
     """
     component_types = attr.ib(validator=instance_of(tuple))
     is_applicator = attr.ib(validator=instance_of(bool))
+    event_types = attr.ib(validator=instance_of(tuple))
 
     @abc.abstractmethod
     def dispatch(self, event, world, components):
@@ -157,7 +159,7 @@ class SpriteRenderSystem(RenderSystem):
 
 
 @attr.s
-class TerminalDisplaySystem(System):
+class TerminalDisplaySystem(UpdateSystem):
     """
     Copy the data from the terminal display buffer to a texture.
     """
@@ -181,7 +183,7 @@ class TerminalDisplaySystem(System):
             raise SDLTTFError()
 
         return cls(
-            component_types=(Sprite, DisplayBuffer),
+            component_types=(DisplayBuffer, Sprite),
             is_applicator=True,
             font=font.contents,
             font_color=color,
@@ -201,7 +203,7 @@ class TerminalDisplaySystem(System):
         :param components:
         :return:
         """
-        for sprite, buffer in components:
+        for buffer, sprite in components:
             if not buffer.empty and buffer.modified:
                 wrap_width = min(self._get_text_shape(buffer.get_line(0).encode("utf-8"))[0], sprite.shape[0])
 
@@ -275,14 +277,14 @@ class TerminalDisplaySystem(System):
 
 
 @attr.s
-class TerminalInterpreterSystem(System):
+class TerminalInterpreterSystem(UpdateSystem):
     """
     Parse the default output stream and write the result to the display buffer.
     """
     @classmethod
     def create(cls):
         return cls(
-            component_types=tuple(),
+            component_types=(DisplayBuffer, IOStream),
             is_applicator=True
         )
 
@@ -308,8 +310,9 @@ class HidSystem(EventSystem):
     @classmethod
     def create(cls):
         return cls(
-            component_types=tuple(),
-            is_applicator=True
+            component_types=(IOStream,),
+            is_applicator=True,
+            event_types=tuple()
         )
 
     def dispatch(self, event, world, components):

@@ -37,6 +37,9 @@ class World(object):
     _entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
     _components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
     _systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    _update_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
 
     def combined_components(self, comp_types):
@@ -136,12 +139,18 @@ class World(object):
         :param system:
         :return:
         """
-        if self._valid_system(system):
+        if self._is_valid_system(system):
             for component_type in system.component_types:
                 if component_type not in self._components:
                     self.add_component_type(component_type)
 
             self._systems.append(system)
+            if self._is_update_system(system):
+                self._update_systems.append(system)
+            elif self._is_render_system(system):
+                self._render_systems.append(system)
+            elif self._is_event_system(system):
+                self._event_systems.append(system)
         else:
             raise TypeError("The specified system cannot be used as such.")
 
@@ -162,14 +171,13 @@ class World(object):
         :param float delta_time:
         :return:
         """
-        for system in self._systems:
-            if hasattr(system, "update"):
-                if system.is_applicator:
-                    comps = self.combined_components(system.component_types)
-                    system.update(time, delta_time, self, comps)
-                else:
-                    for comp_type in system.component_types:
-                        system.update(time, delta_time, self, self._components[comp_type].values())
+        for system in self._update_systems:
+            if system.is_applicator:
+                comps = self.combined_components(system.component_types)
+                system.update(time, delta_time, self, comps)
+            else:
+                for comp_type in system.component_types:
+                    system.update(time, delta_time, self, self._components[comp_type].values())
 
     def render(self):
         """
@@ -177,10 +185,9 @@ class World(object):
 
         :return:
         """
-        for system in self._systems:
-            if hasattr(system, "render"):
-                for comp_type in system.component_types:
-                    system.render(self, self._components[comp_type].values())
+        for system in self._render_systems:
+            for comp_type in system.component_types:
+                system.render(self, self._components[comp_type].values())
 
     def dispatch(self, event):
         """
@@ -189,8 +196,8 @@ class World(object):
         :param event:
         :return:
         """
-        for system in self._systems:
-            if hasattr(system, "dispatch") and event.type in system.event_types:
+        for system in self._event_systems:
+            if event.type in system.event_types:
                 if system.is_applicator:
                     comps = self.combined_components(system.component_types)
                     system.dispatch(event, self, comps)
@@ -198,9 +205,9 @@ class World(object):
                     for comp_type in system.component_types:
                         system.dispatch(event, self, self._components[comp_type].values())
 
-    def _valid_system(self, system):
+    def _is_update_system(self, system):
         """
-        Determine if a supplied system can be used as such.
+        Determine if a supplied system is an update system.
 
         :param system:
         :return:
@@ -208,7 +215,41 @@ class World(object):
         comp_types = hasattr(system, "component_types") and isinstance(system.component_types, collections.Iterable)
         applicator = hasattr(system, "is_applicator") and isinstance(system.is_applicator, bool)
         update = hasattr(system, "update") and callable(system.update)
+
+        return comp_types and applicator and update
+
+    def _is_render_system(self, system):
+        """
+        Determine if a supplied system is a render system.
+
+        :param system:
+        :return:
+        """
+        comp_types = hasattr(system, "component_types") and isinstance(system.component_types, collections.Iterable)
+        applicator = hasattr(system, "is_applicator") and isinstance(system.is_applicator, bool)
         render = hasattr(system, "render") and callable(system.render)
+
+        return comp_types and applicator and render
+
+    def _is_event_system(self, system):
+        """
+        Determine if a supplied system is an event system.
+
+        :param system:
+        :return:
+        """
+        comp_types = hasattr(system, "component_types") and isinstance(system.component_types, collections.Iterable)
+        applicator = hasattr(system, "is_applicator") and isinstance(system.is_applicator, bool)
+        event_types = hasattr(system, "event_types") and isinstance(system.event_types, collections.Iterable)
         dispatch = hasattr(system, "dispatch") and callable(system.dispatch)
 
-        return comp_types and applicator and (update or render or dispatch)
+        return comp_types and applicator and event_types and dispatch
+
+    def _is_valid_system(self, system):
+        """
+        Determine if a supplied system can be used as such.
+
+        :param system:
+        :return:
+        """
+        return self._is_update_system(system) or self._is_render_system(system) or self._is_event_system(system)

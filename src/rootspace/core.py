@@ -164,11 +164,11 @@ class Engine(object):
             # rendering step.
             while accumulator >= delta_time:
                 # Process SDL events
-                events = sdl2.ext.get_events()
-                for event in events:
+                for event in sdl2.ext.get_events():
                     if event.type == sdl2.SDL_QUIT:
                         running = False
-                        break
+                    else:
+                        world.dispatch(event)
 
                 world.update(t, delta_time)
                 t += delta_time
