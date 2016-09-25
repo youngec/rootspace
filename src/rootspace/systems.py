@@ -77,6 +77,35 @@ class RenderSystem(object, metaclass=abc.ABCMeta):
 
 
 @attr.s
+class EventSystem(object, metaclass=abc.ABCMeta):
+    """
+    A processing system for component data. Event variant.
+
+    A processing system within an application world consumes the
+    components of all entities, for which it was set up. At time of
+    processing, the system does not know about any other component type
+    that might be bound to any entity.
+
+    Also, the processing system does not know about any specific entity,
+    but only is aware of the data carried by all entities.
+    """
+    component_types = attr.ib(validator=instance_of(tuple))
+    is_applicator = attr.ib(validator=instance_of(bool))
+
+    @abc.abstractmethod
+    def dispatch(self, event, world, components):
+        """
+        Dispatch the SDL2 event to the current set of components.
+
+        :param event:
+        :param world:
+        :param components:
+        :return:
+        """
+        pass
+
+
+@attr.s
 class SpriteRenderSystem(RenderSystem):
     """
     Render sprites as components of entities.
@@ -259,7 +288,7 @@ class TerminalInterpreterSystem(System):
 
     def update(self, time, delta_time, world, components):
         """
-        For each entity with a DisplayBuffer, interpret the default output buffer
+        For each entity with a DisplayBuffer, interpret the default output stream
         registered with the entity and output the result to the DisplayBuffer.
 
         :param time:
@@ -268,4 +297,20 @@ class TerminalInterpreterSystem(System):
         :param components:
         :return:
         """
+        pass
+
+
+@attr.s
+class HidSystem(EventSystem):
+    """
+    Handle input from Human Input Devices and send them to the default input stream.
+    """
+    @classmethod
+    def create(cls):
+        return cls(
+            component_types=tuple(),
+            is_applicator=True
+        )
+
+    def dispatch(self, event, world, components):
         pass

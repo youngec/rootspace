@@ -169,7 +169,14 @@ class World(object):
         :param event:
         :return:
         """
-        pass
+        for system in self.systems:
+            if hasattr(system, "dispatch"):
+                if system.is_applicator:
+                    comps = self.combined_components(system.component_types)
+                    system.dispatch(event, self, comps)
+                else:
+                    for comp_type in system.component_types:
+                        system.dispatch(event, self, self.components[comp_type].values())
 
     def _valid_system(self, system):
         """
@@ -182,5 +189,6 @@ class World(object):
         applicator = hasattr(system, "is_applicator") and isinstance(system.is_applicator, bool)
         update = hasattr(system, "update") and callable(system.update)
         render = hasattr(system, "render") and callable(system.render)
+        dispatch = hasattr(system, "dispatch") and callable(system.dispatch)
 
-        return comp_types and applicator and (update or render)
+        return comp_types and applicator and (update or render or dispatch)
