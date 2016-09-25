@@ -253,7 +253,7 @@ class DisplayBuffer(object):
         :return:
         """
         if fill_buffer:
-            buffer = numpy.random.choice(tuple(string.ascii_letters), size=buffer_shape)
+            buffer = numpy.random.choice(tuple(string.ascii_letters + "\n"), size=buffer_shape)
         else:
             buffer = numpy.zeros(buffer_shape, dtype="<U1")
 
