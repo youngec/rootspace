@@ -8,7 +8,7 @@ import sdl2.video
 from attr.validators import instance_of
 
 from .entities import LocalComputer
-from .systems import TerminalDisplaySystem, TerminalInterpreterSystem, TextInputSystem
+from .systems import TerminalDisplaySystem, TerminalInterpreterSystem, TextInputSystem, ShellSystem
 from .utilities import merge_configurations
 
 
@@ -125,7 +125,8 @@ class RootSpace(Project):
             sys = (
                 TerminalDisplaySystem.create(renderer, resource_manager),
                 TerminalInterpreterSystem.create(),
-                TextInputSystem.create()
+                TextInputSystem.create(),
+                ShellSystem.create()
             )
             ent = (
                 LocalComputer.create(world, renderer=renderer),

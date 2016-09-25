@@ -6,7 +6,8 @@ import attr
 import sdl2.render
 from attr.validators import instance_of
 
-from .components import MachineState, NetworkState, FileSystemState, DisplayBuffer, Sprite, InputOutputStream
+from .components import MachineState, NetworkState, FileSystemState, DisplayBuffer, Sprite, InputOutputStream, \
+    ShellEnvironment
 from .worlds import World
 
 
@@ -123,6 +124,7 @@ class LocalComputer(Computer):
     sprite = attr.ib(validator=instance_of(Sprite), hash=False)
     terminal_display_buffer = attr.ib(validator=instance_of(DisplayBuffer), hash=False)
     input_output_stream = attr.ib(validator=instance_of(InputOutputStream), hash=False)
+    shell_environment = attr.ib(validator=instance_of(ShellEnvironment), hash=False)
 
     @classmethod
     def create(cls, world, **kwargs):
@@ -144,6 +146,7 @@ class LocalComputer(Computer):
             sprite=Sprite.create(position, display_shape, access=sdl2.render.SDL_TEXTUREACCESS_TARGET, **args),
             terminal_display_buffer=DisplayBuffer.create(text_matrix_shape),
             input_output_stream=InputOutputStream(),
+            shell_environment=ShellEnvironment(),
             **kwargs
         )
 
@@ -151,5 +154,6 @@ class LocalComputer(Computer):
         inst.register_component(inst.sprite)
         inst.register_component(inst.terminal_display_buffer)
         inst.register_component(inst.input_output_stream)
+        inst.register_component(inst.shell_environment)
 
         return inst

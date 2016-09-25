@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import collections
 import enum
 import string
 import uuid
@@ -102,7 +101,7 @@ class Sprite(object):
                 sdl_renderer, pixel_format, access, shape[0], shape[1]
             )
 
-            if tex is None:
+            if not tex:
                 raise SDLError()
 
             return cls(
@@ -114,7 +113,7 @@ class Sprite(object):
                 0, shape[0], shape[1], bpp, *masks
             )
 
-            if surf is None:
+            if not surf:
                 raise SDLError()
 
             return cls(
@@ -142,7 +141,7 @@ class MachineState(object):
     """
     Describe whether a particular entity is in working order or not.
     """
-
+    # TODO: This design does not account for different operating systems.
     class MSE(enum.Enum):
         """
         Enumeration of the machine states.
@@ -291,13 +290,19 @@ class InputOutputStream(object):
     """
     Model input and output streams.
     """
-    input = attr.ib(default=attr.Factory(collections.deque), validator=instance_of(collections.deque))
-    output = attr.ib(default=attr.Factory(collections.deque), validator=instance_of(collections.deque))
+    input = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
+    output = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
 
 
-@attr.s(slots=True, frozen=True)
-class BuiltinCommands(object):
+@attr.s(slots=True)
+class ShellEnvironment(object):
     """
-    Model a database of executable commands.
+    Model the environment of a shell.
     """
-    pass
+    default_environment = {
+        "PWD": "",
+        "SHELL": "",
+        "PATH": ""
+    }
+
+    environment = attr.ib(default=default_environment, validator=instance_of(dict))

@@ -3,6 +3,7 @@
 import abc
 import collections
 import ctypes
+import os
 
 import attr
 import sdl2.pixels
@@ -12,9 +13,10 @@ import sdl2.sdlttf
 import sdl2.render
 import sdl2.surface
 from attr.validators import instance_of
-from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING
+from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP
+from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2
 
-from .components import Sprite, DisplayBuffer, InputOutputStream, BuiltinCommands
+from .components import Sprite, DisplayBuffer, InputOutputStream, ShellEnvironment
 from .exceptions import SDLError, SDLTTFError
 
 
@@ -178,7 +180,7 @@ class TerminalDisplaySystem(UpdateSystem):
         color = sdl2.pixels.SDL_Color(*font_color)
         font_path = resource_manager.get_path(font_name)
         font = sdl2.sdlttf.TTF_OpenFont(font_path.encode("utf-8"), font_size)
-        if font is None:
+        if not font:
             raise SDLTTFError()
 
         return cls(
@@ -209,36 +211,31 @@ class TerminalDisplaySystem(UpdateSystem):
                 surf = sdl2.sdlttf.TTF_RenderUTF8_Blended_Wrapped(
                     self._font, buffer.to_bytes("utf-8"), self._font_color, wrap_width
                 )
-                if surf is None:
+                if not surf:
                     raise SDLTTFError()
 
                 try:
                     tx = sdl2.render.SDL_CreateTextureFromSurface(
                         self._renderer, surf.contents
                     )
-                    if tx is None:
+                    if not tx:
                         raise SDLTTFError()
 
                     try:
                         min_shape = [min(a, b) for a, b in zip(self._get_tx_shape(tx), sprite.shape)]
                         dest_rect = sdl2.render.SDL_Rect(0, 0, *min_shape)
 
-                        old_target = sdl2.render.SDL_GetRenderTarget(self._renderer)
-                        if old_target is None:
+                        if sdl2.render.SDL_SetRenderTarget(self._renderer, sprite.texture) != 0:
                             raise SDLError()
 
-                        try:
-                            if sdl2.render.SDL_SetRenderTarget(self._renderer, sprite.texture) != 0:
-                                raise SDLError()
+                        if sdl2.render.SDL_RenderClear(self._renderer) != 0:
+                            raise SDLError()
 
-                            if sdl2.render.SDL_RenderClear(self._renderer) != 0:
-                                raise SDLError()
+                        if sdl2.render.SDL_RenderCopy(self._renderer, tx.contents, None, dest_rect) != 0:
+                            raise SDLError()
 
-                            if sdl2.render.SDL_RenderCopy(self._renderer, tx.contents, None, dest_rect) != 0:
-                                raise SDLError()
-                        finally:
-                            if sdl2.render.SDL_SetRenderTarget(self._renderer, old_target) != 0:
-                                raise SDLError()
+                        if sdl2.render.SDL_SetRenderTarget(self._renderer, None) != 0:
+                            raise SDLError()
                     finally:
                         sdl2.render.SDL_DestroyTexture(tx)
 
@@ -312,10 +309,48 @@ class TextInputSystem(EventSystem):
         return cls(
             component_types=(InputOutputStream,),
             is_applicator=False,
-            event_types=(SDL_TEXTINPUT, SDL_TEXTEDITING)
+            event_types=(SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP)
         )
 
     def dispatch(self, event, world, components):
-        for stream in components:
+        """
+        React to text input or text edit events.
+
+        :param event:
+        :param world:
+        :param components:
+        :return:
+        """
+        for iostream in components:
             if event.type == SDL_TEXTINPUT:
-                stream.input.append(event.text.text.decode("utf-8"))
+                iostream.input.extend(event.text.text)
+            elif event.type == SDL_KEYDOWN:
+                if event.key.keysym.sym in (SDLK_RETURN, SDLK_RETURN2):
+                    iostream.input.extend(os.linesep.encode("utf-8"))
+
+
+@attr.s
+class ShellSystem(UpdateSystem):
+    """
+    Manage the relationship between the input and output stream. In other words, provide a shell.
+    """
+    _echo = attr.ib(validator=instance_of(bool))
+    _keyword_separator = attr.ib(validator=instance_of(str))
+
+    @classmethod
+    def create(cls):
+        return cls(
+            component_types=(ShellEnvironment, InputOutputStream),
+            is_applicator=True,
+            echo=True,
+            keyword_separator=" "
+        )
+
+    def update(self, time, delta_time, world, components):
+        for shell, iostream in components:
+            if len(iostream.input) > 0 and os.linesep.encode("utf-8") in iostream.input:
+                ibuf = iostream.input.strip().decode("utf-8")
+                iostream.input.clear()
+                print(repr(ibuf))
+                print(repr(iostream.input))
+
