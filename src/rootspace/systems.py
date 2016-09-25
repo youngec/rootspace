@@ -207,7 +207,7 @@ class TerminalDisplaySystem(UpdateSystem):
         for buffer, sprite in components:
             if not buffer.empty and buffer.modified:
                 surf = sdl2.sdlttf.TTF_RenderUTF8_Blended_Wrapped(
-                    self._font, buffer.to_bytes("utf-8"), self._font_color, sprite.shape[0]
+                    self._font, buffer.to_bytes(), self._font_color, sprite.shape[0]
                 )
                 if not surf:
                     raise SDLTTFError()

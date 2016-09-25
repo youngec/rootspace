@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import enum
-import string
 import uuid
 
 import attr
@@ -102,6 +101,15 @@ class Sprite(object):
             )
 
             if not tex:
+                raise SDLError()
+
+            if sdl2.render.SDL_SetRenderTarget(sdl_renderer, tex) != 0:
+                raise SDLError()
+
+            if sdl2.render.SDL_RenderClear(sdl_renderer) != 0:
+                raise SDLError()
+
+            if sdl2.render.SDL_SetRenderTarget(sdl_renderer, None) != 0:
                 raise SDLError()
 
             return cls(
@@ -244,20 +252,14 @@ class DisplayBuffer(object):
         return numpy.count_nonzero(self._buffer) == 0
 
     @classmethod
-    def create(cls, buffer_shape, fill_buffer=True):
+    def create(cls, buffer_shape):
         """
         Create a TerminalDisplayBuffer
 
         :param buffer_shape:
-        :param fill_buffer:
         :return:
         """
-        if fill_buffer:
-            buffer = numpy.random.choice(tuple(string.ascii_letters), size=buffer_shape)
-        else:
-            buffer = numpy.zeros(buffer_shape, dtype="<U1")
-
-        return cls(buffer)
+        return cls(numpy.zeros(buffer_shape, dtype=bytes))
 
     def get_line(self, line_idx):
         """
@@ -268,21 +270,21 @@ class DisplayBuffer(object):
         """
         return "".join(self._buffer[line_idx, :].flatten())
 
-    def to_bytes(self, encoding="utf-8"):
+    def to_bytes(self):
         """
         Merge the entire buffer to a byte string.
 
         :return:
         """
-        return self.to_string().encode(encoding)
+        return b"\n".join(b"".join(self._buffer[i, :]) for i in range(self._buffer.shape[0]))
 
-    def to_string(self):
+    def to_string(self, encoding="utf-8"):
         """
         Merge the entire buffer to a string.
 
         :return:
         """
-        return "\n".join("".join(self._buffer[i, :]) for i in range(self._buffer.shape[0]))
+        return self.to_bytes().decode("utf-8")
 
 
 @attr.s(slots=True)
