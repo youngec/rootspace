@@ -11,10 +11,10 @@ import sdl2.ext.window
 import sdl2.sdlttf
 import sdl2.render
 import sdl2.surface
-import sdl2.events
 from attr.validators import instance_of
+from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING
 
-from .components import Sprite, DisplayBuffer, IOStream, BuiltinCommands
+from .components import Sprite, DisplayBuffer, InputOutputStream, BuiltinCommands
 from .exceptions import SDLError, SDLTTFError
 
 
@@ -139,21 +139,20 @@ class SpriteRenderSystem(RenderSystem):
         renderer = self._renderer.renderer
         r = sdl2.rect.SDL_Rect(0, 0, 0, 0)
         if isinstance(sprites, collections.Iterable):
-            rcopy = sdl2.render.SDL_RenderCopy
-
             x = 0
             y = 0
             for sp in sprites:
                 r.x = x + sp.x
                 r.y = y + sp.y
                 r.w, r.h = sp.shape
-                if rcopy(renderer, sp.texture, None, r) == -1:
+                if sdl2.render.SDL_RenderCopy(renderer, sp.texture, None, r) != 0:
                     raise SDLError()
         else:
             r.x = sprites.x
             r.y = sprites.y
             r.w, r.h = sprites.shape
-            sdl2.render.SDL_RenderCopy(renderer, sprites.texture, None, r)
+            if sdl2.render.SDL_RenderCopy(renderer, sprites.texture, None, r) != 0:
+                raise SDLError()
 
         sdl2.render.SDL_RenderPresent(renderer)
 
@@ -228,17 +227,18 @@ class TerminalDisplaySystem(UpdateSystem):
                         if old_target is None:
                             raise SDLError()
 
-                        if sdl2.render.SDL_SetRenderTarget(self._renderer, sprite.texture) != 0:
-                            raise SDLError()
+                        try:
+                            if sdl2.render.SDL_SetRenderTarget(self._renderer, sprite.texture) != 0:
+                                raise SDLError()
 
-                        if sdl2.render.SDL_RenderClear(self._renderer) != 0:
-                            raise SDLError()
+                            if sdl2.render.SDL_RenderClear(self._renderer) != 0:
+                                raise SDLError()
 
-                        if sdl2.render.SDL_RenderCopy(self._renderer, tx.contents, None, dest_rect) != 0:
-                            raise SDLError()
-
-                        if sdl2.render.SDL_SetRenderTarget(self._renderer, old_target) != 0:
-                            raise SDLError()
+                            if sdl2.render.SDL_RenderCopy(self._renderer, tx.contents, None, dest_rect) != 0:
+                                raise SDLError()
+                        finally:
+                            if sdl2.render.SDL_SetRenderTarget(self._renderer, old_target) != 0:
+                                raise SDLError()
                     finally:
                         sdl2.render.SDL_DestroyTexture(tx)
 
@@ -284,7 +284,7 @@ class TerminalInterpreterSystem(UpdateSystem):
     @classmethod
     def create(cls):
         return cls(
-            component_types=(DisplayBuffer, IOStream),
+            component_types=(DisplayBuffer, InputOutputStream),
             is_applicator=True
         )
 
@@ -303,17 +303,19 @@ class TerminalInterpreterSystem(UpdateSystem):
 
 
 @attr.s
-class HidSystem(EventSystem):
+class TextInputSystem(EventSystem):
     """
     Handle input from Human Input Devices and send them to the default input stream.
     """
     @classmethod
     def create(cls):
         return cls(
-            component_types=(IOStream,),
-            is_applicator=True,
-            event_types=tuple()
+            component_types=(InputOutputStream,),
+            is_applicator=False,
+            event_types=(SDL_TEXTINPUT, SDL_TEXTEDITING)
         )
 
     def dispatch(self, event, world, components):
-        pass
+        for stream in components:
+            if event.type == SDL_TEXTINPUT:
+                stream.input.append(event.text.text.decode("utf-8"))

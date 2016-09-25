@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import collections
 import enum
 import string
 import uuid
@@ -286,12 +287,12 @@ class DisplayBuffer(object):
 
 
 @attr.s(slots=True)
-class IOStream(object):
+class InputOutputStream(object):
     """
     Model input and output streams.
     """
-    _input = attr.ib()
-    _output = attr.ib()
+    input = attr.ib(default=attr.Factory(collections.deque), validator=instance_of(collections.deque))
+    output = attr.ib(default=attr.Factory(collections.deque), validator=instance_of(collections.deque))
 
 
 @attr.s(slots=True, frozen=True)
