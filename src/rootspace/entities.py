@@ -135,9 +135,9 @@ class LocalComputer(Computer):
         :param kwargs:
         :return:
         """
-        position = (0, 0)
+        position = (50, 50)
         display_shape = (700, 500)
-        text_matrix_shape = (10, 10)
+        text_matrix_shape = (24, 80)
         args = {k: kwargs.pop(k) for k in ("depth", "renderer", "pixel_format", "bpp", "masks") if
                 k in kwargs}
 
