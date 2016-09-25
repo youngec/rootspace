@@ -171,7 +171,7 @@ class TerminalDisplaySystem(UpdateSystem):
 
     @classmethod
     def create(cls, renderer, resource_manager,
-               font_name="FantasqueSansMono-Regular.ttf", font_size=10, font_color=(0xff, 0xff, 0xff, 0xff)):
+               font_name="FantasqueSansMono-Regular.ttf", font_size=12, font_color=(0xff, 0xff, 0xff, 0xff)):
         """
         Create a terminal display system.
 

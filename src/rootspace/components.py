@@ -253,7 +253,7 @@ class DisplayBuffer(object):
         :return:
         """
         if fill_buffer:
-            buffer = numpy.random.choice(tuple(string.ascii_letters + "\n"), size=buffer_shape)
+            buffer = numpy.random.choice(tuple(string.ascii_letters), size=buffer_shape)
         else:
             buffer = numpy.zeros(buffer_shape, dtype="<U1")
 
@@ -282,7 +282,7 @@ class DisplayBuffer(object):
 
         :return:
         """
-        return "".join(self._buffer.flatten())
+        return "\n".join("".join(self._buffer[i, :]) for i in range(self._buffer.shape[0]))
 
 
 @attr.s(slots=True)
