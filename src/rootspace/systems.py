@@ -3,7 +3,8 @@
 import abc
 import collections
 import ctypes
-import os
+import logging
+import sys
 
 import attr
 import sdl2.pixels
@@ -14,7 +15,7 @@ import sdl2.render
 import sdl2.surface
 from attr.validators import instance_of
 from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP
-from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2
+from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2, SDLK_TAB
 
 from .components import Sprite, DisplayBuffer, InputOutputStream, ShellEnvironment
 from .exceptions import SDLError, SDLTTFError
@@ -160,7 +161,7 @@ class SpriteRenderSystem(RenderSystem):
 
 
 @attr.s
-class TerminalDisplaySystem(UpdateSystem):
+class DisplaySystem(UpdateSystem):
     """
     Copy the data from the terminal display buffer to a texture.
     """
@@ -272,15 +273,22 @@ class TerminalDisplaySystem(UpdateSystem):
 
 
 @attr.s
-class TerminalInterpreterSystem(UpdateSystem):
+class DisplayInterpreterSystem(UpdateSystem):
     """
     Parse the default output stream and write the result to the display buffer.
     """
+    _tab_width = attr.ib(validator=instance_of(int))
+    _encoding = attr.ib(validator=instance_of(str))
+    _log = attr.ib(validator=instance_of(logging.Logger))
+
     @classmethod
-    def create(cls):
+    def create(cls, encoding="utf-8"):
         return cls(
             component_types=(DisplayBuffer, InputOutputStream),
-            is_applicator=True
+            is_applicator=True,
+            tab_width=4,
+            encoding=encoding,
+            log=logging.getLogger(__name__)
         )
 
     def update(self, time, delta_time, world, components):
@@ -297,9 +305,53 @@ class TerminalInterpreterSystem(UpdateSystem):
         for buffer, iostream in components:
             if len(iostream.output) > 0:
                 try:
-                    pass
+                    self._interpret(buffer, iostream.output)
                 finally:
                     iostream.output.clear()
+
+    def _interpret(self, buffer, byte_stream):
+        for b in byte_stream:
+            row, column = buffer.cursor
+
+            # Parse the individual characters
+            if b.to_bytes(1, sys.byteorder).decode(self._encoding).isprintable():
+                buffer.buffer[row, column] = b.to_bytes(1, sys.byteorder)
+                column += 1
+            elif b == 0x00:
+                self._log.warning("Null character not implemented.")
+            elif b == 0x07:
+                self._log.warning("Bell not implemented.")
+            elif b == 0x08:
+                self._log.warning("Backspace not implemented.")
+            elif b == 0x09:
+                column += self._tab_width - (column % self._tab_width)
+            elif b == 0x0a:
+                column = 0
+                row += 1
+            elif b == 0x0b:
+                self._log.warning("Vertical tab not implemented.")
+            elif b == 0x0c:
+                self._log.warning("Form feed not implemented.")
+            elif b == 0x0d:
+                self._log.warning("Carriage return not implemented.")
+            elif b == 0x1a:
+                self._log.warning("End of file not implemented.")
+            elif b == 0x1b:
+                self._log.warning("Escape character not implemented.")
+            elif b == 0x7f:
+                self._log.warning("Delete character not implemented.")
+            else:
+                self._log.warning("Reached unhandled character: {!r}".format(b))
+
+            # Wrap around the beginning and end of a row.
+            if column >= buffer.shape[1]:
+                column = 0
+                row += 1
+            elif column < 0:
+                column = buffer.shape[1] - 1
+                row -= 1
+
+            buffer.cursor = (row, column)
 
 
 @attr.s
@@ -307,7 +359,6 @@ class TextInputSystem(EventSystem):
     """
     Handle input from Human Input Devices and send them to the default input stream.
     """
-    _line_separator = attr.ib(validator=instance_of(bytes))
     _encoding = attr.ib(validator=instance_of(str))
 
     @classmethod
@@ -316,7 +367,6 @@ class TextInputSystem(EventSystem):
             component_types=(InputOutputStream,),
             is_applicator=False,
             event_types=(SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP),
-            line_separator=os.linesep.encode(encoding),
             encoding=encoding
         )
 
@@ -334,7 +384,9 @@ class TextInputSystem(EventSystem):
                 iostream.input.extend(event.text.text)
             elif event.type == SDL_KEYDOWN:
                 if event.key.keysym.sym in (SDLK_RETURN, SDLK_RETURN2):
-                    iostream.input.extend(self._line_separator)
+                    iostream.input.extend(b"\n")
+                elif event.key.keysym.sym == SDLK_TAB:
+                    iostream.input.extend(b"\t")
 
 
 @attr.s
@@ -351,16 +403,16 @@ class ShellSystem(UpdateSystem):
     def create(cls, encoding="utf-8"):
 
         return cls(
-            component_types=(ShellEnvironment, InputOutputStream),
+            component_types=(InputOutputStream, ShellEnvironment),
             is_applicator=True,
             echo=True,
             keyword_separator=b" ",
-            line_separator=os.linesep.encode(encoding),
+            line_separator=b"\n",
             encoding=encoding
         )
 
     def update(self, time, delta_time, world, components):
-        for shell, iostream in components:
+        for iostream, shell in components:
             if len(iostream.input) > 0:
                 try:
                     if self._echo:

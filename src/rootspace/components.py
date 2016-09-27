@@ -215,7 +215,8 @@ class DisplayBuffer(object):
     Describe the state of the display buffer of the simulated display.
     """
     _buffer = attr.ib(validator=instance_of(numpy.ndarray))
-    _ident = attr.ib(default=attr.Factory(uuid.uuid4), validator=instance_of(uuid.UUID))
+    _cursor_x = attr.ib(default=0, validator=instance_of(int))
+    _cursor_y = attr.ib(default=0, validator=instance_of(int))
     _hasher = attr.ib(default=attr.Factory(xxhash.xxh64), validator=instance_of(xxhash.xxh64))
     _digest = attr.ib(default=b"", validator=instance_of(bytes))
 
@@ -224,8 +225,16 @@ class DisplayBuffer(object):
         return self._buffer
 
     @property
-    def ident(self):
-        return self._ident
+    def shape(self):
+        return self._buffer.shape
+
+    @property
+    def cursor(self):
+        return self._cursor_x, self._cursor_y
+
+    @cursor.setter
+    def cursor(self, value):
+        self._cursor_x, self._cursor_y = value
 
     @property
     def modified(self):
@@ -259,16 +268,10 @@ class DisplayBuffer(object):
         :param buffer_shape:
         :return:
         """
-        return cls(numpy.zeros(buffer_shape, dtype=bytes))
+        buffer = numpy.zeros(buffer_shape, dtype=bytes)
+        buffer[:, :] = b" "
 
-    def get_line(self, line_idx):
-        """
-        Merge the specified line to a string.
-
-        :param line_idx:
-        :return:
-        """
-        return "".join(self._buffer[line_idx, :].flatten())
+        return cls(buffer)
 
     def to_bytes(self):
         """
@@ -284,7 +287,7 @@ class DisplayBuffer(object):
 
         :return:
         """
-        return self.to_bytes().decode("utf-8")
+        return self.to_bytes().decode(encoding)
 
 
 @attr.s(slots=True)
@@ -293,7 +296,7 @@ class InputOutputStream(object):
     Model input and output streams.
     """
     input = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
-    output = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
+    output = attr.ib(default=bytearray("NUL: \0, BEL: \a, BSP: \b, TAB: \t, LF: \n, VT: \v, FF: \f, CR:, \r, SUB: \x1a, ESC: \x1b, DEL: \x7f", "utf-8"), validator=instance_of(bytearray))
 
 
 @attr.s(slots=True)

@@ -8,7 +8,7 @@ import sdl2.video
 from attr.validators import instance_of
 
 from .entities import LocalComputer
-from .systems import TerminalDisplaySystem, TerminalInterpreterSystem, TextInputSystem, ShellSystem
+from .systems import DisplaySystem, DisplayInterpreterSystem, TextInputSystem, ShellSystem
 from .utilities import merge_configurations
 
 
@@ -123,8 +123,8 @@ class RootSpace(Project):
     def load_scene(self, world, renderer, resource_manager, systems, entities, scene=None):
         if scene is None:
             sys = (
-                TerminalDisplaySystem.create(renderer, resource_manager),
-                TerminalInterpreterSystem.create(),
+                DisplaySystem.create(renderer, resource_manager),
+                DisplayInterpreterSystem.create(),
                 TextInputSystem.create(),
                 ShellSystem.create()
             )

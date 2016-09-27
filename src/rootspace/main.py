@@ -34,14 +34,16 @@ def main(verbose, debug, profile):
     # Configure the logging system.
     root_logger = logging.getLogger("rootspace")
     logging_default_handler = logging.StreamHandler()
+    logging_default_handler.setLevel(log_level)
     logging_default_formatter = logging.Formatter(
         fmt="[%(name)s:%(levelname)s] %(message)s"
     )
     logging_default_handler.setFormatter(logging_default_formatter)
     root_logger.addHandler(logging_default_handler)
     root_logger.setLevel(log_level)
-    warnings.simplefilter("default")
+
     logging.captureWarnings(True)
+    warnings.simplefilter("default")
 
     # Create the project
     user_home = os.path.expanduser("~")
@@ -60,6 +62,9 @@ def main(verbose, debug, profile):
         cProfile.runctx("engine.run()", None, {"engine": engine}, sort="time")
     else:
         engine.run()
+
+    # Kill the logging system
+    logging.shutdown()
 
 
 if __name__ == "__main__":
