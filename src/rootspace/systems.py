@@ -17,7 +17,7 @@ from attr.validators import instance_of
 from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP
 from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2, SDLK_TAB
 
-from .components import Sprite, DisplayBuffer, InputOutputStream, ShellEnvironment
+from .components import Sprite, DisplayBuffer, InputOutputStream, ShellState
 from .exceptions import SDLError, SDLTTFError
 
 
@@ -403,7 +403,7 @@ class ShellSystem(UpdateSystem):
     def create(cls, encoding="utf-8"):
 
         return cls(
-            component_types=(InputOutputStream, ShellEnvironment),
+            component_types=(InputOutputStream, ShellState),
             is_applicator=True,
             echo=True,
             keyword_separator=b" ",

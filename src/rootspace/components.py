@@ -300,7 +300,7 @@ class InputOutputStream(object):
 
 
 @attr.s(slots=True)
-class ShellEnvironment(object):
+class ShellState(object):
     """
     Model the environment of a shell.
     """
