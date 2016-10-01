@@ -266,10 +266,7 @@ class DisplayBuffer(object):
         :param buffer_shape:
         :return:
         """
-        buffer = numpy.zeros(buffer_shape, dtype=bytes)
-        buffer[:, :] = b" "
-
-        return cls(buffer)
+        return cls(numpy.full(buffer_shape, b" ", dtype=bytes))
 
     def to_bytes(self):
         """
