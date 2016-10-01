@@ -290,8 +290,13 @@ class InputOutputStream(object):
     """
     Model input and output streams.
     """
+    test_output = bytearray(
+        "NUL: \0, BEL: \a, BSP: \b, TAB: \t, LF: \n, VT: \v, FF: \f, CR:, \r, SUB: \x1a, ESC: \x1b, DEL: \x7f",
+        "utf-8"
+    )
+
     input = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
-    output = attr.ib(default=bytearray("NUL: \0, BEL: \a, BSP: \b, TAB: \t, LF: \n, VT: \v, FF: \f, CR:, \r, SUB: \x1a, ESC: \x1b, DEL: \x7f", "utf-8"), validator=instance_of(bytearray))
+    output = attr.ib(default=test_output, validator=instance_of(bytearray))
 
 
 @attr.s(slots=True)
