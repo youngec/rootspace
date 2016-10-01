@@ -159,7 +159,28 @@ class MachineState(object):
         ready = 2
         power_down = 3
 
-    state = attr.ib(default=MSE.power_off, validator=instance_of(MSE))
+    _platform = attr.ib(default="", validator=instance_of(str))
+    _state = attr.ib(default=MSE.power_off, validator=instance_of(MSE))
+
+    @property
+    def fatal(self):
+        return self._state == MachineState.MSE.fatal
+
+    @property
+    def power_off(self):
+        return self._state == MachineState.MSE.power_off
+
+    @property
+    def power_up(self):
+        return self._state == MachineState.MSE.power_up
+
+    @property
+    def ready(self):
+        return self._state == MachineState.MSE.ready
+
+    @property
+    def power_down(self):
+        return self._state == MachineState.MSE.power_down
 
 
 @attr.s(slots=True)
