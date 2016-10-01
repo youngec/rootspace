@@ -166,21 +166,46 @@ class MachineState(object):
     def fatal(self):
         return self._state == MachineState.MSE.fatal
 
+    @fatal.setter
+    def fatal(self, value):
+        if value:
+            self._state = MachineState.MSE.fatal
+
     @property
     def power_off(self):
         return self._state == MachineState.MSE.power_off
+
+    @power_off.setter
+    def power_off(self, value):
+        if value:
+            self._state = MachineState.MSE.power_off
 
     @property
     def power_up(self):
         return self._state == MachineState.MSE.power_up
 
+    @power_up.setter
+    def power_up(self, value):
+        if value:
+            self._state = MachineState.MSE.power_up
+
     @property
     def ready(self):
         return self._state == MachineState.MSE.ready
 
+    @ready.setter
+    def ready(self, value):
+        if value:
+            self._state = MachineState.MSE.ready
+
     @property
     def power_down(self):
         return self._state == MachineState.MSE.power_down
+
+    @power_down.setter
+    def power_down(self, value):
+        if value:
+            self._state = MachineState.MSE.power_down
 
 
 @attr.s(slots=True)
