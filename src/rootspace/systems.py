@@ -13,7 +13,7 @@ import sdl2.sdlttf
 import sdl2.surface
 from attr.validators import instance_of
 from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP
-from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2, SDLK_TAB, SDLK_BACKSPACE, SDLK_DELETE
+from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2, SDLK_TAB, SDLK_BACKSPACE, SDLK_DELETE, SDLK_ESCAPE
 
 from .components import Sprite, DisplayBuffer, InputOutputStream, ShellState, MachineState
 from .exceptions import SDLError, SDLTTFError
@@ -182,7 +182,7 @@ class DisplaySystem(UpdateSystem):
             raise SDLTTFError()
 
         return cls(
-            component_types=(DisplayBuffer, Sprite),
+            component_types=(DisplayBuffer, MachineState, Sprite),
             is_applicator=True,
             font=font.contents,
             font_color=color,
@@ -203,8 +203,8 @@ class DisplaySystem(UpdateSystem):
         :param components:
         :return:
         """
-        for buffer, sprite in components:
-            if not buffer.empty and buffer.modified:
+        for buffer, machine, sprite in components:
+            if any((machine.power_up, machine.ready, machine.power_down)) and (not buffer.empty and buffer.modified):
                 surf = sdl2.sdlttf.TTF_RenderUTF8_Blended_Wrapped(
                     self._font, buffer.to_bytes(), self._font_color, sprite.shape[0]
                 )
@@ -281,7 +281,7 @@ class DisplayInterpreterSystem(UpdateSystem):
     @classmethod
     def create(cls, encoding="utf-8"):
         return cls(
-            component_types=(DisplayBuffer, InputOutputStream),
+            component_types=(DisplayBuffer, InputOutputStream, MachineState),
             is_applicator=True,
             tab_width=4,
             encoding=encoding,
@@ -299,12 +299,12 @@ class DisplayInterpreterSystem(UpdateSystem):
         :param components:
         :return:
         """
-        for buffer, iostream in components:
-            if len(iostream.output) > 0:
+        for buffer, stream, machine in components:
+            if any((machine.power_up, machine.ready, machine.power_down)) and len(stream.output) > 0:
                 try:
-                    self._interpret(buffer, iostream.output)
+                    self._interpret(buffer, stream.output)
                 finally:
-                    iostream.output.clear()
+                    stream.output.clear()
 
     def _interpret(self, buffer, byte_stream):
         for b in byte_stream:
@@ -378,7 +378,11 @@ class TextInputSystem(EventSystem):
         :return:
         """
         for stream, machine in components:
-            if machine.ready:
+            if machine.power_off:
+                if event.type == SDL_KEYDOWN:
+                    if event.key.keysym.sym == SDLK_ESCAPE:
+                        machine.power_up = True
+            elif machine.ready:
                 if event.type == SDL_TEXTINPUT:
                     stream.input.extend(event.text.text)
                 elif event.type == SDL_KEYDOWN:
@@ -408,7 +412,7 @@ class ShellSystem(UpdateSystem):
     def create(cls, encoding="utf-8"):
 
         return cls(
-            component_types=(InputOutputStream, ShellState),
+            component_types=(InputOutputStream, MachineState, ShellState),
             is_applicator=True,
             echo=True,
             keyword_separator=b" ",
@@ -418,18 +422,22 @@ class ShellSystem(UpdateSystem):
         )
 
     def update(self, time, delta_time, world, components):
-        for iostream, shell in components:
-            if len(iostream.input) > 0:
+        for stream, machine, shell in components:
+            if machine.power_up:
+                machine.ready = True
+            elif machine.ready and len(stream.input) > 0:
                 try:
                     if self._echo:
-                        iostream.output.extend(iostream.input)
-                        print("Input: {!r}, Output: {!r}".format(iostream.input, iostream.output))
+                        stream.output.extend(stream.input)
+                        self._log.debug("Input: {!r}, Output: {!r}".format(stream.input, stream.output))
 
-                    if self._line_separator in iostream.input:
+                    if self._line_separator in stream.input:
                         shell.line_buffer = bytearray(b" ".join(shell.line_buffer.strip().split()))
-                        print("Shell line buffer: {!r}".format(shell.line_buffer))
+                        self._log.debug("Shell line buffer: {!r}".format(shell.line_buffer))
                     else:
-                        shell.line_buffer.extend(iostream.input)
+                        shell.line_buffer.extend(stream.input)
 
                 finally:
-                    iostream.input.clear()
+                    stream.input.clear()
+            elif machine.power_down:
+                machine.power_off = True
