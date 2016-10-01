@@ -8,8 +8,6 @@ import sys
 
 import attr
 import sdl2.pixels
-import sdl2.ext.sprite
-import sdl2.ext.window
 import sdl2.sdlttf
 import sdl2.render
 import sdl2.surface
