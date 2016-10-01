@@ -13,9 +13,9 @@ import sdl2.sdlttf
 import sdl2.surface
 from attr.validators import instance_of
 from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP
-from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2, SDLK_TAB
+from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2, SDLK_TAB, SDLK_BACKSPACE, SDLK_DELETE
 
-from .components import Sprite, DisplayBuffer, InputOutputStream, ShellState
+from .components import Sprite, DisplayBuffer, InputOutputStream, ShellState, MachineState
 from .exceptions import SDLError, SDLTTFError
 
 
@@ -34,6 +34,7 @@ class UpdateSystem(object, metaclass=abc.ABCMeta):
     """
     component_types = attr.ib(validator=instance_of(tuple))
     is_applicator = attr.ib(validator=instance_of(bool))
+    _log = attr.ib(validator=instance_of(logging.Logger))
 
     @abc.abstractmethod
     def update(self, time, delta_time, world, components):
@@ -65,6 +66,7 @@ class RenderSystem(object, metaclass=abc.ABCMeta):
     component_types = attr.ib(validator=instance_of(tuple))
     is_applicator = attr.ib(validator=instance_of(bool))
     sort_func = attr.ib()
+    _log = attr.ib(validator=instance_of(logging.Logger))
 
     @abc.abstractmethod
     def render(self, world, components):
@@ -94,6 +96,7 @@ class EventSystem(object, metaclass=abc.ABCMeta):
     component_types = attr.ib(validator=instance_of(tuple))
     is_applicator = attr.ib(validator=instance_of(bool))
     event_types = attr.ib(validator=instance_of(tuple))
+    _log = attr.ib(validator=instance_of(logging.Logger))
 
     @abc.abstractmethod
     def dispatch(self, event, world, components):
@@ -122,7 +125,8 @@ class SpriteRenderSystem(RenderSystem):
             component_types=(Sprite,),
             is_applicator=False,
             sort_func=lambda e: e.depth,
-            renderer=renderer.contents
+            renderer=renderer.contents,
+            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
         )
 
     def render(self, world, components):
@@ -183,7 +187,8 @@ class DisplaySystem(UpdateSystem):
             font=font.contents,
             font_color=color,
             font_size=font_size,
-            renderer=renderer.contents
+            renderer=renderer.contents,
+            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
         )
 
     def update(self, time, delta_time, world, components):
@@ -272,7 +277,6 @@ class DisplayInterpreterSystem(UpdateSystem):
     """
     _tab_width = attr.ib(validator=instance_of(int))
     _encoding = attr.ib(validator=instance_of(str))
-    _log = attr.ib(validator=instance_of(logging.Logger))
 
     @classmethod
     def create(cls, encoding="utf-8"):
@@ -281,7 +285,7 @@ class DisplayInterpreterSystem(UpdateSystem):
             is_applicator=True,
             tab_width=4,
             encoding=encoding,
-            log=logging.getLogger(__name__)
+            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
         )
 
     def update(self, time, delta_time, world, components):
@@ -311,30 +315,30 @@ class DisplayInterpreterSystem(UpdateSystem):
                 buffer.buffer[row, column] = b.to_bytes(1, sys.byteorder)
                 column += 1
             elif b == 0x00:
-                self._log.warning("Null character not implemented.")
+                self._log.warning("FIXME: Null character not implemented.")
             elif b == 0x07:
-                self._log.warning("Bell not implemented.")
+                self._log.warning("FIXME: Bell not implemented.")
             elif b == 0x08:
-                self._log.warning("Backspace not implemented.")
+                self._log.warning("FIXME: Backspace not implemented.")
             elif b == 0x09:
                 column += self._tab_width - (column % self._tab_width)
             elif b == 0x0a:
                 column = 0
                 row += 1
             elif b == 0x0b:
-                self._log.warning("Vertical tab not implemented.")
+                self._log.warning("FIXME: Vertical tab not implemented.")
             elif b == 0x0c:
-                self._log.warning("Form feed not implemented.")
+                self._log.warning("FIXME: Form feed not implemented.")
             elif b == 0x0d:
-                self._log.warning("Carriage return not implemented.")
+                self._log.warning("FIXME: Carriage return not implemented.")
             elif b == 0x1a:
-                self._log.warning("End of file not implemented.")
+                self._log.warning("FIXME: End of file not implemented.")
             elif b == 0x1b:
-                self._log.warning("Escape character not implemented.")
+                self._log.warning("FIXME: Escape character not implemented.")
             elif b == 0x7f:
-                self._log.warning("Delete character not implemented.")
+                self._log.warning("FIXME: Delete character not implemented.")
             else:
-                self._log.warning("Reached unhandled character: {!r}".format(b))
+                self._log.debug("Got an unhandled character: {!r}".format(b))
 
             # Wrap around the beginning and end of a row.
             if column >= buffer.shape[1]:
@@ -357,10 +361,11 @@ class TextInputSystem(EventSystem):
     @classmethod
     def create(cls, encoding="utf-8"):
         return cls(
-            component_types=(InputOutputStream,),
-            is_applicator=False,
+            component_types=(InputOutputStream, MachineState),
+            is_applicator=True,
             event_types=(SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP),
-            encoding=encoding
+            encoding=encoding,
+            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
         )
 
     def dispatch(self, event, world, components):
@@ -372,14 +377,21 @@ class TextInputSystem(EventSystem):
         :param components:
         :return:
         """
-        for iostream in components:
-            if event.type == SDL_TEXTINPUT:
-                iostream.input.extend(event.text.text)
-            elif event.type == SDL_KEYDOWN:
-                if event.key.keysym.sym in (SDLK_RETURN, SDLK_RETURN2):
-                    iostream.input.extend(b"\n")
-                elif event.key.keysym.sym == SDLK_TAB:
-                    iostream.input.extend(b"\t")
+        for stream, machine in components:
+            if machine.ready:
+                if event.type == SDL_TEXTINPUT:
+                    stream.input.extend(event.text.text)
+                elif event.type == SDL_KEYDOWN:
+                    if event.key.keysym.sym in (SDLK_RETURN, SDLK_RETURN2):
+                        stream.input.extend(b"\n")
+                    elif event.key.keysym.sym == SDLK_TAB:
+                        stream.input.extend(b"\t")
+                    elif event.key.keysym.sym == SDLK_BACKSPACE:
+                        stream.input.extend(b"\b")
+                    elif event.key.keysym.sym == SDLK_DELETE:
+                        stream.input.extend(b"\x7f")
+                    else:
+                        self._log.debug("Got an unhandled key: {!r}".format(event.key.keysym.sym))
 
 
 @attr.s
@@ -401,7 +413,8 @@ class ShellSystem(UpdateSystem):
             echo=True,
             keyword_separator=b" ",
             line_separator=b"\n",
-            encoding=encoding
+            encoding=encoding,
+            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
         )
 
     def update(self, time, delta_time, world, components):
