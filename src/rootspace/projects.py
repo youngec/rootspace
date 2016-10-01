@@ -120,6 +120,7 @@ class RootSpace(Project):
     """
     Implementation of the Rootspace project.
     """
+
     def load_scene(self, world, renderer, resource_manager, systems, entities, scene=None):
         if scene is None:
             sys = (

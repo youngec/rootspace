@@ -9,14 +9,14 @@ import time
 import attr
 import sdl2
 import sdl2.ext
-import sdl2.video
 import sdl2.sdlttf
+import sdl2.video
 from attr.validators import instance_of
 
+from .exceptions import SDLTTFError
 from .projects import Project
 from .systems import SpriteRenderSystem
 from .worlds import World
-from .exceptions import SDLTTFError
 
 
 @attr.s
@@ -96,7 +96,8 @@ class Engine(object):
         self._dbg("Creating the initial scene.")
         ctx["systems"] = list()
         ctx["entities"] = list()
-        self._project.load_scene(ctx["world"], ctx["renderer"].renderer, ctx["resources"], ctx["systems"], ctx["entities"])
+        self._project.load_scene(ctx["world"], ctx["renderer"].renderer, ctx["resources"], ctx["systems"],
+                                 ctx["entities"])
         ctx["systems"].append(SpriteRenderSystem.create(ctx["renderer"].renderer))
 
         if len(ctx["systems"]) == 1 and isinstance(ctx["systems"][0], SpriteRenderSystem):

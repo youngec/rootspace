@@ -20,6 +20,7 @@ class SDLError(Exception):
     """
     This exception indicates that there was an issue with the SDL2 library.
     """
+
     def __init__(self, msg=None):
         super(SDLError, self).__init__()
 
@@ -36,6 +37,7 @@ class SDLTTFError(Exception):
     """
     This exception indicates that there was an issue with SDL2 TTF.
     """
+
     def __init__(self, msg=None):
         super(SDLTTFError, self).__init__()
 

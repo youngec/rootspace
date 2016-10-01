@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import enum
+import xxhash
 
 import attr
 import numpy
@@ -9,7 +10,6 @@ import sdl2.render
 import sdl2.stdinc
 import sdl2.surface
 import sdl2.surface
-import xxhash
 from attr.validators import instance_of
 
 from .exceptions import SDLError
@@ -147,6 +147,7 @@ class MachineState(object):
     """
     Describe whether a particular entity is in working order or not.
     """
+
     # TODO: This design does not account for different operating systems.
     class MSE(enum.Enum):
         """

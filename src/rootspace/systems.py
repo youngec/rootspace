@@ -8,8 +8,8 @@ import sys
 
 import attr
 import sdl2.pixels
-import sdl2.sdlttf
 import sdl2.render
+import sdl2.sdlttf
 import sdl2.surface
 from attr.validators import instance_of
 from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP
@@ -420,4 +420,3 @@ class ShellSystem(UpdateSystem):
 
                 finally:
                     iostream.input.clear()
-
