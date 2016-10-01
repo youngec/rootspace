@@ -299,11 +299,11 @@ class ShellState(object):
     """
     Model the environment of a shell.
     """
-    default_environment = {
+    default_env = {
         "PWD": "",
         "SHELL": "",
         "PATH": ""
     }
 
-    environment = attr.ib(default=default_environment, validator=instance_of(dict))
+    env = attr.ib(default=default_env, validator=instance_of(dict))
     line_buffer = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
