@@ -307,3 +307,5 @@ class ShellState(object):
 
     env = attr.ib(default=default_env, validator=instance_of(dict))
     line_buffer = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
+    # stdin = attr.ib()
+    # stdout = attr.ib()
