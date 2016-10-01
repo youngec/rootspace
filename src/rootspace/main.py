@@ -36,7 +36,7 @@ def main(verbose, debug, profile):
     logging_default_handler = logging.StreamHandler()
     logging_default_handler.setLevel(log_level)
     logging_default_formatter = logging.Formatter(
-        fmt="[%(name)s:%(levelname)s] %(message)s"
+        fmt="[%(levelname)s:%(name)s] %(message)s"
     )
     logging_default_handler.setFormatter(logging_default_formatter)
     root_logger.addHandler(logging_default_handler)
