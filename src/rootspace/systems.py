@@ -190,7 +190,7 @@ class DisplaySystem(UpdateSystem):
             font=font.contents,
             font_color=color,
             font_size=font_size,
-            renderer=renderer.renderer.contents
+            renderer=renderer.contents
         )
 
     def update(self, time, delta_time, world, components):

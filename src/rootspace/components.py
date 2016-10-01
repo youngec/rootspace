@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import enum
-import uuid
 
 import attr
 import numpy
@@ -95,21 +94,20 @@ class Sprite(object):
                renderer=None, pixel_format=sdl2.pixels.SDL_PIXELFORMAT_RGBA8888,
                access=sdl2.render.SDL_TEXTUREACCESS_STATIC, bpp=32, masks=(0, 0, 0, 0)):
         if renderer is not None:
-            sdl_renderer = renderer.renderer
             tex = sdl2.render.SDL_CreateTexture(
-                sdl_renderer, pixel_format, access, shape[0], shape[1]
+                renderer, pixel_format, access, shape[0], shape[1]
             )
 
             if not tex:
                 raise SDLError()
 
-            if sdl2.render.SDL_SetRenderTarget(sdl_renderer, tex) != 0:
+            if sdl2.render.SDL_SetRenderTarget(renderer, tex) != 0:
                 raise SDLError()
 
-            if sdl2.render.SDL_RenderClear(sdl_renderer) != 0:
+            if sdl2.render.SDL_RenderClear(renderer) != 0:
                 raise SDLError()
 
-            if sdl2.render.SDL_SetRenderTarget(sdl_renderer, None) != 0:
+            if sdl2.render.SDL_SetRenderTarget(renderer, None) != 0:
                 raise SDLError()
 
             return cls(
