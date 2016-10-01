@@ -116,7 +116,7 @@ class SpriteRenderSystem(RenderSystem):
     Render sprites as components of entities.
     """
     # FIXME: Handle software sprites as well!
-    _renderer = attr.ib(validator=instance_of(sdl2.ext.sprite.Renderer))
+    _renderer = attr.ib(validator=instance_of(sdl2.render.SDL_Renderer))
 
     @classmethod
     def create(cls, renderer):
@@ -124,7 +124,7 @@ class SpriteRenderSystem(RenderSystem):
             component_types=(Sprite,),
             is_applicator=False,
             sort_func=lambda e: e.depth,
-            renderer=renderer
+            renderer=renderer.contents
         )
 
     def render(self, world, components):
@@ -139,25 +139,20 @@ class SpriteRenderSystem(RenderSystem):
         denote the absolute position of the TextureSprite, if set.
         """
         sprites = sorted(components, key=self.sort_func)
-        renderer = self._renderer.renderer
         r = sdl2.rect.SDL_Rect(0, 0, 0, 0)
         if isinstance(sprites, collections.Iterable):
-            x = 0
-            y = 0
             for sp in sprites:
-                r.x = x + sp.x
-                r.y = y + sp.y
+                r.x, r.y = sp.position
                 r.w, r.h = sp.shape
-                if sdl2.render.SDL_RenderCopy(renderer, sp.texture, None, r) != 0:
+                if sdl2.render.SDL_RenderCopy(self._renderer, sp.texture, None, r) != 0:
                     raise SDLError()
         else:
-            r.x = sprites.x
-            r.y = sprites.y
+            r.x, r.y = sprites.position
             r.w, r.h = sprites.shape
-            if sdl2.render.SDL_RenderCopy(renderer, sprites.texture, None, r) != 0:
+            if sdl2.render.SDL_RenderCopy(self._renderer, sprites.texture, None, r) != 0:
                 raise SDLError()
 
-        sdl2.render.SDL_RenderPresent(renderer)
+        sdl2.render.SDL_RenderPresent(self._renderer)
 
 
 @attr.s

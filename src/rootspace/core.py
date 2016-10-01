@@ -97,7 +97,7 @@ class Engine(object):
         ctx["systems"] = list()
         ctx["entities"] = list()
         self._project.load_scene(ctx["world"], ctx["renderer"].renderer, ctx["resources"], ctx["systems"], ctx["entities"])
-        ctx["systems"].append(SpriteRenderSystem.create(ctx["renderer"]))
+        ctx["systems"].append(SpriteRenderSystem.create(ctx["renderer"].renderer))
 
         if len(ctx["systems"]) == 1 and isinstance(ctx["systems"][0], SpriteRenderSystem):
             self._wrn("Only the render system is present in the world.")
