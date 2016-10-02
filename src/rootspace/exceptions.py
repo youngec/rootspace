@@ -48,3 +48,7 @@ class SDLTTFError(Exception):
 
     def __str__(self):
         return repr(self.msg)
+
+
+class NotAnExecutableError(Exception):
+    pass

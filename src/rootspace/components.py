@@ -2,6 +2,7 @@
 
 import enum
 import xxhash
+import sys
 
 import attr
 import numpy
@@ -12,7 +13,7 @@ import sdl2.surface
 import sdl2.surface
 from attr.validators import instance_of
 
-from .exceptions import SDLError
+from .exceptions import SDLError, NotAnExecutableError
 
 
 @attr.s(slots=True)
@@ -224,16 +225,19 @@ class FileSystemState(object):
     """
     # FIXME: This design does not account for permissions.
     default_hierarchy = {
-        "/": {
-            "bin": {},
-            "dev": {},
-            "etc": {
-                "passwd": 0x0001
+        "root": {"uid": 0, "gid": 0, "perm": 0o755, "contents": {
+            "bin": {"uid": 0, "gid": 0, "perm": 0o777, "contents": {}},
+            "dev": {"uid": 0, "gid": 0, "perm": 0o755, "contents": {}},
+            "etc": {"uid": 0, "gid": 0, "perm": 0o755, "contents": {
+                "passwd": {"uid": 0, "gid": 0, "perm": 0o644, "id": 0x0001},
+                "shadow": {"uid": 0, "gid": 0, "perm": 0o000, "id": 0x0002}
+            }
             },
-            "home": {},
-            "root": {},
-            "tmp": {},
-            "usr": {}
+            "home": {"uid": 0, "gid": 0, "perm": 0o755, "contents": {}},
+            "root": {"uid": 0, "gid": 0, "perm": 0o750, "contents": {}},
+            "tmp": {"uid": 0, "gid": 0, "perm": 0o777, "contents": {}},
+            "usr": {"uid": 0, "gid": 0, "perm": 0o755, "contents": {}}
+              }
         }
     }
 
@@ -250,8 +254,294 @@ class FileSystemState(object):
         }
     }
 
-    hierarchy = attr.ib(default=default_hierarchy, validator=instance_of(dict))
-    database = attr.ib(default=default_database, validator=instance_of(dict))
+    _hierarchy = attr.ib(default=default_hierarchy, validator=instance_of(dict))
+    _database = attr.ib(default=default_database, validator=instance_of(dict))
+    flavour = attr.ib(default="unix", validator=instance_of(str))
+    root = attr.ib(default="/", validator=instance_of(str))
+    sep = attr.ib(default="/", validator=instance_of(str))
+
+    def stat(self, uid, gid, path):
+        """
+        Return metadata to a particular file or directory.
+
+        :param uid:
+        :param gid:
+        :param path:
+        :return:
+        """
+        node = self._get_node(uid, gid, path)
+        node_perm = node.get("perm", 0o000)
+        node_uid = node.get("uid", 0)
+        node_gid = node.get("gid", 0)
+        node_type = "d" if "contents" in node else "-"
+        stat_dict = {
+            "path": path,
+            "perm": "({:o} / {})".format(node_perm, self._explain_perm(node_type, node_perm)),
+            "uid": "({} / {})".format(node_uid, self._explain_uid(node_uid)),
+            "gid": "({} / {})".format(node_gid, self._explain_gid(node_gid))
+        }
+        return stat_dict
+
+    def read(self, uid, gid, path):
+        """
+        Read data from a particular file.
+
+        :param uid:
+        :param gid:
+        :param path:
+        :return:
+        """
+        node = self._get_node(uid, gid, path)
+        return self._read_data(uid, gid, node)
+
+    def write(self, uid, gid, path, data):
+        """
+        Write data to a specified file.
+
+        :param uid:
+        :param gid:
+        :param path:
+        :param data:
+        :return:
+        """
+        # FIXME: Create a node if it does not exist.
+        node = self._get_node(uid, gid, path)
+        self._write_data(uid, gid, node, data)
+
+    def execute(self, uid, gid, path, context):
+        """
+        Execute a specified file within the given context.
+
+        :param uid:
+        :param gid:
+        :param path:
+        :param context:
+        :return:
+        """
+        node = self._get_node(uid, gid, path)
+        return self._execute_data(uid, gid, node, context)
+
+    def _split_path(self, path):
+        """
+        Split a path string into a list of directories, starting at the tree root.
+
+        :param path:
+        :return:
+        """
+        path_parts = []
+        if path.startswith(self.root):
+            path_parts = ["root"] + list(filter(None, path.split(self.sep)))
+
+        return path_parts
+
+    def _has_read_perm(self, uid, gid, node):
+        """
+        Return True if the supplied user and group have read permission on the specified node.
+
+        :param uid:
+        :param gid:
+        :param node:
+        :return:
+        """
+        if uid == 0 and gid == 0:
+            return True
+        else:
+            if uid == node["uid"]:
+                return ((node["perm"] // 64) // 4) > 0
+            elif gid == node["gid"]:
+                return (((node["perm"] % 64) // 8) // 4) > 0
+            else:
+                return ((node["perm"] % 8) // 4) > 0
+
+    def _has_write_perm(self, uid, gid, node):
+        """
+        Return True if the supplied user and group have write permission on the specified node.
+
+        :param uid:
+        :param gid:
+        :param node:
+        :return:
+        """
+        if uid == 0 and gid == 0:
+            return True
+        else:
+            if uid == node["uid"]:
+                return (((node["perm"] // 64) % 4) // 2) > 0
+            elif gid == node["gid"]:
+                return ((((node["perm"] % 64) // 8) % 4) // 2) > 0
+            else:
+                return (((node["perm"] % 8) % 4) // 2) > 0
+
+    def _has_exec_perm(self, uid, gid, node):
+        """
+        Return True if the supplied user and group have execute permission on the specified node.
+
+        :param uid:
+        :param gid:
+        :param node:
+        :return:
+        """
+        if uid == node["uid"]:
+            return ((node["perm"] // 64) % 2) > 0
+        elif gid == node["gid"]:
+            return (((node["perm"] % 64) // 8) % 2) > 0
+        else:
+            return ((node["perm"] % 8) % 2) > 0
+
+    def _get_child(self, uid, gid, hierarchy, path_parts):
+        """
+        Recursively retrieve a child of the hierarchy.
+
+        :param uid:
+        :param gid:
+        :param hierarchy:
+        :param path_parts:
+        :return:
+        """
+        if len(path_parts) > 1:
+            node = hierarchy.get(path_parts[0], {})
+            if self._has_read_perm(uid, gid, node):
+                sub_hierarchy = node.get("contents", None)
+                if sub_hierarchy is not None:
+                    return self._get_child(uid, gid, sub_hierarchy, path_parts[1:])
+                else:
+                    raise FileNotFoundError()
+            else:
+                raise PermissionError()
+        elif len(path_parts) == 1:
+            node = hierarchy.get(path_parts[0], None)
+            if node is not None:
+                return node
+            else:
+                raise FileNotFoundError()
+        else:
+            return None
+
+    def _get_node(self, uid, gid, path):
+        """
+        Get the hierarchy node at a specified path.
+
+        :param uid:
+        :param gid:
+        :param path:
+        :return:
+        """
+        path_parts = self._split_path(path)
+        return self._get_child(uid, gid, self._hierarchy, path_parts)
+
+    def _read_data(self, uid, gid, node):
+        """
+        Retrieve the data pertaining to a particular hierarchy node.
+
+        :param uid:
+        :param gid:
+        :param node:
+        :return:
+        """
+        if "id" in node:
+            if self._has_read_perm(uid, gid, node):
+                data = self._database.get(node["id"])
+                if data is not None:
+                    return data.copy()
+                else:
+                    raise FileNotFoundError()
+            else:
+                raise PermissionError()
+        else:
+            raise IsADirectoryError()
+
+    def _write_data(self, uid, gid, node, data):
+        """
+        Write data of a particular node.
+
+        :param uid:
+        :param gid:
+        :param node:
+        :param data:
+        :return:
+        """
+        if "id" in node:
+            if self._has_write_perm(uid, gid, node):
+                self._database[node["id"]] = data
+            else:
+                raise PermissionError()
+        else:
+            raise IsADirectoryError()
+
+    def _execute_data(self, uid, gid, node, context):
+        """
+        Execute data of a particular node.
+
+        :param uid:
+        :param gid:
+        :param node:
+        :param context:
+        :return:
+        """
+        if "id" in node:
+            if self._has_exec_perm(uid, gid, node):
+                data = self._database.get(node["id"])
+                if data is not None:
+                    if callable(data):
+                        return data(context)
+                    else:
+                        raise NotAnExecutableError()
+                else:
+                    raise FileNotFoundError()
+            else:
+                raise PermissionError()
+        else:
+            raise IsADirectoryError()
+
+    def _get_size(self, uid, gid, node):
+        """
+        Get the size of an object at specified path.
+
+        :param uid:
+        :param gid:
+        :param node:
+        :return:
+        """
+        data = self._read_data(uid, gid, node)
+
+        if data is not None:
+            return sys.getsizeof(data)
+        else:
+            return sys.getsizeof(node)
+
+    def _explain_perm(self, node_type, perm):
+        """
+        Explain a particular permission number.
+
+        :param perm:
+        :return:
+        """
+        perm_str = ""
+        if self.flavour == "unix":
+            perm_digits = (perm // 64, (perm % 64) // 8, perm % 8)
+            perm_list = (((p // 4) > 0, ((p % 4) // 2) > 0, (p % 2) > 0) for p in perm_digits)
+            perm_groups = ("{}{}{}".format("r" if p[0] else "-", "w" if p[1] else "-", "x" if p[2] else "-") for p in perm_list)
+            perm_str = node_type + "".join(perm_groups)
+
+        return perm_str
+
+    def _explain_uid(self, uid):
+        """
+        Explain a UID (user ID).
+
+        :param uid:
+        :return:
+        """
+        return "Unknown UID"
+
+    def _explain_gid(self, gid):
+        """
+        Explain a GID (group ID).
+
+        :param gid:
+        :return:
+        """
+        return "Unknown GID"
 
 
 @attr.s(slots=True)
