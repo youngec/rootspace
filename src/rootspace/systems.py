@@ -15,7 +15,7 @@ from attr.validators import instance_of
 from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP
 from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2, SDLK_TAB, SDLK_BACKSPACE, SDLK_DELETE, SDLK_ESCAPE
 
-from .components import Sprite, DisplayBuffer, InputOutputStream, ShellState, MachineState
+from .components import Sprite, DisplayBuffer, InputOutputStream, ShellState, MachineState, FileSystemState
 from .exceptions import SDLError, SDLTTFError
 
 
@@ -412,7 +412,7 @@ class ShellSystem(UpdateSystem):
     def create(cls, encoding="utf-8"):
 
         return cls(
-            component_types=(InputOutputStream, MachineState, ShellState),
+            component_types=(InputOutputStream, FileSystemState, MachineState, ShellState),
             is_applicator=True,
             echo=True,
             keyword_separator=b" ",
@@ -422,22 +422,20 @@ class ShellSystem(UpdateSystem):
         )
 
     def update(self, time, delta_time, world, components):
-        for stream, machine, shell in components:
+        for stream, fs, machine, shell in components:
             if machine.power_up:
                 machine.ready = True
             elif machine.ready and len(stream.input) > 0:
-                try:
-                    if self._echo:
-                        stream.output.extend(stream.input)
-                        self._log.debug("Input: {!r}, Output: {!r}".format(stream.input, stream.output))
+                if self._echo:
+                    stream.output.extend(stream.input)
+                    self._log.debug("Input: {!r}, Output: {!r}".format(stream.input, stream.output))
 
-                    if self._line_separator in stream.input:
-                        shell.line_buffer = bytearray(b" ".join(shell.line_buffer.strip().split()))
-                        self._log.debug("Shell line buffer: {!r}".format(shell.line_buffer))
-                    else:
-                        shell.line_buffer.extend(stream.input)
+                if self._line_separator in stream.input:
+                    shell.line_buffer = bytearray(b" ".join(shell.line_buffer.strip().split()))
+                    self._log.debug("Shell line buffer: {!r}".format(shell.line_buffer))
+                else:
+                    shell.line_buffer.extend(stream.input)
 
-                finally:
-                    stream.input.clear()
+                stream.input.clear()
             elif machine.power_down:
                 machine.power_off = True
