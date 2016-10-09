@@ -3,6 +3,7 @@
 import enum
 import xxhash
 import sys
+import uuid
 
 import attr
 import numpy
@@ -218,12 +219,11 @@ class NetworkState(object):
     connected = attr.ib(default=attr.Factory(list), validator=instance_of(list))
 
 
-@attr.s(slots=True)
+@attr.s
 class FileSystemState(object):
     """
     Describe the state of the file system.
     """
-    # FIXME: This design does not account for permissions.
     default_hierarchy = {
         "root": {"uid": 0, "gid": 0, "perm": 0o755, "contents": {
             "bin": {"uid": 0, "gid": 0, "perm": 0o777, "contents": {}},
@@ -256,7 +256,7 @@ class FileSystemState(object):
 
     _hierarchy = attr.ib(default=default_hierarchy, validator=instance_of(dict))
     _database = attr.ib(default=default_database, validator=instance_of(dict))
-    flavour = attr.ib(default="unix", validator=instance_of(str))
+    _flavour = attr.ib(default="unix", validator=instance_of(str))
     root = attr.ib(default="/", validator=instance_of(str))
     sep = attr.ib(default="/", validator=instance_of(str))
 
@@ -270,17 +270,7 @@ class FileSystemState(object):
         :return:
         """
         node = self._get_node(uid, gid, path)
-        node_perm = node.get("perm", 0o000)
-        node_uid = node.get("uid", 0)
-        node_gid = node.get("gid", 0)
-        node_type = "d" if "contents" in node else "-"
-        stat_dict = {
-            "path": path,
-            "perm": "({:o} / {})".format(node_perm, self._explain_perm(node_type, node_perm)),
-            "uid": "({} / {})".format(node_uid, self._explain_uid(node_uid)),
-            "gid": "({} / {})".format(node_gid, self._explain_gid(node_gid))
-        }
-        return stat_dict
+        return self._stat_node(uid, gid, path, node)
 
     def read(self, uid, gid, path):
         """
@@ -305,7 +295,7 @@ class FileSystemState(object):
         :return:
         """
         # FIXME: Create a node if it does not exist.
-        node = self._get_node(uid, gid, path)
+        node = self._get_node(uid, gid, path, create_node=True)
         self._write_data(uid, gid, node, data)
 
     def execute(self, uid, gid, path, context):
@@ -343,15 +333,16 @@ class FileSystemState(object):
         :param node:
         :return:
         """
-        if uid == 0 and gid == 0:
-            return True
-        else:
-            if uid == node["uid"]:
-                return ((node["perm"] // 64) // 4) > 0
-            elif gid == node["gid"]:
-                return (((node["perm"] % 64) // 8) // 4) > 0
+        if self._flavour == "unix":
+            if uid == 0 and gid == 0:
+                return True
             else:
-                return ((node["perm"] % 8) // 4) > 0
+                if uid == node["uid"]:
+                    return ((node["perm"] // 64) // 4) > 0
+                elif gid == node["gid"]:
+                    return (((node["perm"] % 64) // 8) // 4) > 0
+                else:
+                    return ((node["perm"] % 8) // 4) > 0
 
     def _has_write_perm(self, uid, gid, node):
         """
@@ -362,15 +353,16 @@ class FileSystemState(object):
         :param node:
         :return:
         """
-        if uid == 0 and gid == 0:
-            return True
-        else:
-            if uid == node["uid"]:
-                return (((node["perm"] // 64) % 4) // 2) > 0
-            elif gid == node["gid"]:
-                return ((((node["perm"] % 64) // 8) % 4) // 2) > 0
+        if self._flavour == "unix":
+            if uid == 0 and gid == 0:
+                return True
             else:
-                return (((node["perm"] % 8) % 4) // 2) > 0
+                if uid == node["uid"]:
+                    return (((node["perm"] // 64) % 4) // 2) > 0
+                elif gid == node["gid"]:
+                    return ((((node["perm"] % 64) // 8) % 4) // 2) > 0
+                else:
+                    return (((node["perm"] % 8) % 4) // 2) > 0
 
     def _has_exec_perm(self, uid, gid, node):
         """
@@ -381,12 +373,13 @@ class FileSystemState(object):
         :param node:
         :return:
         """
-        if uid == node["uid"]:
-            return ((node["perm"] // 64) % 2) > 0
-        elif gid == node["gid"]:
-            return (((node["perm"] % 64) // 8) % 2) > 0
-        else:
-            return ((node["perm"] % 8) % 2) > 0
+        if self._flavour == "unix":
+            if uid == node["uid"]:
+                return ((node["perm"] // 64) % 2) > 0
+            elif gid == node["gid"]:
+                return (((node["perm"] % 64) // 8) % 2) > 0
+            else:
+                return ((node["perm"] % 8) % 2) > 0
 
     def _get_child(self, uid, gid, hierarchy, path_parts):
         """
@@ -399,15 +392,18 @@ class FileSystemState(object):
         :return:
         """
         if len(path_parts) > 1:
-            node = hierarchy.get(path_parts[0], {})
-            if self._has_read_perm(uid, gid, node):
-                sub_hierarchy = node.get("contents", None)
-                if sub_hierarchy is not None:
-                    return self._get_child(uid, gid, sub_hierarchy, path_parts[1:])
+            node = hierarchy.get(path_parts[0], None)
+            if node is not None:
+                if self._has_read_perm(uid, gid, node):
+                    sub_hierarchy = node.get("contents", None)
+                    if sub_hierarchy is not None:
+                        return self._get_child(uid, gid, sub_hierarchy, path_parts[1:])
+                    else:
+                        raise FileNotFoundError()
                 else:
-                    raise FileNotFoundError()
+                    raise PermissionError()
             else:
-                raise PermissionError()
+                raise FileNotFoundError()
         elif len(path_parts) == 1:
             node = hierarchy.get(path_parts[0], None)
             if node is not None:
@@ -415,19 +411,76 @@ class FileSystemState(object):
             else:
                 raise FileNotFoundError()
         else:
-            return None
+            raise FileNotFoundError()
 
-    def _get_node(self, uid, gid, path):
+    def _get_node(self, uid, gid, path, create_node=False):
         """
         Get the hierarchy node at a specified path.
 
         :param uid:
         :param gid:
         :param path:
+        :param create_node:
         :return:
         """
         path_parts = self._split_path(path)
+        if create_node:
+            self._create_node(uid, gid, self._hierarchy, path_parts)
         return self._get_child(uid, gid, self._hierarchy, path_parts)
+
+    def _create_node(self, uid, gid, hierarchy, path_parts, parent_node=None, node_type="file"):
+        if len(path_parts) > 1:
+            node = hierarchy.get(path_parts[0], None)
+            if node is not None:
+                if self._has_write_perm(uid, gid, node):
+                    sub_hierarchy = node.get("contents", None)
+                    if sub_hierarchy is not None:
+                        return self._create_node(uid, gid, sub_hierarchy, path_parts[1:], node, node_type)
+                    else:
+                        raise FileNotFoundError()
+                else:
+                    raise PermissionError()
+            else:
+                raise FileNotFoundError()
+        elif len(path_parts) == 1:
+            if parent_node is not None:
+                node = hierarchy.get(path_parts[0], None)
+                if self._has_write_perm(uid, gid, parent_node):
+                    if node is None:
+                        if node_type == "file":
+                            node = {"uid": uid, "gid": gid, "perm": 0o644, "id": self._create_file_id()}
+                        elif node_type == "directory":
+                            node = {"uid": uid, "gid": gid, "perm": 0o755, "contents": {}}
+                        else:
+                            raise ValueError("Expected node type to be a file or directory.")
+                        hierarchy[path_parts[0]] = node
+
+                    return node
+                else:
+                    raise PermissionError()
+            else:
+                raise FileNotFoundError()
+        else:
+            return None
+
+    def _create_file_id(self):
+        return uuid.uuid4()
+
+    def _stat_node(self, uid, gid, path, node):
+        stat_dict = dict()
+        if self._flavour == "unix":
+            node_perm = node["perm"]
+            node_uid = node["uid"]
+            node_gid = node["gid"]
+            node_type = "d" if "contents" in node else "-"
+            stat_dict = {
+                "path": path,
+                "perm": "({:o} / {})".format(node_perm, self._explain_perm(node_type, node_perm)),
+                "uid": "({} / {})".format(node_uid, self._explain_uid(node_uid)),
+                "gid": "({} / {})".format(node_gid, self._explain_gid(node_gid))
+            }
+
+        return stat_dict
 
     def _read_data(self, uid, gid, node):
         """
@@ -517,7 +570,7 @@ class FileSystemState(object):
         :return:
         """
         perm_str = ""
-        if self.flavour == "unix":
+        if self._flavour == "unix":
             perm_digits = (perm // 64, (perm % 64) // 8, perm % 8)
             perm_list = (((p // 4) > 0, ((p % 4) // 2) > 0, (p % 2) > 0) for p in perm_digits)
             perm_groups = ("{}{}{}".format("r" if p[0] else "-", "w" if p[1] else "-", "x" if p[2] else "-") for p in perm_list)

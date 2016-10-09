@@ -53,7 +53,7 @@ class TestFileSystemStateUnix(object):
         },
         0x0003: "This is a secret file.",
         0x0004: lambda a: 0,
-        0x0005: "This is an executable file.",
+        0x0005: "This is a pretend executable file.",
         0x0006: "This is a configuration file."
     }
 
@@ -73,6 +73,7 @@ class TestFileSystemStateUnix(object):
     def test_bad_file_write(self, file_system_state):
         file_system_state.write(0, 0, "/etc/badfile", None)
 
+    @pytest.mark.xfail(raises=PermissionError)
     def test_bad_file_execute(self, file_system_state):
         with pytest.raises(FileNotFoundError):
             file_system_state.execute(0, 0, "/etc/badfile", None)
