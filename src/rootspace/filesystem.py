@@ -2,6 +2,7 @@
 
 import enum
 import uuid
+import datetime
 
 import attr
 from attr.validators import instance_of
@@ -17,8 +18,45 @@ class Node(object):
     _uid = attr.ib(validator=instance_of(int))
     _gid = attr.ib(validator=instance_of(int))
     _perm = attr.ib(validator=instance_of(int))
+    _accessed = attr.ib(validator=instance_of(datetime.datetime))
+    _modified = attr.ib(validator=instance_of(datetime.datetime))
+    _changed = attr.ib(validator=instance_of(datetime.datetime))
     _type = attr.ib(validator=instance_of(FileType))
     _contents = attr.ib(validator=instance_of((dict, uuid.UUID)))
+
+    @classmethod
+    def create(cls, uid, gid, perm, node_type, contents=None):
+        """
+        Creates a new node.
+
+        :param uid:
+        :param gid:
+        :param perm:
+        :param node_type:
+        :param contents:
+        :return:
+        """
+        d = datetime.datetime.now()
+        if node_type == "directory":
+            nt = cls.FileType.directory
+        elif node_type == "file":
+            nt = cls.FileType.file
+        elif node_type == "special":
+            nt = cls.FileType.special
+        else:
+            raise TypeError("Known node types: {}".format(cls.FileType))
+
+        if contents is None:
+            if nt == cls.FileType.directory:
+                contents = dict()
+            else:
+                contents = uuid.uuid4()
+
+        return cls(uid, gid, perm, d, d, d, nt, contents)
+
+    @classmethod
+    def uuid(cls, path):
+        return uuid.uuid5(uuid.NAMESPACE_URL, path)
 
     @property
     def uid(self):
@@ -62,6 +100,33 @@ class Node(object):
         return perm_type + "".join(perm_groups)
 
     @property
+    def accessed(self):
+        """
+        Return the time of last access to this node.
+
+        :return:
+        """
+        return self._accessed
+
+    @property
+    def modified(self):
+        """
+        Return the time of last modification of this node.
+
+        :return:
+        """
+        return self._modified
+
+    @property
+    def changed(self):
+        """
+        Return the time of last change of the contents of this node.
+
+        :return:
+        """
+        return self._changed
+
+    @property
     def is_directory(self):
         return self._type == Node.FileType.directory
 
@@ -81,6 +146,14 @@ class Node(object):
         :return:
         """
         return self._contents
+
+    def to_dict(self):
+        """
+        Return a dictionary representation of a Node.
+
+        :return:
+        """
+        return {"uid": self._uid, "gid": self._gid, "perm": self._perm, "perm_str": self.perm_str}
 
     def may_read(self, uid, gids):
         """
@@ -145,15 +218,6 @@ class FileSystem(object):
     root = attr.ib(default="/", validator=instance_of(str))
     sep = attr.ib(default="/", validator=instance_of(str))
 
-    def _uuid(self, path):
-        """
-        Return a UUID that corresponds to the specified path.
-
-        :param path:
-        :return:
-        """
-        return uuid.uuid5(uuid.NAMESPACE_URL, path)
-
     def _split(self, path):
         """
         Split a path string into a list of directories, starting at the tree root.
@@ -208,7 +272,68 @@ class FileSystem(object):
         :param path:
         :return:
         """
-        return {
-            "path": path,
+        (target, parent) = self._find_node(path)
+        if parent.may_read(uid, gids):
+            stat_dict = {
+                "path": path,
+                "perm": "({:o} / {})".format(target.perm, target.perm_str),
+                "uid": "({} / {})".format(target.uid, "Unknown UID"),
+                "gid": "({} / {})".format(target.gid, "Unknown GID"),
+                "accessed": target.accessed,
+                "modified": target.modified,
+                "changed": target.changed
+            }
+            return stat_dict
+        else:
+            raise PermissionError()
 
-        }
+    def list(self, uid, gids, path):
+        """
+        List the contents of the directory-type file system node.
+
+        :param uid:
+        :param gids:
+        :param path:
+        :return:
+        """
+        (target, parent) = self._find_node(path)
+        if target.may_read(uid, gids):
+            if target.is_directory:
+                if isinstance(target.contents, dict):
+                    dir_list = dict()
+                    for k, v in target.contents.items():
+                        dir_list[k] = v.to_dict()
+                    dir_list["."] = target.to_dict()
+                    dir_list[".."] = parent.to_dict()
+                    return dir_list
+                else:
+                    raise NotImplementedError("Currently, directories cannot be linked")
+            else:
+                raise NotADirectoryError()
+        else:
+            raise PermissionError()
+
+    def read(self, uid, gids, path):
+        """
+        Return the contents of the file- or special-type file system node.
+
+        :param uid:
+        :param gids:
+        :param path:
+        :return:
+        """
+        (target, parent) = self._find_node(path)
+        if target.may_read(uid, gids):
+            if target.is_file or target.is_special:
+                if isinstance(target.contents, uuid.UUID):
+                    data = self._database.get(target.contents)
+                    if data is not None:
+                        return data
+                    else:
+                        raise FileNotFoundError()
+                else:
+                    return target.contents
+            else:
+                raise IsADirectoryError()
+        else:
+            raise PermissionError()
