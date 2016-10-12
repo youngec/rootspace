@@ -3,9 +3,8 @@
 import uuid
 
 import pytest
-
-from rootspace.filesystem import Node, FileSystem
 from rootspace.exceptions import DatabaseLinkError
+from rootspace.filesystem import Node, FileSystem
 
 
 class TestNode(object):
@@ -409,11 +408,14 @@ class TestFileSystem(object):
             Node.uuid("/dev/null"): None,
             Node.uuid("/etc/passwd"): {
                 "root": {"password": "x", "uid": 0, "gid": 0, "gecos": "root", "home": "/root", "shell": "/bin/sh"},
-                "test": {"password": "x", "uid": 1000, "gid": 1000, "gecos": "test", "home": "/home/test", "shell": "/bin/sh"}
+                "test": {"password": "x", "uid": 1000, "gid": 1000, "gecos": "test", "home": "/home/test",
+                         "shell": "/bin/sh"}
             },
             Node.uuid("/etc/shadow"): {
-                "root": {"password": "!", "changed": 0, "minimum": None, "maximum": None, "warn": None, "inactive": None, "expire": None},
-                "test": {"password": "!", "changed": 0, "minimum": None, "maximum": None, "warn": None, "inactive": None, "expire": None}
+                "root": {"password": "!", "changed": 0, "minimum": None, "maximum": None, "warn": None,
+                         "inactive": None, "expire": None},
+                "test": {"password": "!", "changed": 0, "minimum": None, "maximum": None, "warn": None,
+                         "inactive": None, "expire": None}
             }
         }
         return FileSystem(hierarchy, database, "/", "/")

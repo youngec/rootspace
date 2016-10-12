@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
+import datetime
 import enum
 import uuid
-import datetime
 
 import attr
 from attr.validators import instance_of
 
 from .exceptions import DatabaseLinkError
+
 
 @attr.s
 class Node(object):
@@ -47,6 +48,7 @@ class Node(object):
         else:
             raise TypeError("Known node types: {}".format(cls.FileType))
 
+        # TODO: Maybe restrict the content types that each file type can contain.
         if contents is None:
             if nt == cls.FileType.directory:
                 contents = dict()
