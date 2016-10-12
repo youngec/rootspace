@@ -51,4 +51,14 @@ class SDLTTFError(Exception):
 
 
 class NotAnExecutableError(Exception):
+    """
+    This exception is raised if a particular file system node is not executable but has permissions set as such.
+    """
+    pass
+
+
+class DatabaseLinkError(Exception):
+    """
+    This exception indicates that a file operation failed due to a link error.
+    """
     pass

@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from rootspace.filesystem import Node, FileSystem
+from rootspace.exceptions import DatabaseLinkError
 
 
 class TestNode(object):
@@ -391,7 +392,8 @@ class TestFileSystem(object):
             }),
             "etc": Node.create(0, 0, 0o755, "directory", {
                 "passwd": Node.create(0, 0, 0o644, "file", Node.uuid("/etc/passwd")),
-                "shadow": Node.create(0, 0, 0o000, "file", Node.uuid("/etc/shadow"))
+                "shadow": Node.create(0, 0, 0o000, "file", Node.uuid("/etc/shadow")),
+                "self_contained": Node.create(0, 0, 0o666, "file", {"data": None})
             }),
             "home": Node.create(0, 0, 0o755, "directory", {
                 "test": Node.create(1000, 1000, 0o700, "directory", {
@@ -481,3 +483,33 @@ class TestFileSystem(object):
     def test_read_dir(self, file_system):
         with pytest.raises(IsADirectoryError):
             file_system.read(1, (1,), "/etc")
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_read_special(self, file_system):
+        file_system.read(1, (1,), "/dev/null")
+
+    def test_read_self_contained(self, file_system):
+        with pytest.raises(DatabaseLinkError):
+            file_system.read(1, (1,), "/etc/self_contained")
+
+    def test_write_signature(self, file_system):
+        assert file_system.write(0, (0,), "/etc/passwd", None) is None
+
+    def test_write_good_perm(self, file_system):
+        file_system.write(1000, (1000,), "/home/test/.profile", "Profile write")
+
+    def test_write_bad_perm(self, file_system):
+        with pytest.raises(PermissionError):
+            file_system.write(1, (1,), "/etc/passwd", None)
+
+    def test_write_dir(self, file_system):
+        with pytest.raises(IsADirectoryError):
+            file_system.write(0, (0,), "/etc", None)
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_write_special(self, file_system):
+        file_system.write(1, (1,), "/dev/null", None)
+
+    def test_write_self_contained(self, file_system):
+        with pytest.raises(DatabaseLinkError):
+            file_system.write(1, (1,), "/etc/self_contained", {"data": 1})

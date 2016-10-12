@@ -7,6 +7,7 @@ import datetime
 import attr
 from attr.validators import instance_of
 
+from .exceptions import DatabaseLinkError
 
 @attr.s
 class Node(object):
@@ -307,7 +308,7 @@ class FileSystem(object):
                     dir_list[".."] = parent.to_dict()
                     return dir_list
                 else:
-                    raise NotImplementedError("Currently, directories cannot be linked")
+                    raise NotImplementedError("Currently, directories cannot be linked to the database.")
             else:
                 raise NotADirectoryError()
         else:
@@ -324,7 +325,7 @@ class FileSystem(object):
         """
         (target, parent) = self._find_node(path)
         if target.may_read(uid, gids):
-            if target.is_file or target.is_special:
+            if target.is_file:
                 if isinstance(target.contents, uuid.UUID):
                     data = self._database.get(target.contents)
                     if data is not None:
@@ -332,7 +333,32 @@ class FileSystem(object):
                     else:
                         raise FileNotFoundError()
                 else:
-                    return target.contents
+                    raise DatabaseLinkError("Cannot read from files without database links.")
+            elif target.is_special:
+                raise NotImplementedError("Cannot read from special files yet.")
+            else:
+                raise IsADirectoryError()
+        else:
+            raise PermissionError()
+
+    def write(self, uid, gids, path, data):
+        """
+        Write the specified data to the specified file.
+
+        :param uid:
+        :param gids:
+        :param path:
+        :return:
+        """
+        (target, parent) = self._find_node(path)
+        if target.may_write(uid, gids):
+            if target.is_file:
+                if isinstance(target.contents, uuid.UUID):
+                    self._database[target.contents] = data
+                else:
+                    raise DatabaseLinkError("Cannot write to files without database links.")
+            elif target.is_special:
+                raise NotImplementedError("Cannot write to special files yet.")
             else:
                 raise IsADirectoryError()
         else:
