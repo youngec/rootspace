@@ -2,8 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import os
 import os.path
+import sys
 import warnings
+
+# Add the SDL2 library path (this is necessary for some linux versions)
+if sys.platform == "linux":
+    os.environ["PYSDL2_DLL_PATH"] = "/run/current-system/sw/lib:{}".format(os.environ.get("PYSDL2_DLL_PATH", ""))
 
 import click
 
