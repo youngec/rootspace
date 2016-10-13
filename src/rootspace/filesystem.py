@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import copy
 import datetime
 import enum
 import uuid
@@ -7,7 +8,7 @@ import uuid
 import attr
 from attr.validators import instance_of
 
-from .exceptions import DatabaseLinkError, NotAnExecutableError
+from .exceptions import NotAnExecutableError
 
 
 @attr.s
@@ -329,9 +330,9 @@ class FileSystem(object):
         if target.may_read(uid, gids):
             if target.is_file:
                 if isinstance(target.contents, uuid.UUID):
-                    data = self._database.get(target.contents).copy()
+                    data = self._database.get(target.contents)
                     if data is not None:
-                        return data
+                        return copy.deepcopy(data)
                     else:
                         raise FileNotFoundError()
                 else:
