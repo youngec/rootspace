@@ -3,7 +3,7 @@
 import uuid
 
 import pytest
-from rootspace.exceptions import DatabaseLinkError
+from rootspace.exceptions import NotAnExecutableError
 from rootspace.filesystem import Node, FileSystem
 
 
@@ -384,10 +384,12 @@ class TestFileSystem(object):
             "bin": Node.create(0, 0, 0o755, "directory", {
                 "test": Node.create(0, 0, 0o755, "file", Node.uuid("/bin/test")),
                 "badexec": Node.create(0, 0, 0o755, "file", Node.uuid("/bin/badexec")),
-                "badperm": Node.create(0, 0, 0o644, "file", Node.uuid("/bin/badperm"))
+                "badperm": Node.create(0, 0, 0o644, "file", Node.uuid("/bin/badperm")),
+                "self_contained": Node.create(0, 0, 0o755, "file", {"data": (lambda a: 0)})
             }),
             "dev": Node.create(0, 0, 0o755, "directory", {
-                "null": Node.create(0, 0, 0o666, "special", Node.uuid("/dev/null"))
+                "null": Node.create(0, 0, 0o666, "special", Node.uuid("/dev/null")),
+                "exec": Node.create(0, 0, 0o555, "special", Node.uuid("/dev/exec"))
             }),
             "etc": Node.create(0, 0, 0o755, "directory", {
                 "passwd": Node.create(0, 0, 0o644, "file", Node.uuid("/etc/passwd")),
@@ -406,6 +408,7 @@ class TestFileSystem(object):
             Node.uuid("/bin/badexec"): "This is a pretend executable file.",
             Node.uuid("/bin/badperm"): (lambda a: 0),
             Node.uuid("/dev/null"): None,
+            Node.uuid("/dev/exec"): None,
             Node.uuid("/etc/passwd"): {
                 "root": {"password": "x", "uid": 0, "gid": 0, "gecos": "root", "home": "/root", "shell": "/bin/sh"},
                 "test": {"password": "x", "uid": 1000, "gid": 1000, "gecos": "test", "home": "/home/test",
@@ -490,9 +493,9 @@ class TestFileSystem(object):
     def test_read_special(self, file_system):
         file_system.read(1, (1,), "/dev/null")
 
+    @pytest.mark.xfail(raises=NotImplementedError)
     def test_read_self_contained(self, file_system):
-        with pytest.raises(DatabaseLinkError):
-            file_system.read(1, (1,), "/etc/self_contained")
+        file_system.read(1, (1,), "/etc/self_contained")
 
     def test_write_signature(self, file_system):
         assert file_system.write(0, (0,), "/etc/passwd", None) is None
@@ -512,6 +515,34 @@ class TestFileSystem(object):
     def test_write_special(self, file_system):
         file_system.write(1, (1,), "/dev/null", None)
 
+    @pytest.mark.xfail(raises=NotImplementedError)
     def test_write_self_contained(self, file_system):
-        with pytest.raises(DatabaseLinkError):
-            file_system.write(1, (1,), "/etc/self_contained", {"data": 1})
+        file_system.write(1, (1,), "/etc/self_contained", {"data": 1})
+
+    def test_execute_signature(self, file_system):
+        assert file_system.execute(0, (0,), "/bin/test", None) == file_system._database[Node.uuid("/bin/test")](None)
+
+    def test_execute_good_perm(self, file_system):
+        file_system.execute(1, (1,), "/bin/test", None)
+
+    def test_execute_bad_perm(self, file_system):
+        with pytest.raises(PermissionError):
+            file_system.execute(0, (0,), "/bin/badperm", None)
+        with pytest.raises(PermissionError):
+            file_system.execute(1, (1,), "/bin/badperm", None)
+
+    def test_execute_bad_exec(self, file_system):
+        with pytest.raises(NotAnExecutableError):
+            file_system.execute(1, (1,), "/bin/badexec", None)
+
+    def test_execute_dir(self, file_system):
+        with pytest.raises(IsADirectoryError):
+            file_system.execute(1, (1,), "/bin", None)
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_execute_special(self, file_system):
+        file_system.execute(1, (1,), "/dev/exec", None)
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_execute_self_contained(self, file_system):
+        file_system.execute(1, (1,), "/bin/self_contained", None)

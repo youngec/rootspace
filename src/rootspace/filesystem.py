@@ -7,7 +7,7 @@ import uuid
 import attr
 from attr.validators import instance_of
 
-from .exceptions import DatabaseLinkError
+from .exceptions import DatabaseLinkError, NotAnExecutableError
 
 
 @attr.s
@@ -335,7 +335,7 @@ class FileSystem(object):
                     else:
                         raise FileNotFoundError()
                 else:
-                    raise DatabaseLinkError("Cannot read from files without database links.")
+                    raise NotImplementedError("Cannot read from files without database links.")
             elif target.is_special:
                 raise NotImplementedError("Cannot read from special files yet.")
             else:
@@ -358,9 +358,40 @@ class FileSystem(object):
                 if isinstance(target.contents, uuid.UUID):
                     self._database[target.contents] = data
                 else:
-                    raise DatabaseLinkError("Cannot write to files without database links.")
+                    raise NotImplementedError("Cannot write to files without database links.")
             elif target.is_special:
                 raise NotImplementedError("Cannot write to special files yet.")
+            else:
+                raise IsADirectoryError()
+        else:
+            raise PermissionError()
+
+    def execute(self, uid, gids, path, arguments):
+        """
+        Execute the data registered with the specified path.
+
+        :param uid:
+        :param gids:
+        :param path:
+        :param arguments:
+        :return:
+        """
+        (target, parent) = self._find_node(path)
+        if target.may_execute(uid, gids):
+            if target.is_file:
+                if isinstance(target.contents, uuid.UUID):
+                    data = self._database.get(target.contents)
+                    if data is not None:
+                        if callable(data):
+                            return data(arguments)
+                        else:
+                            raise NotAnExecutableError()
+                    else:
+                        raise FileNotFoundError()
+                else:
+                    raise NotImplementedError("Cannot execute files without database links.")
+            elif target.is_special:
+                raise NotImplementedError("Cannot execute special files yet.")
             else:
                 raise IsADirectoryError()
         else:
