@@ -329,7 +329,7 @@ class FileSystem(object):
         if target.may_read(uid, gids):
             if target.is_file:
                 if isinstance(target.contents, uuid.UUID):
-                    data = self._database.get(target.contents)
+                    data = self._database.get(target.contents).copy()
                     if data is not None:
                         return data
                     else:
