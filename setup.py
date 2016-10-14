@@ -12,24 +12,6 @@ import versioneer
 from setuptools import setup, find_packages
 
 
-DESCRIPTION = "Rootspace Game, Yay!"
-LONG_DESCRIPTION = ""
-DIST_NAME = "rootspace"
-LICENSE = "MIT"
-AUTHOR = "Eleanore C. Young"
-EMAIL = ""
-URL = ""
-DOWNLOAD_URL = ""
-CLASSIFIERS = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: End Users",
-    "Topic :: Games :: Casual",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3"
-]
-KEYWORDS = "game, casual, point-and-click, hacking"
-
-
 def get_requirements():
     """
     Get the project's setup-requires requirements from setup.cfg.
@@ -50,6 +32,18 @@ def get_requirements():
             yield specifier
 
 
+def read(path):
+    """
+    Read a file at the specified path and return its contents.
+
+    :param path:
+    :return:
+    """
+    full_path = os.path.realpath(path)
+    with open(full_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
 if __name__ == "__main__":
     sys.path[0:0] = ["setup-requires"]
     pkg_resources.working_set.add_entry("setup-requires")
@@ -63,16 +57,22 @@ if __name__ == "__main__":
         pass
 
     setup(
-        name=DIST_NAME,
-        author=AUTHOR,
-        author_email=EMAIL,
-        description=DESCRIPTION,
-        license=LICENSE,
-        url=URL,
-        download_url=DOWNLOAD_URL,
-        classifiers=CLASSIFIERS,
-        keywords=KEYWORDS,
-        long_description=LONG_DESCRIPTION,
+        name="rootspace",
+        author="Eleanore C. Young",
+        author_email="",
+        description="A hackneyed attempt at a Python-based game.",
+        long_description=read("README.rst"),
+        keywords="game, casual, point-and-click, hacking",
+        license="MIT",
+        url="https://github.com/youngec/rootspace.git",
+        download_url="https://github.com/youngec/rootspace.git",
+        classifiers=[
+            "Development Status :: 3 - Alpha",
+            "Intended Audience :: End Users",
+            "Topic :: Games :: Casual",
+            "License :: OSI Approved :: MIT License",
+            "Programming Language :: Python :: 3"
+        ],
         version=versioneer.get_version(),
         cmdclass=versioneer.get_cmdclass(),
         platforms="any",
@@ -83,7 +83,7 @@ if __name__ == "__main__":
             "pysdl2",
             "xxhash"
         ],
-        test_requires=[
+        tests_require=[
             "pytest",
             "coverage",
             "pytest-cov"
