@@ -86,7 +86,8 @@ if __name__ == "__main__":
         tests_require=[
             "pytest",
             "coverage",
-            "pytest-cov"
+            "pytest-cov",
+            "pytest-pep8"
         ],
         entry_points={
             "console_scripts": [
