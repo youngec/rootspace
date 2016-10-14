@@ -25,10 +25,31 @@ class Node(object):
     _modified = attr.ib(validator=instance_of(datetime.datetime))
     _changed = attr.ib(validator=instance_of(datetime.datetime))
     _type = attr.ib(validator=instance_of(FileType))
-    _contents = attr.ib(validator=instance_of((dict, uuid.UUID)))
+    _contents = attr.ib()
 
     @classmethod
-    def create(cls, uid, gid, perm, node_type, contents=None):
+    def _is_dict(cls, contents):
+        """
+        Return True, if the supplied object is a dictionary of Nodes
+        with string keys.
+
+        :param contents:
+        :return:
+        """
+        if isinstance(contents, dict):
+            if len(contents) > 0:
+                return all(isinstance(k, str) and isinstance(v, cls) for k, v in contents.items())
+            else:
+                return True
+        else:
+            return False
+
+    @classmethod
+    def uuid(cls, path):
+        return uuid.uuid5(uuid.NAMESPACE_URL, path)
+
+    @classmethod
+    def create(cls, uid, gid, perm, node_type, contents=None, path=None):
         """
         Creates a new node.
 
@@ -49,18 +70,18 @@ class Node(object):
         else:
             raise TypeError("Known node types: {}".format(cls.FileType))
 
-        # TODO: Maybe restrict the content types that each file type can contain.
+
         if contents is None:
-            if nt == cls.FileType.directory:
+            if isinstance(path, str):
+                contents = cls.uuid(path)
+            elif nt == cls.FileType.directory:
                 contents = dict()
             else:
                 contents = uuid.uuid4()
+        elif nt == cls.FileType.directory and not (isinstance(contents, str) or cls._is_dict(contents)):
+            raise TypeError("Contents must be a dictionary of Nodes for a directory Node.")
 
         return cls(uid, gid, perm, d, d, d, nt, contents)
-
-    @classmethod
-    def uuid(cls, path):
-        return uuid.uuid5(uuid.NAMESPACE_URL, path)
 
     @property
     def uid(self):

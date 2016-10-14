@@ -380,28 +380,28 @@ class TestNode(object):
 class TestFileSystem(object):
     @pytest.fixture
     def file_system(self):
-        hierarchy = Node.create(0, 0, 0o755, "directory", {
-            "bin": Node.create(0, 0, 0o755, "directory", {
-                "test": Node.create(0, 0, 0o755, "file", Node.uuid("/bin/test")),
-                "badexec": Node.create(0, 0, 0o755, "file", Node.uuid("/bin/badexec")),
-                "badperm": Node.create(0, 0, 0o644, "file", Node.uuid("/bin/badperm")),
-                "self_contained": Node.create(0, 0, 0o755, "file", {"data": (lambda a: 0)})
+        hierarchy = Node.create(0, 0, 0o755, "directory", contents={
+            "bin": Node.create(0, 0, 0o755, "directory", contents={
+                "test": Node.create(0, 0, 0o755, "file", path="/bin/test"),
+                "badexec": Node.create(0, 0, 0o755, "file", path="/bin/badexec"),
+                "badperm": Node.create(0, 0, 0o644, "file", path="/bin/badperm"),
+                "self_contained": Node.create(0, 0, 0o755, "file", contents=(lambda a: 0))
             }),
-            "dev": Node.create(0, 0, 0o755, "directory", {
-                "null": Node.create(0, 0, 0o666, "special", Node.uuid("/dev/null")),
-                "exec": Node.create(0, 0, 0o555, "special", Node.uuid("/dev/exec"))
+            "dev": Node.create(0, 0, 0o755, "directory", contents={
+                "null": Node.create(0, 0, 0o666, "special", path="/dev/null"),
+                "exec": Node.create(0, 0, 0o555, "special", path="/dev/exec")
             }),
-            "etc": Node.create(0, 0, 0o755, "directory", {
-                "passwd": Node.create(0, 0, 0o644, "file", Node.uuid("/etc/passwd")),
-                "shadow": Node.create(0, 0, 0o000, "file", Node.uuid("/etc/shadow")),
-                "self_contained": Node.create(0, 0, 0o666, "file", {"data": None})
+            "etc": Node.create(0, 0, 0o755, "directory", contents={
+                "passwd": Node.create(0, 0, 0o644, "file", path="/etc/passwd"),
+                "shadow": Node.create(0, 0, 0o000, "file", path="/etc/shadow"),
+                "self_contained": Node.create(0, 0, 0o666, "file", contents="data")
             }),
-            "home": Node.create(0, 0, 0o755, "directory", {
-                "test": Node.create(1000, 1000, 0o700, "directory", {
-                    ".profile": Node.create(1000, 1000, 0o640, "file", Node.uuid("/home/test/.profile"))
+            "home": Node.create(0, 0, 0o755, "directory", contents={
+                "test": Node.create(1000, 1000, 0o700, "directory", contents={
+                    ".profile": Node.create(1000, 1000, 0o640, "file", path="/home/test/.profile")
                 })
             }),
-            "sbin": Node.create(0, 0, 0o755, "directory", Node.uuid("/sbin"))
+            "sbin": Node.create(0, 0, 0o755, "directory", contents="/bin")
         })
         database = {
             Node.uuid("/bin/test"): (lambda a: 0),
@@ -410,15 +410,42 @@ class TestFileSystem(object):
             Node.uuid("/dev/null"): None,
             Node.uuid("/dev/exec"): None,
             Node.uuid("/etc/passwd"): {
-                "root": {"password": "x", "uid": 0, "gid": 0, "gecos": "root", "home": "/root", "shell": "/bin/sh"},
-                "test": {"password": "x", "uid": 1000, "gid": 1000, "gecos": "test", "home": "/home/test",
-                         "shell": "/bin/sh"}
+                "root": {
+                    "password": "x", 
+                    "uid": 0, 
+                    "gid": 0, 
+                    "gecos": "root", 
+                    "home": "/root", 
+                    "shell": "/bin/sh"
+                },
+                "test": {
+                    "password": "x", 
+                    "uid": 1000, 
+                    "gid": 1000, 
+                    "gecos": "test", 
+                    "home": "/home/test", 
+                    "shell": "/bin/sh"
+                }
             },
             Node.uuid("/etc/shadow"): {
-                "root": {"password": "!", "changed": 0, "minimum": None, "maximum": None, "warn": None,
-                         "inactive": None, "expire": None},
-                "test": {"password": "!", "changed": 0, "minimum": None, "maximum": None, "warn": None,
-                         "inactive": None, "expire": None}
+                "root": {
+                    "password": "!", 
+                    "changed": 0, 
+                    "minimum": None, 
+                    "maximum": None, 
+                    "warn": None,
+                    "inactive": None, 
+                    "expire": None
+                },
+                "test": {
+                    "password": "!", 
+                    "changed": 0, 
+                    "minimum": None, 
+                    "maximum": None, 
+                    "warn": None,
+                    "inactive": None, 
+                    "expire": None
+                }
             }
         }
         return FileSystem(hierarchy, database, "/", "/")
@@ -476,7 +503,9 @@ class TestFileSystem(object):
         file_system.list(1, (1,), "/sbin")
 
     def test_read_signature(self, file_system):
-        assert file_system.read(0, (0,), "/etc/passwd") == file_system._database[Node.uuid("/etc/passwd")]
+        data = file_system.read(0, (0,), "/etc/passwd")
+        assert data == file_system._database[Node.uuid("/etc/passwd")]
+        assert id(data) != id(file_system._database[Node.uuid("/etc/passwd")])
 
     def test_read_good_perm(self, file_system):
         file_system.read(1, (1,), "/etc/passwd")
