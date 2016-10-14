@@ -84,7 +84,9 @@ if __name__ == "__main__":
             "xxhash"
         ],
         test_requires=[
-            "pytest"
+            "pytest",
+            "coverage",
+            "pytest-cov"
         ],
         entry_points={
             "console_scripts": [
