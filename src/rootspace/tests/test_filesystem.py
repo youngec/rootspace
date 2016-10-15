@@ -400,8 +400,7 @@ class TestFileSystem(object):
                 "test": Node.create(1000, 1000, 0o700, "directory", contents={
                     ".profile": Node.create(1000, 1000, 0o640, "file", path="/home/test/.profile")
                 })
-            }),
-            "sbin": Node.create(0, 0, 0o755, "directory", contents="/bin")
+            })
         })
         database = {
             Node.uuid("/bin/test"): (lambda a: 0),
@@ -411,39 +410,39 @@ class TestFileSystem(object):
             Node.uuid("/dev/exec"): None,
             Node.uuid("/etc/passwd"): {
                 "root": {
-                    "password": "x", 
-                    "uid": 0, 
-                    "gid": 0, 
-                    "gecos": "root", 
-                    "home": "/root", 
+                    "password": "x",
+                    "uid": 0,
+                    "gid": 0,
+                    "gecos": "root",
+                    "home": "/root",
                     "shell": "/bin/sh"
                 },
                 "test": {
-                    "password": "x", 
-                    "uid": 1000, 
-                    "gid": 1000, 
-                    "gecos": "test", 
-                    "home": "/home/test", 
+                    "password": "x",
+                    "uid": 1000,
+                    "gid": 1000,
+                    "gecos": "test",
+                    "home": "/home/test",
                     "shell": "/bin/sh"
                 }
             },
             Node.uuid("/etc/shadow"): {
                 "root": {
-                    "password": "!", 
-                    "changed": 0, 
-                    "minimum": None, 
-                    "maximum": None, 
+                    "password": "!",
+                    "changed": 0,
+                    "minimum": None,
+                    "maximum": None,
                     "warn": None,
-                    "inactive": None, 
+                    "inactive": None,
                     "expire": None
                 },
                 "test": {
-                    "password": "!", 
-                    "changed": 0, 
-                    "minimum": None, 
-                    "maximum": None, 
+                    "password": "!",
+                    "changed": 0,
+                    "minimum": None,
+                    "maximum": None,
                     "warn": None,
-                    "inactive": None, 
+                    "inactive": None,
                     "expire": None
                 }
             }
@@ -497,10 +496,6 @@ class TestFileSystem(object):
     def test_list_special(self, file_system):
         with pytest.raises(NotADirectoryError):
             file_system.list(1, (1,), "/dev/null")
-
-    @pytest.mark.xfail(raises=NotImplementedError)
-    def test_list_dir_link(self, file_system):
-        file_system.list(1, (1,), "/sbin")
 
     def test_read_signature(self, file_system):
         data = file_system.read(0, (0,), "/etc/passwd")

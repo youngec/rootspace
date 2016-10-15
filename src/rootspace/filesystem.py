@@ -70,7 +70,6 @@ class Node(object):
         else:
             raise TypeError("Known node types: {}".format(cls.FileType))
 
-
         if contents is None:
             if isinstance(path, str):
                 contents = cls.uuid(path)
@@ -78,7 +77,7 @@ class Node(object):
                 contents = dict()
             else:
                 contents = uuid.uuid4()
-        elif nt == cls.FileType.directory and not (isinstance(contents, str) or cls._is_dict(contents)):
+        elif nt == cls.FileType.directory and not cls._is_dict(contents):
             raise TypeError("Contents must be a dictionary of Nodes for a directory Node.")
 
         return cls(uid, gid, perm, d, d, d, nt, contents)
