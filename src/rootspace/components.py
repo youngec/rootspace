@@ -602,6 +602,7 @@ class DisplayBuffer(object):
     """
     Describe the state of the display buffer of the simulated display.
     """
+    # TODO: Use array.array instead of numpy.ndarray
     _buffer = attr.ib(validator=instance_of(numpy.ndarray))
     _cursor_x = attr.ib(default=0, validator=instance_of(int))
     _cursor_y = attr.ib(default=0, validator=instance_of(int))
