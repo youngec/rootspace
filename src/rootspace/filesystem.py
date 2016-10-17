@@ -1,14 +1,188 @@
 # -*- coding: utf-8 -*-
 
+import abc
 import copy
 import datetime
 import enum
 import uuid
+import weakref
 
 import attr
 from attr.validators import instance_of
 
 from .exceptions import NotAnExecutableError
+
+
+@attr.s(slots=True)
+class NewNode(object, metaclass=abc.ABCMeta):
+    _parent = attr.ib(validator=instance_of(weakref.ProxyType), convert=weakref.proxy)
+    _uid = attr.ib(validator=instance_of(int))
+    _gid = attr.ib(validator=instance_of(int))
+    _perm = attr.ib(validator=instance_of(int))
+    _accessed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
+    _modified = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
+    _changed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
+
+    def _perm_str(self):
+        """
+        Return the permission data as human-readable string.
+
+        :return:
+        """
+        perm_digits = (self._perm // 64, (self._perm % 64) // 8, self._perm % 8)
+        perm_list = (((p // 4) > 0, ((p % 4) // 2) > 0, (p % 2) > 0) for p in perm_digits)
+        perm_groups = ("{}{}{}".format("r" if p[0] else "-", "w" if p[1] else "-", "x" if p[2] else "-") for p in perm_list)
+        return "".join(perm_groups)
+
+    def may_read(self, uid, gids):
+        """
+        Return True if the supplied UID and GIDs have read permission on this node.
+        A privileged user (UID 0) always has read access.
+
+        :param uid:
+        :param gids:
+        :return:
+        """
+        perm_bits = (
+             ((self._perm // 64) // 4) > 0,
+             (((self._perm % 64) // 8) // 4) > 0,
+             ((self._perm % 8) // 4) > 0
+        )
+        privileged = (uid == 0)
+        user_perm = (uid == self._uid and perm_bits[0])
+        group_perm = (any(gid == self._gid for gid in gids) and perm_bits[1])
+        other_perm = perm_bits[2]
+
+        return privileged or user_perm or group_perm or other_perm
+
+    def may_write(self, uid, gids):
+        """
+        Return True if the supplied UID and GIDs have write permission on this node.
+        A privileged user (UID 0) always has write access.
+
+        :param uid:
+        :param gids:
+        :return:
+        """
+        perm_bits = (
+             (((self._perm // 64) % 4) // 2) > 0,
+             ((((self._perm % 64) // 8) % 4) // 2) > 0,
+             (((self._perm % 8) % 4) // 2) > 0
+        )
+        privileged = (uid == 0)
+        user_perm = (uid == self._uid and perm_bits[0])
+        group_perm = (any(gid == self._gid for gid in gids) and perm_bits[1])
+        other_perm = perm_bits[2]
+
+        return privileged or user_perm or group_perm or other_perm
+
+    def may_execute(self, uid, gids):
+        """
+        Return True if the supplied UID and GIDs have execute permission on this node.
+        A privileged user (UID 0) has access if any executable bit is set.
+
+        :param uid:
+        :param gids:
+        :return:
+        """
+        perm_bits = (
+             ((self._perm // 64) % 2) > 0,
+             (((self._perm % 64) // 8) % 2) > 0,
+             ((self._perm % 8) % 2) > 0
+        )
+        privileged = (uid == 0 and any(perm_bits))
+        user_perm = (uid == self._uid and perm_bits[0])
+        group_perm = (any(gid == self._gid for gid in gids) and perm_bits[1])
+        other_perm = perm_bits[2]
+
+        return privileged or user_perm or group_perm or other_perm
+
+    def modify_uid(self, uid, gids, new_uid):
+        """
+        If the supplied UID is the owner of the Node, change the Node owner.
+        A privileged user may always change the Node owner.
+
+        :param uid:
+        :param gids:
+        :param new_uid:
+        :return:
+        """
+        if (uid == 0) or (uid == self._uid):
+            self._modified = datetime.datetime.now()
+            self._uid = new_uid
+        else:
+            raise PermissionError()
+
+    def modify_gid(self, uid, gids, new_gid):
+        """
+        If the supplied UID is the owner of the Node, change the Node GID.
+        A privileged user may always change the Node GID.
+
+        :param uid:
+        :param gids:
+        :param new_gid:
+        :return:
+        """
+        if (uid == 0) or (uid == self._uid):
+            self._modified = datetime.datetime.now()
+            self._gid = new_gid
+        else:
+            raise PermissionError()
+
+    def modify_perm(self, uid, gids, new_perm):
+        """
+        If the supplied UID is the owner of the Node, change the Node permissions.
+        A privileged user may always change the Node permissions.
+
+        :param uid:
+        :param gids:
+        :param new_perm:
+        :return:
+        """
+        if (uid == 0) or (uid == self._uid):
+            self._modified = datetime.datetime.now()
+            self._perm = new_perm
+        else:
+            raise PermissionError()
+
+    def stat(self, uid, gids):
+        """
+        Return Node metadata as dictionary of strings, if the supplied UID and GIDs have
+        read permission on the parent Node.
+
+        :param uid:
+        :param gids:
+        :return:
+        """
+        if self._parent.may_read(uid, gids):
+            stat_dict = {
+                "uid": "({} / {})".format(self._uid, "Unknown UID"),
+                "gid": "({} / {})".format(self._gid, "Unknown GID"),
+                "perm": "({:o} / {})".format(self._perm, self._perm_str()),
+                "accessed": self._accessed.isoformat(),
+                "modified": self._modified.isoformat(),
+                "changed": self._changed.isoformat()
+            }
+        else:
+            raise PermissionError()
+
+
+@attr.s(slots=True)
+class DirectoryNode(NewNode):
+    _contents = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+
+    def list(self, uid, gids):
+        raise NotImplementedError()
+
+
+@attr.s(slots=True)
+class FileNode(NewNode):
+    _source = attr.ib(default=attr.Factory(uuid.uuid4), validator=instance_of(uuid.UUID))
+
+
+@attr.s(slots=True)
+class LinkNode(NewNode):
+    _target = attr.ib(default=None, validator=instance_of((type(None), weakref.ReferenceType)))
 
 
 @attr.s
