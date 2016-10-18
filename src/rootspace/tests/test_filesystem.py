@@ -3,7 +3,7 @@
 import uuid
 
 import pytest
-from rootspace.exceptions import NotAnExecutableError
+from rootspace.exceptions import RootspaceNotAnExecutableError
 from rootspace.filesystem import Node, FileSystem
 
 
@@ -556,7 +556,7 @@ class TestFileSystem(object):
             file_system.execute(1, (1,), "/bin/badperm", None)
 
     def test_execute_bad_exec(self, file_system):
-        with pytest.raises(NotAnExecutableError):
+        with pytest.raises(RootspaceNotAnExecutableError):
             file_system.execute(1, (1,), "/bin/badexec", None)
 
     def test_execute_dir(self, file_system):

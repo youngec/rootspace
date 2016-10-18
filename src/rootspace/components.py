@@ -14,7 +14,7 @@ import sdl2.surface
 import sdl2.surface
 from attr.validators import instance_of
 
-from .exceptions import SDLError, NotAnExecutableError
+from .exceptions import SDLError, RootspaceNotAnExecutableError
 
 
 @attr.s(slots=True)
@@ -538,7 +538,7 @@ class FileSystemState(object):
                     if callable(data):
                         return data(context)
                     else:
-                        raise NotAnExecutableError()
+                        raise RootspaceNotAnExecutableError()
                 else:
                     raise FileNotFoundError()
             else:

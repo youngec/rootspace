@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import abc
-import copy
+import gzip
+import pickle
 import datetime
 import weakref
 
 import attr
 from attr.validators import instance_of
 
-from .exceptions import NotAnExecutableError
+from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, RootspaceNotADirectoryError, RootspacePermissionError
 
 
 def proxy(value):
@@ -122,7 +123,7 @@ class Node(object, metaclass=abc.ABCMeta):
             self._modified = datetime.datetime.now()
             self._uid = new_uid
         else:
-            raise PermissionError()
+            raise RootspacePermissionError()
 
     def modify_gid(self, uid, gids, new_gid):
         """
@@ -138,7 +139,7 @@ class Node(object, metaclass=abc.ABCMeta):
             self._modified = datetime.datetime.now()
             self._gid = new_gid
         else:
-            raise PermissionError()
+            raise RootspacePermissionError()
 
     def modify_perm(self, uid, gids, new_perm):
         """
@@ -154,7 +155,7 @@ class Node(object, metaclass=abc.ABCMeta):
             self._modified = datetime.datetime.now()
             self._perm = new_perm
         else:
-            raise PermissionError()
+            raise RootspacePermissionError()
 
     def stat(self, uid, gids):
         """
@@ -176,7 +177,7 @@ class Node(object, metaclass=abc.ABCMeta):
                 "changed": self._changed.isoformat()
             }
         else:
-            raise PermissionError()
+            raise RootspacePermissionError()
 
 
 @attr.s(slots=True)
@@ -198,12 +199,12 @@ class DirectoryNode(Node):
                 dir_list[".."] = self._parent.stat(uid, gids)
             return dir_list
         else:
-            raise PermissionError()
+            raise RootspacePermissionError()
 
 
 @attr.s(slots=True)
 class FileNode(Node):
-    _data = attr.ib(default=None)
+    _source = attr.ib(default="", validator=instance_of(str))
 
     def read(self, uid, gids):
         """
@@ -214,9 +215,10 @@ class FileNode(Node):
         :return:
         """
         if self.may_read(uid, gids):
-            return copy.deepcopy(self._data)
+            with gzip.open(self._source, "rb") as f:
+                return pickle.load(f)
         else:
-            raise PermissionError()
+            raise RootspacePermissionError()
 
     def write(self, uid, gids, data):
         """
@@ -228,9 +230,10 @@ class FileNode(Node):
         :return:
         """
         if self.may_write(uid, gids):
-            self._data = data
+            with gzip.open(self._source, "wb") as f:
+                pickle.dump(data, f)
         else:
-            raise PermissionError()
+            raise RootspacePermissionError()
 
     def execute(self, uid, gids, context):
         """
@@ -242,12 +245,15 @@ class FileNode(Node):
         :return:
         """
         if self.may_execute(uid, gids):
-            if callable(self._data):
-                return self._data(context)
+            with gzip.open(self._source, "rb") as f:
+                data = pickle.load(f)
+
+            if callable(data):
+                return data(context)
             else:
-                raise NotAnExecutableError()
+                raise RootspaceNotAnExecutableError()
         else:
-            raise PermissionError()
+            raise RootspacePermissionError()
 
 
 @attr.s(slots=True)
@@ -260,6 +266,7 @@ class FileSystem(object):
     _hierarchy = attr.ib(default=DirectoryNode(None, 0, 0, 0o755), validator=instance_of(Node))
     root = attr.ib(default="/", validator=instance_of(str))
     sep = attr.ib(default="/", validator=instance_of(str))
+    umask = attr.ib(default=0o022, validator=instance_of(int))
 
     def _split(self, path):
         """
@@ -290,11 +297,11 @@ class FileSystem(object):
                 if child_node is not None:
                     return child_node
                 else:
-                    raise FileNotFoundError()
+                    raise RootspaceFileNotFoundError()
             else:
-                raise NotADirectoryError()
+                raise RootspaceNotADirectoryError()
         else:
-            raise PermissionError()
+            raise RootspacePermissionError()
 
     def find_node(self, uid, gids, path):
         """

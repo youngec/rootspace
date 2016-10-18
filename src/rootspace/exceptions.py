@@ -50,15 +50,29 @@ class SDLTTFError(Exception):
         return repr(self.msg)
 
 
-class NotAnExecutableError(Exception):
+class RootspaceFileNotFoundError(Exception):
     """
-    This exception is raised if a particular file system node is not executable but has permissions set as such.
+    This exception stands for an in-game FileNotFoundError.
     """
     pass
 
 
-class DatabaseLinkError(Exception):
+class RootspaceNotADirectoryError(Exception):
     """
-    This exception indicates that a file operation failed due to a link error.
+    This exception stands for an in-game NotADirectoryError.
+    """
+    pass
+
+
+class RootspacePermissionError(Exception):
+    """
+    This exception stands for an in-game PermissionError.
+    """
+    pass
+
+
+class RootspaceNotAnExecutableError(Exception):
+    """
+    This exception is raised if a particular file system node is not executable but has permissions set as such.
     """
     pass
