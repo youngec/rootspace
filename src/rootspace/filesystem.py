@@ -10,19 +10,7 @@ import attr
 from attr.validators import instance_of
 
 from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, RootspaceNotADirectoryError, RootspacePermissionError
-
-
-def proxy(value):
-    """
-    Convert the input value using weakref.proxy, but let None pass unharmed.
-
-    :param value:
-    :return:
-    """
-    if value is not None:
-        return weakref.proxy(value)
-    else:
-        return None
+from .utilities import proxy
 
 
 @attr.s(slots=True)
@@ -201,6 +189,21 @@ class DirectoryNode(Node):
         else:
             raise RootspacePermissionError()
 
+    def insert_node(self, uid, gids, node_name, node):
+        """
+        Add a new node to the directory.
+
+        :param uid:
+        :param gids:
+        :param node_name:
+        :param node:
+        :return:
+        """
+        if self.may_write(uid, gids):
+            self._contents[node_name] = node
+        else:
+            raise RootspacePermissionError()
+
 
 @attr.s(slots=True)
 class FileNode(Node):
@@ -320,3 +323,26 @@ class FileSystem(object):
                 return child_node, parent_node
             else:
                 parent_node = child_node
+
+    def create_node(self, uid, gids, path, node_type):
+        """
+        Create a new Node at the specified path:
+
+        :param uid:
+        :param gids:
+        :param path:
+        :param node_type:
+        :return:
+        """
+        path_parts = self._split(path)
+        parent_path = self.sep.join(path_parts[:-2])
+        file_name = path_parts[-1]
+        (parent, grand_parent) = self.find_node(uid, gids, parent_path)
+        if node_type == "directory":
+            perm = 0o777 & ~self.umask
+            parent.insert_node(uid, gids, file_name, DirectoryNode(parent, uid, gids[0], perm))
+        elif node_type == "file":
+            perm = 0o777 & ~(self.umask | 0o111)
+            parent.insert_node(uid, gids, file_name, FileNode(parent, uid, gids[0], perm))
+        else:
+            raise NotImplementedError("Current cannot create anything other than DirectoryNode and FileNode.")
