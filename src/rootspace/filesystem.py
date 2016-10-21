@@ -9,16 +9,22 @@ import weakref
 import attr
 from attr.validators import instance_of
 
-from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, RootspaceNotADirectoryError, RootspacePermissionError
+from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, 
+                        RootspaceNotADirectoryError, RootspacePermissionError
 from .utilities import proxy
 
 
 @attr.s(slots=True)
 class Node(object, metaclass=abc.ABCMeta):
+    """
+    Describes the generalized funcitonality of a node in a UNIX-like filesystem.
+    Cannot be instantiated.
+    """
     _parent = attr.ib(validator=instance_of((type(None), weakref.ProxyType)), convert=proxy)
     _uid = attr.ib(validator=instance_of(int))
     _gid = attr.ib(validator=instance_of(int))
     _perm = attr.ib(validator=instance_of(int))
+    _name = attr.ib(validator=instance_of(str))
     _accessed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
     _modified = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
     _changed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
@@ -160,6 +166,7 @@ class Node(object, metaclass=abc.ABCMeta):
                 "gid": "{}".format(self._gid),
                 "perm": "{:o}".format(self._perm),
                 "perm_str": "{}".format(self._perm_str()),
+                "name": self._name,
                 "accessed": self._accessed.isoformat(),
                 "modified": self._modified.isoformat(),
                 "changed": self._changed.isoformat()
@@ -167,9 +174,29 @@ class Node(object, metaclass=abc.ABCMeta):
         else:
             raise RootspacePermissionError()
 
+    def change_parent(self, uid, gids, new_parent):
+        """
+        Change the parent of the current Node.
+
+        :param uid:
+        :param gids:
+        :param new_parent:
+        :return:
+        """
+        if self._parent is not None:
+            old_parent = self._parent
+            old_parent.remove_node(uid, gids, self._name)
+            new_parent.insert_node(uid, gids, self._name, self)
+            self._parent = weakref.proxy(new_parent)
+        else:
+            raise RootspacePermissionError()
+
 
 @attr.s(slots=True)
 class DirectoryNode(Node):
+    """
+    Describes a directory in a UNIX-like filesystem.
+    """
     _contents = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
 
     def list(self, uid, gids):
@@ -201,6 +228,23 @@ class DirectoryNode(Node):
         """
         if self.may_write(uid, gids):
             self._contents[node_name] = node
+        else:
+            raise RootspacePermissionError()
+
+    def remove_node(self, uid, gids, node_name):
+        """
+        Remove a node from the directory.
+
+        :param uid:
+        :param gids:
+        :param node_name:
+        :return:
+        """
+        if self.may_write(uid, gids):
+            if node_name in self._contents:
+                self._contents.pop(node_name)
+            else:
+                raise RootspaceFileNotFoundError()
         else:
             raise RootspacePermissionError()
 
@@ -283,6 +327,17 @@ class FileSystem(object):
         else:
             raise NotImplementedError("Cannot parse relative paths yet.")
 
+    def _separate(self, path):
+        """
+        Return the path to the parent directory of the specified path and
+        the basename of the specified path.
+
+        :param path:
+        :return:
+        """
+        path_parts = self._split(path)
+        return self.sep.join(path_parts[:-2]), path_parts[-1]
+
     def _get_child_node(self, uid, gids, parent_node, child_name):
         """
         Return the child of a parent node with a particular name.
@@ -326,7 +381,7 @@ class FileSystem(object):
 
     def create_node(self, uid, gids, path, node_type):
         """
-        Create a new Node at the specified path:
+        Create a new Node at the specified path.
 
         :param uid:
         :param gids:
@@ -334,15 +389,47 @@ class FileSystem(object):
         :param node_type:
         :return:
         """
-        path_parts = self._split(path)
-        parent_path = self.sep.join(path_parts[:-2])
-        file_name = path_parts[-1]
+        parent_path, file_name = self._separate(path)
         (parent, grand_parent) = self.find_node(uid, gids, parent_path)
-        if node_type == "directory":
-            perm = 0o777 & ~self.umask
-            parent.insert_node(uid, gids, file_name, DirectoryNode(parent, uid, gids[0], perm))
-        elif node_type == "file":
-            perm = 0o777 & ~(self.umask | 0o111)
-            parent.insert_node(uid, gids, file_name, FileNode(parent, uid, gids[0], perm))
+        if isinstance(parent, DirectoryNode):
+            if node_type == "directory":
+                perm = 0o777 & ~self.umask
+                parent.insert_node(uid, gids, file_name, DirectoryNode(parent, uid, gids[0], perm))
+            elif node_type == "file":
+                perm = 0o777 & ~(self.umask | 0o111)
+                parent.insert_node(uid, gids, file_name, FileNode(parent, uid, gids[0], perm))
+            else:
+                raise NotImplementedError("Current cannot create anything other than DirectoryNode and FileNode.")
         else:
-            raise NotImplementedError("Current cannot create anything other than DirectoryNode and FileNode.")
+            raise RootspaceNotADirectoryError()
+
+    def remove_node(self, uid, gids, path):
+        """
+        Remove the Node at the specified path.
+
+        :param uid:
+        :param gids:
+        :param path:
+        :return:
+        """
+        parent_path, file_name = self._separate(path)
+        (parent, grand_parent) = self.find_node(uid, gids, parent_path)
+        if isinstance(parent, DirectoryNode):
+            parent.remove_node(uid, gids, file_name)
+        else:
+            raise RootspaceNotADirectoryError()
+
+    def move_node(self, uid, gids, source_path, target_path):
+        """
+        Move the Node from the source to the target path.
+
+        :param uid:
+        :param gids:
+        :param source_path:
+        :param target_path:
+        :return:
+        """
+        source_parent_path, source_name = self._separate(source_path)
+        target_parent_path, target_name = self._separate(target_path)
+        
+        raise NotImplementedError()
