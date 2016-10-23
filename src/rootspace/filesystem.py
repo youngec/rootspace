@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import abc
 import gzip
 import pickle
 import datetime
@@ -9,22 +8,20 @@ import weakref
 import attr
 from attr.validators import instance_of
 
-from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, 
-                        RootspaceNotADirectoryError, RootspacePermissionError
-from .utilities import proxy
+from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, \
+    RootspaceNotADirectoryError, RootspacePermissionError, RootspaceFileExistsError
+from .utilities import ref
 
 
-@attr.s(slots=True)
-class Node(object, metaclass=abc.ABCMeta):
+@attr.s
+class Node(object):
     """
-    Describes the generalized funcitonality of a node in a UNIX-like filesystem.
-    Cannot be instantiated.
+    Describes the generalized functionality of a node in a UNIX-like filesystem.
     """
-    _parent = attr.ib(validator=instance_of((type(None), weakref.ProxyType)), convert=proxy)
+    _parent = attr.ib(validator=instance_of((type(None), weakref.ReferenceType)), convert=ref)
     _uid = attr.ib(validator=instance_of(int))
     _gid = attr.ib(validator=instance_of(int))
     _perm = attr.ib(validator=instance_of(int))
-    _name = attr.ib(validator=instance_of(str))
     _accessed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
     _modified = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
     _changed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
@@ -103,6 +100,24 @@ class Node(object, metaclass=abc.ABCMeta):
 
         return privileged or user_perm or group_perm or other_perm
 
+    def modify_parent(self, uid, gids, new_parent):
+        """
+        Change the parent of the current Node.
+
+        :param uid:
+        :param gids:
+        :param new_parent:
+        :return:
+        """
+        if isinstance(new_parent, Node):
+            if self._parent is None or self._parent().may_write(uid, gids):
+                self._modified = datetime.datetime.now()
+                self._parent = weakref.ref(new_parent)
+            else:
+                raise RootspacePermissionError()
+        else:
+            raise TypeError("Expected 'new_parent' to be a Node.")
+
     def modify_uid(self, uid, gids, new_uid):
         """
         If the supplied UID is the owner of the Node, change the Node owner.
@@ -113,11 +128,14 @@ class Node(object, metaclass=abc.ABCMeta):
         :param new_uid:
         :return:
         """
-        if (uid == 0) or (uid == self._uid):
-            self._modified = datetime.datetime.now()
-            self._uid = new_uid
+        if isinstance(new_uid, int):
+            if (uid == 0) or (uid == self._uid):
+                self._modified = datetime.datetime.now()
+                self._uid = new_uid
+            else:
+                raise RootspacePermissionError()
         else:
-            raise RootspacePermissionError()
+            raise TypeError("Expected 'new_uid' to be an integer.")
 
     def modify_gid(self, uid, gids, new_gid):
         """
@@ -129,11 +147,14 @@ class Node(object, metaclass=abc.ABCMeta):
         :param new_gid:
         :return:
         """
-        if (uid == 0) or (uid == self._uid):
-            self._modified = datetime.datetime.now()
-            self._gid = new_gid
+        if isinstance(new_gid, int):
+            if (uid == 0) or (uid == self._uid):
+                self._modified = datetime.datetime.now()
+                self._gid = new_gid
+            else:
+                raise RootspacePermissionError()
         else:
-            raise RootspacePermissionError()
+            raise TypeError("Expected 'new_gid' to be an integer.")
 
     def modify_perm(self, uid, gids, new_perm):
         """
@@ -145,11 +166,14 @@ class Node(object, metaclass=abc.ABCMeta):
         :param new_perm:
         :return:
         """
-        if (uid == 0) or (uid == self._uid):
-            self._modified = datetime.datetime.now()
-            self._perm = new_perm
+        if isinstance(new_perm, int):
+            if (uid == 0) or (uid == self._uid):
+                self._modified = datetime.datetime.now()
+                self._perm = new_perm
+            else:
+                raise RootspacePermissionError()
         else:
-            raise RootspacePermissionError()
+            raise TypeError("Expected 'new_perm' to be an integer.")
 
     def stat(self, uid, gids):
         """
@@ -160,13 +184,12 @@ class Node(object, metaclass=abc.ABCMeta):
         :param gids:
         :return:
         """
-        if self._parent is None or self._parent.may_read(uid, gids):
+        if self._parent is None or self._parent().may_read(uid, gids):
             return {
                 "uid": "{}".format(self._uid),
                 "gid": "{}".format(self._gid),
                 "perm": "{:o}".format(self._perm),
                 "perm_str": "{}".format(self._perm_str()),
-                "name": self._name,
                 "accessed": self._accessed.isoformat(),
                 "modified": self._modified.isoformat(),
                 "changed": self._changed.isoformat()
@@ -174,25 +197,8 @@ class Node(object, metaclass=abc.ABCMeta):
         else:
             raise RootspacePermissionError()
 
-    def change_parent(self, uid, gids, new_parent):
-        """
-        Change the parent of the current Node.
 
-        :param uid:
-        :param gids:
-        :param new_parent:
-        :return:
-        """
-        if self._parent is not None:
-            old_parent = self._parent
-            old_parent.remove_node(uid, gids, self._name)
-            new_parent.insert_node(uid, gids, self._name, self)
-            self._parent = weakref.proxy(new_parent)
-        else:
-            raise RootspacePermissionError()
-
-
-@attr.s(slots=True)
+@attr.s
 class DirectoryNode(Node):
     """
     Describes a directory in a UNIX-like filesystem.
@@ -211,12 +217,12 @@ class DirectoryNode(Node):
             dir_list = {k: v.stat(uid, gids) for k, v in self._contents.items()}
             dir_list["."] = self.stat(uid, gids)
             if self._parent is not None:
-                dir_list[".."] = self._parent.stat(uid, gids)
+                dir_list[".."] = self._parent().stat(uid, gids)
             return dir_list
         else:
             raise RootspacePermissionError()
 
-    def insert_node(self, uid, gids, node_name, node):
+    def insert_node(self, uid, gids, node_name, node, replace=True):
         """
         Add a new node to the directory.
 
@@ -224,10 +230,15 @@ class DirectoryNode(Node):
         :param gids:
         :param node_name:
         :param node:
+        :param replace:
         :return:
         """
         if self.may_write(uid, gids):
-            self._contents[node_name] = node
+            if replace or (node_name not in self._contents):
+                self._contents[node_name] = node
+                node.modify_parent(uid, gids, self)
+            else:
+                raise RootspaceFileExistsError()
         else:
             raise RootspacePermissionError()
 
@@ -248,8 +259,18 @@ class DirectoryNode(Node):
         else:
             raise RootspacePermissionError()
 
+    def move_node(self, uid, gids, old_name, new_parent, new_name, replace=True):
+        if isinstance(new_parent, Node):
+            if old_name in self._contents:
+                new_parent.insert_node(uid, gids, new_name, self._contents[old_name], replace)
+                self.remove_node(uid, gids, old_name)
+            else:
+                raise RootspaceFileNotFoundError()
+        else:
+            raise TypeError("Expected 'new_parent' to be a Node.")
 
-@attr.s(slots=True)
+
+@attr.s
 class FileNode(Node):
     _source = attr.ib(default="", validator=instance_of(str))
 
@@ -303,7 +324,7 @@ class FileNode(Node):
             raise RootspacePermissionError()
 
 
-@attr.s(slots=True)
+@attr.s
 class LinkNode(Node):
     _target = attr.ib(default=None, validator=instance_of((type(None), weakref.ReferenceType)))
 
@@ -361,7 +382,7 @@ class FileSystem(object):
         else:
             raise RootspacePermissionError()
 
-    def find_node(self, uid, gids, path):
+    def _find_node(self, uid, gids, path):
         """
         Find the node specified by a given path.
 
@@ -390,16 +411,16 @@ class FileSystem(object):
         :return:
         """
         parent_path, file_name = self._separate(path)
-        (parent, grand_parent) = self.find_node(uid, gids, parent_path)
+        (parent, _) = self._find_node(uid, gids, parent_path)
         if isinstance(parent, DirectoryNode):
             if node_type == "directory":
                 perm = 0o777 & ~self.umask
-                parent.insert_node(uid, gids, file_name, DirectoryNode(parent, uid, gids[0], perm))
+                parent.insert_node(uid, gids, file_name, DirectoryNode(None, uid, gids[0], perm))
             elif node_type == "file":
                 perm = 0o777 & ~(self.umask | 0o111)
-                parent.insert_node(uid, gids, file_name, FileNode(parent, uid, gids[0], perm))
+                parent.insert_node(uid, gids, file_name, FileNode(None, uid, gids[0], perm))
             else:
-                raise NotImplementedError("Current cannot create anything other than DirectoryNode and FileNode.")
+                raise NotImplementedError("Currently cannot create anything other than DirectoryNode and FileNode.")
         else:
             raise RootspaceNotADirectoryError()
 
@@ -413,13 +434,13 @@ class FileSystem(object):
         :return:
         """
         parent_path, file_name = self._separate(path)
-        (parent, grand_parent) = self.find_node(uid, gids, parent_path)
+        (parent, _) = self._find_node(uid, gids, parent_path)
         if isinstance(parent, DirectoryNode):
             parent.remove_node(uid, gids, file_name)
         else:
             raise RootspaceNotADirectoryError()
 
-    def move_node(self, uid, gids, source_path, target_path):
+    def move_node(self, uid, gids, source_path, target_path, replace=True):
         """
         Move the Node from the source to the target path.
 
@@ -427,9 +448,16 @@ class FileSystem(object):
         :param gids:
         :param source_path:
         :param target_path:
+        :param replace:
         :return:
         """
         source_parent_path, source_name = self._separate(source_path)
         target_parent_path, target_name = self._separate(target_path)
-        
-        raise NotImplementedError()
+
+        (source_parent, _) = self._find_node(uid, gids, source_parent_path)
+        (target_parent, _) = self._find_node(uid, gids, target_parent_path)
+
+        if isinstance(source_parent, DirectoryNode):
+            source_parent.move_node(uid, gids, source_name, target_parent, target_name, replace)
+        else:
+            raise RootspaceNotADirectoryError()

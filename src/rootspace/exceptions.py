@@ -57,6 +57,13 @@ class RootspaceFileNotFoundError(Exception):
     pass
 
 
+class RootspaceFileExistsError(Exception):
+    """
+    This exception stands for an in-game FileExistsError.
+    """
+    pass
+
+
 class RootspaceNotADirectoryError(Exception):
     """
     This exception stands for an in-game NotADirectoryError.

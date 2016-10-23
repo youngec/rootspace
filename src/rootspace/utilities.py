@@ -90,14 +90,14 @@ def merge_configurations(func_params, config_paths, default_config):
     return configuration
 
 
-def proxy(value):
+def ref(value):
     """
-    Convert the input value using weakref.proxy, but let None pass unharmed.
+    Convert the input value using weakref.ref, but let None pass unharmed.
 
     :param value:
     :return:
     """
     if value is not None:
-        return weakref.proxy(value)
+        return weakref.ref(value)
     else:
         return None

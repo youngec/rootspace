@@ -1,572 +1,182 @@
 # -*- coding: utf-8 -*-
 
-import uuid
+import itertools
 
 import pytest
-from rootspace.exceptions import RootspaceNotAnExecutableError
+
+from rootspace.exceptions import RootspacePermissionError
 from rootspace.filesystem import Node, FileSystem
 
 
 class TestNode(object):
-    def test_node(self):
-        # The following three statements must work.
-        Node.create(0, 0, 0o755, "directory")
-        Node.create(0, 0, 0o644, "file")
-        Node.create(0, 0, 0o666, "special")
+    def test_instantiation(self):
+        parent = Node(None, 0, 0, 0)
+        Node(parent, 0, 0, 0)
 
-        # The following must raise TypeErrors.
-        with pytest.raises(TypeError):
-            Node.create(None, 0, 0o755, "directory")
-        with pytest.raises(TypeError):
-            Node.create(0, None, 0o755, "directory")
-        with pytest.raises(TypeError):
-            Node.create(0, 0, None, "directory")
-        with pytest.raises(TypeError):
-            Node.create(0, 0, 0o755, None)
-        with pytest.raises(TypeError):
-            Node.create(0, 0, 0o755, "directory", 0)
+    def test_may_read(self):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        perms = range(512)
 
-    def test_uid(self):
-        node = Node.create(0, 0, 0o755, "directory")
-        assert isinstance(node.uid, int)
+        def exp_read(nuid, ngid, nperm, uid, gid):
+            perm_bits = (
+                ((nperm // 64) // 4) > 0,
+                (((nperm % 64) // 8) // 4) > 0,
+                ((nperm % 8) // 4) > 0
+            )
+            privileged = (uid == 0)
+            user_perm = (uid == nuid and perm_bits[0])
+            group_perm = (gid == ngid and perm_bits[1])
+            other_perm = perm_bits[2]
 
-    def test_gid(self):
-        node = Node.create(0, 0, 0o755, "directory")
-        assert isinstance(node.gid, int)
+            return privileged or user_perm or group_perm or other_perm
 
-    def test_perm(self):
-        node = Node.create(0, 0, 0o755, "directory")
-        assert isinstance(node.perm, int)
+        for nu, ng, np, u, g in itertools.product(uids, gids, perms, uids, gids):
+            assert Node(None, nu, ng, np).may_read(u, (g,)) == exp_read(nu, ng, np, u, g)
 
-    def test_perm_str(self):
-        node = Node.create(0, 0, 0o755, "directory")
-        assert isinstance(node.perm_str, str)
+    def test_may_write(self):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        perms = range(512)
 
-    @pytest.mark.parametrize(("node", "expected"), (
-            (Node.create(0, 0, 0o755, "directory"), True),
-            (Node.create(0, 0, 0o644, "file"), False),
-            (Node.create(0, 0, 0o666, "special"), False)
-    ))
-    def test_is_directory(self, node, expected):
-        assert node.is_directory == expected
+        def exp_write(nuid, ngid, nperm, uid, gid):
+            perm_bits = (
+                (((nperm // 64) % 4) // 2) > 0,
+                ((((nperm % 64) // 8) % 4) // 2) > 0,
+                (((nperm % 8) % 4) // 2) > 0
+            )
+            privileged = (uid == 0)
+            user_perm = (uid == nuid and perm_bits[0])
+            group_perm = (gid == ngid and perm_bits[1])
+            other_perm = perm_bits[2]
 
-    @pytest.mark.parametrize(("node", "expected"), (
-            (Node.create(0, 0, 0o755, "directory"), False),
-            (Node.create(0, 0, 0o644, "file"), True),
-            (Node.create(0, 0, 0o666, "special"), False)
-    ))
-    def test_is_file(self, node, expected):
-        assert node.is_file == expected
+            return privileged or user_perm or group_perm or other_perm
 
-    @pytest.mark.parametrize(("node", "expected"), (
-            (Node.create(0, 0, 0o755, "directory"), False),
-            (Node.create(0, 0, 0o644, "file"), False),
-            (Node.create(0, 0, 0o666, "special"), True)
-    ))
-    def test_is_special(self, node, expected):
-        assert node.is_special == expected
+        for nu, ng, np, u, g in itertools.product(uids, gids, perms, uids, gids):
+            assert Node(None, nu, ng, np).may_write(u, (g,)) == exp_write(nu, ng, np, u, g)
 
-    @pytest.mark.parametrize(("node", "expected"), (
-            (Node.create(0, 0, 0o755, "directory"), dict),
-            (Node.create(0, 0, 0o644, "file"), uuid.UUID)
-    ))
-    def test_contents(self, node, expected):
-        assert isinstance(node.contents, expected)
+    def test_may_execute(self):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        perms = range(512)
 
-    @pytest.mark.parametrize(("node", "uid", "gids", "expected"), (
-            (Node.create(0, 0, 0o700, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o600, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o500, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o400, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o300, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o200, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o100, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o000, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o700, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o600, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o500, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o400, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o300, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o200, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o100, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o000, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o700, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o600, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o500, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o400, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o300, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o200, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o100, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o000, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o700, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o600, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o500, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o400, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o300, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o200, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o100, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o000, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o700, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o600, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o500, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o400, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o300, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o200, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o100, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o000, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o700, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o600, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o500, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o400, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o300, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o200, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o100, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o000, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o700, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o600, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o500, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o400, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o300, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o200, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o100, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o000, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o700, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o600, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o500, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o400, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o300, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o200, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o100, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o000, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o700, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o600, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o500, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o400, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o300, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o200, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o100, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o000, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o070, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o060, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o050, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o040, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o030, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o020, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o010, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o000, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o700, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o600, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o500, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o400, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o300, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o200, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o100, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o000, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o007, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o006, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o005, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o004, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o003, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o002, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o001, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o000, "directory"), 2, (2,), False),
-    ))
-    def test_may_read(self, node, uid, gids, expected):
-        assert node.may_read(uid, gids) == expected
+        def exp_exec(nuid, ngid, nperm, uid, gid):
+            perm_bits = (
+                ((nperm // 64) % 2) > 0,
+                (((nperm % 64) // 8) % 2) > 0,
+                ((nperm % 8) % 2) > 0
+            )
+            privileged = (uid == 0 and any(perm_bits))
+            user_perm = (uid == nuid and perm_bits[0])
+            group_perm = (gid == ngid and perm_bits[1])
+            other_perm = perm_bits[2]
 
-    @pytest.mark.parametrize(("node", "uid", "gids", "expected"), (
-            (Node.create(0, 0, 0o700, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o600, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o500, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o400, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o300, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o200, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o100, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o000, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o700, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o600, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o500, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o400, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o300, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o200, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o100, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o000, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o700, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o600, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o500, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o400, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o300, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o200, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o100, "directory"), 0, (0,), True),
-            (Node.create(1, 1, 0o000, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o700, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o600, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o500, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o400, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o300, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o200, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o100, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o000, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o700, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o600, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o500, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o400, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o300, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o200, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o100, "directory"), 1, (0,), True),
-            (Node.create(0, 1, 0o000, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o700, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o600, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o500, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o400, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o300, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o200, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o100, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o000, "directory"), 1, (0,), True),
-            (Node.create(0, 0, 0o700, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o600, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o500, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o400, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o300, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o200, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o100, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o000, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o700, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o600, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o500, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o400, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o300, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o200, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o100, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o000, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o700, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o600, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o500, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o400, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o300, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o200, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o100, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o000, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o070, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o060, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o050, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o040, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o030, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o020, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o010, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o000, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o700, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o600, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o500, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o400, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o300, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o200, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o100, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o000, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o007, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o006, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o005, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o004, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o003, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o002, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o001, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o000, "directory"), 2, (2,), False),
-    ))
-    def test_may_write(self, node, uid, gids, expected):
-        assert node.may_write(uid, gids) == expected
+            return privileged or user_perm or group_perm or other_perm
+        for nu, ng, np, u, g in itertools.product(uids, gids, perms, uids, gids):
+            assert Node(None, nu, ng, np).may_execute(u, (g,)) == exp_exec(nu, ng, np, u, g)
 
-    @pytest.mark.parametrize(("node", "uid", "gids", "expected"), (
-            (Node.create(0, 0, 0o700, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o600, "directory"), 0, (0,), False),
-            (Node.create(0, 0, 0o500, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o400, "directory"), 0, (0,), False),
-            (Node.create(0, 0, 0o300, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o200, "directory"), 0, (0,), False),
-            (Node.create(0, 0, 0o100, "directory"), 0, (0,), True),
-            (Node.create(0, 0, 0o000, "directory"), 0, (0,), False),
-            (Node.create(0, 1, 0o700, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o600, "directory"), 0, (0,), False),
-            (Node.create(0, 1, 0o500, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o400, "directory"), 0, (0,), False),
-            (Node.create(0, 1, 0o300, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o200, "directory"), 0, (0,), False),
-            (Node.create(0, 1, 0o100, "directory"), 0, (0,), True),
-            (Node.create(0, 1, 0o000, "directory"), 0, (0,), False),
-            (Node.create(1, 1, 0o700, "directory"), 0, (0,), False),
-            (Node.create(1, 1, 0o600, "directory"), 0, (0,), False),
-            (Node.create(1, 1, 0o500, "directory"), 0, (0,), False),
-            (Node.create(1, 1, 0o400, "directory"), 0, (0,), False),
-            (Node.create(1, 1, 0o300, "directory"), 0, (0,), False),
-            (Node.create(1, 1, 0o200, "directory"), 0, (0,), False),
-            (Node.create(1, 1, 0o100, "directory"), 0, (0,), False),
-            (Node.create(1, 1, 0o000, "directory"), 0, (0,), False),
-            (Node.create(0, 0, 0o700, "directory"), 1, (0,), False),
-            (Node.create(0, 0, 0o600, "directory"), 1, (0,), False),
-            (Node.create(0, 0, 0o500, "directory"), 1, (0,), False),
-            (Node.create(0, 0, 0o400, "directory"), 1, (0,), False),
-            (Node.create(0, 0, 0o300, "directory"), 1, (0,), False),
-            (Node.create(0, 0, 0o200, "directory"), 1, (0,), False),
-            (Node.create(0, 0, 0o100, "directory"), 1, (0,), False),
-            (Node.create(0, 0, 0o000, "directory"), 1, (0,), False),
-            (Node.create(0, 1, 0o700, "directory"), 1, (0,), False),
-            (Node.create(0, 1, 0o600, "directory"), 1, (0,), False),
-            (Node.create(0, 1, 0o500, "directory"), 1, (0,), False),
-            (Node.create(0, 1, 0o400, "directory"), 1, (0,), False),
-            (Node.create(0, 1, 0o300, "directory"), 1, (0,), False),
-            (Node.create(0, 1, 0o200, "directory"), 1, (0,), False),
-            (Node.create(0, 1, 0o100, "directory"), 1, (0,), False),
-            (Node.create(0, 1, 0o000, "directory"), 1, (0,), False),
-            (Node.create(1, 1, 0o700, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o600, "directory"), 1, (0,), False),
-            (Node.create(1, 1, 0o500, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o400, "directory"), 1, (0,), False),
-            (Node.create(1, 1, 0o300, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o200, "directory"), 1, (0,), False),
-            (Node.create(1, 1, 0o100, "directory"), 1, (0,), True),
-            (Node.create(1, 1, 0o000, "directory"), 1, (0,), False),
-            (Node.create(0, 0, 0o700, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o600, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o500, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o400, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o300, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o200, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o100, "directory"), 1, (1,), False),
-            (Node.create(0, 0, 0o000, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o700, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o600, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o500, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o400, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o300, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o200, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o100, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o000, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o700, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o600, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o500, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o400, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o300, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o200, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o100, "directory"), 1, (1,), True),
-            (Node.create(1, 1, 0o000, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o070, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o060, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o050, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o040, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o030, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o020, "directory"), 1, (1,), False),
-            (Node.create(0, 1, 0o010, "directory"), 1, (1,), True),
-            (Node.create(0, 1, 0o000, "directory"), 1, (1,), False),
-            (Node.create(1, 1, 0o700, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o600, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o500, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o400, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o300, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o200, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o100, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o000, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o007, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o006, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o005, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o004, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o003, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o002, "directory"), 2, (2,), False),
-            (Node.create(1, 1, 0o001, "directory"), 2, (2,), True),
-            (Node.create(1, 1, 0o000, "directory"), 2, (2,), False),
-    ))
-    def test_may_execute(self, node, uid, gids, expected):
-        assert node.may_execute(uid, gids) == expected
+    def test_modify_parent_perm(self):
+        parents = (Node(None, 0, 0, 0o000), Node(None, 0, 0, 0o755))
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        perms = range(512)
+
+        for pa, nu, ng, np, u, g, npa in itertools.product(parents, uids, gids, perms, uids, gids, parents):
+            if pa is None or pa.may_write(u, (g,)):
+                Node(pa, nu, ng, np).modify_parent(u, (g,), npa)
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    Node(pa, nu, ng, np).modify_parent(u, (g,), npa)
+
+    def test_modify_parent_input(self):
+        for npa in (None, int(), float(), str(), dict(), list(), tuple(), set(), object()):
+            with pytest.raises(TypeError):
+                Node(None, 0, 0, 0).modify_parent(0, (0,), npa)
+
+    def test_modify_uid_perm(self):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        perms = range(512)
+        new_uids = (0,)
+
+        for nu, ng, np, u, g, uu in itertools.product(uids, gids, perms, uids, gids, new_uids):
+            if u == 0 or u == nu:
+                Node(None, nu, ng, np).modify_uid(u, (g,), uu)
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    Node(None, nu, ng, np).modify_uid(u, (g,), uu)
+
+    def test_modify_uid_input(self):
+        for uu in (None, float(), str(), dict(), list(), tuple(), set(), object()):
+            with pytest.raises(TypeError):
+                Node(None, 0, 0, 0).modify_uid(0, (0,), uu)
+
+    def test_modify_gid_perm(self):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        perms = range(512)
+        new_gids = (0,)
+
+        for nu, ng, np, u, g, gg in itertools.product(uids, gids, perms, uids, gids, new_gids):
+            if u == 0 or u == nu:
+                Node(None, nu, ng, np).modify_gid(u, (g,), gg)
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    Node(None, nu, ng, np).modify_gid(u, (g,), gg)
+
+    def test_modify_gid_input(self):
+        for gg in (None, float(), str(), dict(), list(), tuple(), set(), object()):
+            with pytest.raises(TypeError):
+                Node(None, 0, 0, 0).modify_gid(0, (0,), gg)
+
+    def test_modify_perm_perm(self):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        perms = range(512)
+        new_perms = (0,)
+
+        for nu, ng, np, u, g, pp in itertools.product(uids, gids, perms, uids, gids, new_perms):
+            if u == 0 or u == nu:
+                Node(None, nu, ng, np).modify_perm(u, (g,), pp)
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    Node(None, nu, ng, np).modify_perm(u, (g,), pp)
+
+    def test_modify_perm_input(self):
+        for pp in (None, float(), str(), dict(), list(), tuple(), set(), object()):
+            with pytest.raises(TypeError):
+                Node(None, 0, 0, 0).modify_perm(0, (0,), pp)
+
+    def test_stat_perm(self):
+        parents = (None, Node(None, 0, 0, 0o755))
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        perms = range(512)
+
+        for pa, nu, ng, np, u, g in itertools.product(parents, uids, gids, perms, uids, gids):
+            if pa is None or pa.may_read(u, (g,)):
+                Node(pa, nu, ng, np).stat(u, (g,))
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    Node(pa, nu, ng, np).stat(u, (g,))
+
+    def test_stat_value(self):
+        value = Node(None, 0, 0, 0o755).stat(0, (0,))
+        assert isinstance(value, dict)
+        assert all(k in value for k in ("uid", "gid", "perm", "accessed", "modified", "changed"))
+
+
+class TestDirectoryNode(object):
+    pass
+
+
+class TestFileNode(object):
+    pass
+
+
+class TestLinkNode(object):
+    pass
 
 
 class TestFileSystem(object):
-    @pytest.fixture
-    def file_system(self):
-        hierarchy = Node.create(0, 0, 0o755, "directory", contents={
-            "bin": Node.create(0, 0, 0o755, "directory", contents={
-                "test": Node.create(0, 0, 0o755, "file", path="/bin/test"),
-                "badexec": Node.create(0, 0, 0o755, "file", path="/bin/badexec"),
-                "badperm": Node.create(0, 0, 0o644, "file", path="/bin/badperm"),
-                "self_contained": Node.create(0, 0, 0o755, "file", contents=(lambda a: 0))
-            }),
-            "dev": Node.create(0, 0, 0o755, "directory", contents={
-                "null": Node.create(0, 0, 0o666, "special", path="/dev/null"),
-                "exec": Node.create(0, 0, 0o555, "special", path="/dev/exec")
-            }),
-            "etc": Node.create(0, 0, 0o755, "directory", contents={
-                "passwd": Node.create(0, 0, 0o644, "file", path="/etc/passwd"),
-                "shadow": Node.create(0, 0, 0o000, "file", path="/etc/shadow"),
-                "self_contained": Node.create(0, 0, 0o666, "file", contents="data")
-            }),
-            "home": Node.create(0, 0, 0o755, "directory", contents={
-                "test": Node.create(1000, 1000, 0o700, "directory", contents={
-                    ".profile": Node.create(1000, 1000, 0o640, "file", path="/home/test/.profile")
-                })
-            })
-        })
-        database = {
-            Node.uuid("/bin/test"): (lambda a: 0),
-            Node.uuid("/bin/badexec"): "This is a pretend executable file.",
-            Node.uuid("/bin/badperm"): (lambda a: 0),
-            Node.uuid("/dev/null"): None,
-            Node.uuid("/dev/exec"): None,
-            Node.uuid("/etc/passwd"): {
-                "root": {
-                    "password": "x",
-                    "uid": 0,
-                    "gid": 0,
-                    "gecos": "root",
-                    "home": "/root",
-                    "shell": "/bin/sh"
-                },
-                "test": {
-                    "password": "x",
-                    "uid": 1000,
-                    "gid": 1000,
-                    "gecos": "test",
-                    "home": "/home/test",
-                    "shell": "/bin/sh"
-                }
-            },
-            Node.uuid("/etc/shadow"): {
-                "root": {
-                    "password": "!",
-                    "changed": 0,
-                    "minimum": None,
-                    "maximum": None,
-                    "warn": None,
-                    "inactive": None,
-                    "expire": None
-                },
-                "test": {
-                    "password": "!",
-                    "changed": 0,
-                    "minimum": None,
-                    "maximum": None,
-                    "warn": None,
-                    "inactive": None,
-                    "expire": None
-                }
-            }
-        }
-        return FileSystem(hierarchy, database, "/", "/")
-
-    def test_find_node_signature(self, file_system):
-        nodes = file_system._find_node("/etc/shadow")
-        assert isinstance(nodes, tuple) and all(isinstance(n, Node) for n in nodes)
-
-    def test_find_node_badfile(self, file_system):
-        with pytest.raises(FileNotFoundError):
-            file_system._find_node("/etc/badfile")
-
-    def test_find_node_baddir(self, file_system):
-        with pytest.raises(FileNotFoundError):
-            file_system._find_node("/baddir/ignored")
-
-    def test_find_node_file_as_dir(self, file_system):
-        with pytest.raises(NotADirectoryError):
-            file_system._find_node("/etc/passwd/ignored")
-
-    def test_find_node_special_as_dir(self, file_system):
-        with pytest.raises(NotADirectoryError):
-            file_system._find_node("/dev/null/ignored")
-
-    def test_stat_signature(self, file_system):
-        assert isinstance(file_system.stat(0, (0,), "/etc/shadow"), dict)
-
-    def test_stat_good_perm(self, file_system):
-        file_system.stat(1, (1,), "/etc/shadow")
-
-    def test_stat_bad_perm(self, file_system):
-        with pytest.raises(PermissionError):
-            file_system.stat(1, (1,), "/home/test/.profile")
-
-    def test_list_signature(self, file_system):
-        assert isinstance(file_system.list(0, (0,), "/etc"), dict)
-
-    def test_list_good_perm(self, file_system):
-        file_system.list(1, (1,), "/etc")
-
-    def test_list_bad_perm(self, file_system):
-        with pytest.raises(PermissionError):
-            file_system.list(1, (1,), "/home/test")
-
-    def test_list_file(self, file_system):
-        with pytest.raises(NotADirectoryError):
-            file_system.list(1, (1,), "/etc/passwd")
-
-    def test_list_special(self, file_system):
-        with pytest.raises(NotADirectoryError):
-            file_system.list(1, (1,), "/dev/null")
-
-    def test_read_signature(self, file_system):
-        data = file_system.read(0, (0,), "/etc/passwd")
-        assert data == file_system._database[Node.uuid("/etc/passwd")]
-        assert id(data) != id(file_system._database[Node.uuid("/etc/passwd")])
-
-    def test_read_good_perm(self, file_system):
-        file_system.read(1, (1,), "/etc/passwd")
-
-    def test_read_bad_perm(self, file_system):
-        with pytest.raises(PermissionError):
-            file_system.read(1, (1,), "/etc/shadow")
-
-    def test_read_dir(self, file_system):
-        with pytest.raises(IsADirectoryError):
-            file_system.read(1, (1,), "/etc")
-
-    @pytest.mark.xfail(raises=NotImplementedError)
-    def test_read_special(self, file_system):
-        file_system.read(1, (1,), "/dev/null")
-
-    @pytest.mark.xfail(raises=NotImplementedError)
-    def test_read_self_contained(self, file_system):
-        file_system.read(1, (1,), "/etc/self_contained")
-
-    def test_write_signature(self, file_system):
-        assert file_system.write(0, (0,), "/etc/passwd", None) is None
-
-    def test_write_good_perm(self, file_system):
-        file_system.write(1000, (1000,), "/home/test/.profile", "Profile write")
-
-    def test_write_bad_perm(self, file_system):
-        with pytest.raises(PermissionError):
-            file_system.write(1, (1,), "/etc/passwd", None)
-
-    def test_write_dir(self, file_system):
-        with pytest.raises(IsADirectoryError):
-            file_system.write(0, (0,), "/etc", None)
-
-    @pytest.mark.xfail(raises=NotImplementedError)
-    def test_write_special(self, file_system):
-        file_system.write(1, (1,), "/dev/null", None)
-
-    @pytest.mark.xfail(raises=NotImplementedError)
-    def test_write_self_contained(self, file_system):
-        file_system.write(1, (1,), "/etc/self_contained", {"data": 1})
-
-    def test_execute_signature(self, file_system):
-        assert file_system.execute(0, (0,), "/bin/test", None) == file_system._database[Node.uuid("/bin/test")](None)
-
-    def test_execute_good_perm(self, file_system):
-        file_system.execute(1, (1,), "/bin/test", None)
-
-    def test_execute_bad_perm(self, file_system):
-        with pytest.raises(PermissionError):
-            file_system.execute(0, (0,), "/bin/badperm", None)
-        with pytest.raises(PermissionError):
-            file_system.execute(1, (1,), "/bin/badperm", None)
-
-    def test_execute_bad_exec(self, file_system):
-        with pytest.raises(RootspaceNotAnExecutableError):
-            file_system.execute(1, (1,), "/bin/badexec", None)
-
-    def test_execute_dir(self, file_system):
-        with pytest.raises(IsADirectoryError):
-            file_system.execute(1, (1,), "/bin", None)
-
-    @pytest.mark.xfail(raises=NotImplementedError)
-    def test_execute_special(self, file_system):
-        file_system.execute(1, (1,), "/dev/exec", None)
-
-    @pytest.mark.xfail(raises=NotImplementedError)
-    def test_execute_self_contained(self, file_system):
-        file_system.execute(1, (1,), "/bin/self_contained", None)
+    pass
