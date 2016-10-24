@@ -83,3 +83,10 @@ class RootspaceNotAnExecutableError(Exception):
     This exception is raised if a particular file system node is not executable but has permissions set as such.
     """
     pass
+
+
+class FixmeWarning(Warning):
+    """
+    This warning is raised if something should be fixed.
+    """
+    pass

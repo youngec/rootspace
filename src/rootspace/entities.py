@@ -6,8 +6,9 @@ import attr
 import sdl2.render
 from attr.validators import instance_of
 
-from .components import MachineState, NetworkState, FileSystemState, DisplayBuffer, Sprite, InputOutputStream, \
+from .components import MachineState, NetworkState, DisplayBuffer, Sprite, InputOutputStream, \
     ShellState
+from .filesystem import FileSystem
 from .worlds import World
 
 
@@ -89,7 +90,7 @@ class Computer(Entity):
     """
     machine_state = attr.ib(validator=instance_of(MachineState), hash=False)
     network_state = attr.ib(validator=instance_of(NetworkState), hash=False)
-    file_system_state = attr.ib(validator=instance_of(FileSystemState), hash=False)
+    file_system = attr.ib(validator=instance_of(FileSystem), hash=False)
 
     @classmethod
     def create(cls, world, **kwargs):
@@ -104,14 +105,14 @@ class Computer(Entity):
             world=world,
             machine_state=MachineState(),
             network_state=NetworkState(),
-            file_system_state=FileSystemState(),
+            file_system=FileSystem(),
             **kwargs
         )
 
         # Register the components
         inst.register_component(inst.machine_state)
         inst.register_component(inst.network_state)
-        inst.register_component(inst.file_system_state)
+        inst.register_component(inst.file_system)
 
         return inst
 

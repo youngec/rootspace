@@ -84,7 +84,7 @@ class Engine(object):
         self._dbg("Creating the renderer.")
         sdl2.SDL_SetHint(sdl2.SDL_HINT_RENDER_SCALE_QUALITY, self._project.configuration["render_scale_quality"])
         ctx["renderer"] = sdl2.ext.Renderer(ctx["window"])
-        sdl2.SDL_RenderSetLogicalSize(ctx["renderer"].renderer, *self._project.configuration["window_shape"])
+        sdl2.SDL_RenderSetLogicalSize(ctx["renderer"].sdlrenderer, *self._project.configuration["window_shape"])
         ctx["renderer"].color = sdl2.ext.Color(*self._project.configuration["render_color"])
 
         self._dbg("Creating the world.")
@@ -96,9 +96,9 @@ class Engine(object):
         self._dbg("Creating the initial scene.")
         ctx["systems"] = list()
         ctx["entities"] = list()
-        self._project.load_scene(ctx["world"], ctx["renderer"].renderer, ctx["resources"], ctx["systems"],
+        self._project.load_scene(ctx["world"], ctx["renderer"].sdlrenderer, ctx["resources"], ctx["systems"],
                                  ctx["entities"])
-        ctx["systems"].append(SpriteRenderSystem.create(ctx["renderer"].renderer))
+        ctx["systems"].append(SpriteRenderSystem.create(ctx["renderer"].sdlrenderer))
 
         if len(ctx["systems"]) == 1 and isinstance(ctx["systems"][0], SpriteRenderSystem):
             self._wrn("Only the render system is present in the world.")

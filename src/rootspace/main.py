@@ -28,13 +28,17 @@ def main(verbose, debug, profile):
     Command line parameters take precedence over configuration values.
     """
     # Determine the log level.
-    log_level = logging.WARN
-    if verbose == 1:
+    if verbose == 0:
+        log_level = logging.ERROR
+    elif verbose == 1:
+        log_level = logging.WARN
+    elif verbose == 2:
         log_level = logging.INFO
-    elif verbose == 2 or debug:
+    elif verbose == 3 or debug:
         log_level = logging.DEBUG
     else:
-        click.echo("Only three verbosity levels are understood: 0, 1 and 2.")
+        click.echo("Only four verbosity levels are understood: 0, 1, 2 and 3.")
+        log_level = logging.ERROR
 
     # Configure the logging system.
     root_logger = logging.getLogger("rootspace")
@@ -47,7 +51,8 @@ def main(verbose, debug, profile):
     root_logger.addHandler(logging_default_handler)
     root_logger.setLevel(log_level)
 
-    logging.captureWarnings(True)
+    # TODO: Why does captureWarnings suppress warnings?
+    # logging.captureWarnings(True)
     warnings.simplefilter("default")
 
     # Create the project

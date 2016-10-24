@@ -343,6 +343,7 @@ class FileSystem(object):
         :param path:
         :return:
         """
+        # FIXME: Sanitize the path string (multiple occurrences of self.sep, trailing self.sep, etc.)
         if path.startswith(self.root):
             return tuple(filter(None, path.split(self.sep)))
         else:
@@ -382,6 +383,27 @@ class FileSystem(object):
         else:
             raise RootspacePermissionError()
 
+    def _exists(self, uid, gids, path):
+        """
+        Return True, if the specified path points to a valid node.
+
+        :param path:
+        :return:
+        """
+        path_parts = self._split(path)
+        parent_node = self._hierarchy
+        try:
+            for i, node_name in enumerate(path_parts):
+                child_node = self._get_child_node(uid, gids, parent_node, node_name)
+                if i == len(path_parts) - 1:
+                    return True
+                else:
+                    parent_node = child_node
+        except (RootspaceFileNotFoundError, RootspaceNotADirectoryError):
+            pass
+
+        return False
+
     def _find_node(self, uid, gids, path):
         """
         Find the node specified by a given path.
@@ -399,6 +421,28 @@ class FileSystem(object):
                 return child_node, parent_node
             else:
                 parent_node = child_node
+
+    def find_path(self, uid, gids, search_paths, node_name):
+        """
+        Given a list of search paths, try to find all occurrences of the specified node name.
+
+        :param search_paths:
+        :param node_name:
+        :return:
+        """
+        node_paths = list()
+        for search_path in search_paths:
+            node_path = self.sep.join(search_path, node_name)
+            try:
+                if self._exists(uid, gids, node_path):
+                    node_paths.append(node_path)
+            except RootspacePermissionError:
+                pass
+
+        if len(node_paths) > 0:
+            return node_paths
+        else:
+            raise RootspaceFileNotFoundError
 
     def create_node(self, uid, gids, path, node_type):
         """

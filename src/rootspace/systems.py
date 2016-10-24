@@ -5,6 +5,7 @@ import collections
 import ctypes
 import logging
 import sys
+import warnings
 
 import attr
 import sdl2.pixels
@@ -15,8 +16,9 @@ from attr.validators import instance_of
 from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP
 from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2, SDLK_TAB, SDLK_BACKSPACE, SDLK_DELETE, SDLK_ESCAPE
 
-from .components import Sprite, DisplayBuffer, InputOutputStream, ShellState, MachineState, FileSystemState
-from .exceptions import SDLError, SDLTTFError
+from .components import Sprite, DisplayBuffer, InputOutputStream, ShellState, MachineState
+from .filesystem import FileSystem
+from .exceptions import SDLError, SDLTTFError, FixmeWarning
 
 
 @attr.s
@@ -315,28 +317,28 @@ class DisplayInterpreterSystem(UpdateSystem):
                 buffer.buffer[row, column] = b.to_bytes(1, sys.byteorder)
                 column += 1
             elif b == 0x00:
-                self._log.warning("FIXME: Null character not implemented.")
+                warnings.warn("Null character not implemented.", FixmeWarning)
             elif b == 0x07:
-                self._log.warning("FIXME: Bell not implemented.")
+                warnings.warn("Bell not implemented.", FixmeWarning)
             elif b == 0x08:
-                self._log.warning("FIXME: Backspace not implemented.")
+                warnings.warn("Backspace not implemented.", FixmeWarning)
             elif b == 0x09:
                 column += self._tab_width - (column % self._tab_width)
             elif b == 0x0a:
                 column = 0
                 row += 1
             elif b == 0x0b:
-                self._log.warning("FIXME: Vertical tab not implemented.")
+                warnings.warn("Vertical tab not implemented.", FixmeWarning)
             elif b == 0x0c:
-                self._log.warning("FIXME: Form feed not implemented.")
+                warnings.warn("Form feed not implemented.", FixmeWarning)
             elif b == 0x0d:
-                self._log.warning("FIXME: Carriage return not implemented.")
+                warnings.warn("Carriage return not implemented.", FixmeWarning)
             elif b == 0x1a:
-                self._log.warning("FIXME: End of file not implemented.")
+                warnings.warn("End of file not implemented.", FixmeWarning)
             elif b == 0x1b:
-                self._log.warning("FIXME: Escape character not implemented.")
+                warnings.warn("Escape character not implemented.", FixmeWarning)
             elif b == 0x7f:
-                self._log.warning("FIXME: Delete character not implemented.")
+                warnings.warn("Delete character not implemented.", FixmeWarning)
             else:
                 self._log.debug("Got an unhandled character: {!r}".format(b))
 
@@ -412,7 +414,7 @@ class ShellSystem(UpdateSystem):
     def create(cls, encoding="utf-8"):
 
         return cls(
-            component_types=(InputOutputStream, FileSystemState, MachineState, ShellState),
+            component_types=(InputOutputStream, FileSystem, MachineState, ShellState),
             is_applicator=True,
             echo=True,
             keyword_separator=b" ",
@@ -422,7 +424,7 @@ class ShellSystem(UpdateSystem):
         )
 
     def update(self, time, delta_time, world, components):
-        for stream, fs, machine, shell in components:
+        for stream, fs, machine, env in components:
             if machine.power_up:
                 machine.ready = True
             elif machine.ready and len(stream.input) > 0:
@@ -431,11 +433,27 @@ class ShellSystem(UpdateSystem):
                     self._log.debug("Input: {!r}, Output: {!r}".format(stream.input, stream.output))
 
                 if self._line_separator in stream.input:
-                    shell.line_buffer = bytearray(b" ".join(shell.line_buffer.strip().split()))
-                    self._log.debug("Shell line buffer: {!r}".format(shell.line_buffer))
+                    env.line_buffer = bytearray(b" ".join(env.line_buffer.strip().split()))
+                    self._interpret(env.line_buffer, {"env": env, "stream": stream, "fs": fs, "machine": machine})
+                    self._log.debug("Shell line buffer: {!r}".format(env.line_buffer))
                 else:
-                    shell.line_buffer.extend(stream.input)
+                    env.line_buffer.extend(stream.input)
 
                 stream.input.clear()
             elif machine.power_down:
                 machine.power_off = True
+
+    def _interpret(self, line_buffer, context):
+        """
+        Interpret a command line given a particular context.
+
+        :param line_buffer:
+        :param context:
+        :return:
+        """
+        arguments = line_buffer.split(self._keyword_separator)
+        fs = context["fs"]
+        env = context["env"]
+        cmd_paths = fs.find_path(env.uid, env.gids, env.path, arguments[0])
+        if len(cmd_paths) > 0:
+            raise NotImplementedError("Cannot execute commands yet.")

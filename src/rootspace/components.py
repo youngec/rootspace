@@ -703,5 +703,18 @@ class ShellState(object):
 
     env = attr.ib(default=default_env, validator=instance_of(dict))
     line_buffer = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
+    path_sep = attr.ib(default=":", validator=instance_of(str))
     # stdin = attr.ib()
     # stdout = attr.ib()
+
+    @property
+    def uid(self):
+        return -1
+
+    @property
+    def gids(self):
+        return (-1,)
+
+    @property
+    def path(self):
+        return list(filter(None, self.env.split(self.path_sep)))
