@@ -457,3 +457,4 @@ class ShellSystem(UpdateSystem):
         cmd_paths = fs.find_path(env.uid, env.gids, env.path, arguments[0])
         if len(cmd_paths) > 0:
             raise NotImplementedError("Cannot execute commands yet.")
+

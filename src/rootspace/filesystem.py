@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import abc
 import gzip
 import pickle
 import datetime
@@ -233,14 +234,17 @@ class DirectoryNode(Node):
         :param replace:
         :return:
         """
-        if self.may_write(uid, gids):
-            if replace or (node_name not in self._contents):
-                self._contents[node_name] = node
-                node.modify_parent(uid, gids, self)
+        if isinstance(node, Node):
+            if self.may_write(uid, gids):
+                if replace or (node_name not in self._contents):
+                    self._contents[node_name] = node
+                    node.modify_parent(uid, gids, self)
+                else:
+                    raise RootspaceFileExistsError()
             else:
-                raise RootspaceFileExistsError()
+                raise RootspacePermissionError()
         else:
-            raise RootspacePermissionError()
+            raise TypeError("Expected 'node' to be a Node instance.")
 
     def remove_node(self, uid, gids, node_name):
         """

@@ -6,10 +6,6 @@ import os
 import sys
 import warnings
 
-# Add the SDL2 library path (this is necessary for some linux versions)
-if sys.platform == "linux" and os.path.isdir("/run/current-system"):
-    os.environ["PYSDL2_DLL_PATH"] = "/run/current-system/sw/lib:{}".format(os.environ.get("PYSDL2_DLL_PATH", ""))
-
 import click
 
 from ._version import get_versions

@@ -5,7 +5,7 @@ import itertools
 import pytest
 
 from rootspace.exceptions import RootspacePermissionError
-from rootspace.filesystem import Node, FileSystem
+from rootspace.filesystem import Node, DirectoryNode, FileNode, LinkNode, FileSystem
 
 
 class TestNode(object):
@@ -167,7 +167,49 @@ class TestNode(object):
 
 
 class TestDirectoryNode(object):
-    pass
+    def test_list_perm(self):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        node = DirectoryNode(None, 0, 1, 0o750)
+
+        for u, g in itertools.product(uids, gids):
+            if node.may_read(u, (g,)):
+                node.list(u, (g,))
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    node.list(u, (g,))
+
+    def test_list_value(self):
+        parent = DirectoryNode(None, 0, 0, 0o755)
+        child = DirectoryNode(parent, 0, 0, 0o755)
+
+        value = parent.list(0, (0,))
+        assert isinstance(value, dict)
+        assert "." in value and ".." not in value
+        assert isinstance(value["."], dict)
+        assert value["."] == parent.stat(0, (0,))
+
+        value2 = child.list(0, (0,))
+        assert isinstance(value2, dict)
+        assert "." in value2 and ".." in value2
+
+    def test_insert_node_perm(self):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+        node = DirectoryNode(None, 0, 1, 0o750)
+        child = DirectoryNode(None, 0, 1, 0o750)
+
+        for u, g in itertools.product(uids, gids):
+            if node.may_write(u, (g,)):
+                node.insert_node(u, (g,), "child", child)
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    node.insert_node(u, (g,), "child", child)
+
+    def test_insert_node_input(self):
+        for pp in (None, int(), float(), str(), dict(), list(), tuple(), set(), object()):
+            with pytest.raises(TypeError):
+                DirectoryNode(None, 0, 0, 0).insert_node(0, (0,), pp)
 
 
 class TestFileNode(object):
