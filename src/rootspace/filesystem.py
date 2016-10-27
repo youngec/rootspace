@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import abc
 import gzip
 import pickle
 import datetime
@@ -18,6 +19,7 @@ class Node(object):
     """
     Describes the generalized functionality of a node in a UNIX-like filesystem.
     """
+    # TODO: I might want to change the signature to provide a default value of parent.
     _parent = attr.ib(validator=instance_of((type(None), weakref.ReferenceType)), convert=ref)
     _uid = attr.ib(validator=instance_of(int))
     _gid = attr.ib(validator=instance_of(int))
@@ -233,14 +235,17 @@ class DirectoryNode(Node):
         :param replace:
         :return:
         """
-        if self.may_write(uid, gids):
-            if replace or (node_name not in self._contents):
-                self._contents[node_name] = node
-                node.modify_parent(uid, gids, self)
+        if isinstance(node, Node):
+            if self.may_write(uid, gids):
+                if replace or (node_name not in self._contents):
+                    self._contents[node_name] = node
+                    node.modify_parent(uid, gids, self)
+                else:
+                    raise RootspaceFileExistsError()
             else:
-                raise RootspaceFileExistsError()
+                raise RootspacePermissionError()
         else:
-            raise RootspacePermissionError()
+            raise TypeError("Expected 'node' to be a Node instance.")
 
     def remove_node(self, uid, gids, node_name):
         """
@@ -303,13 +308,12 @@ class FileNode(Node):
         else:
             raise RootspacePermissionError()
 
-    def execute(self, uid, gids, context):
+    def execute(self, uid, gids):
         """
         Execute the data within the FileNode.
 
         :param uid:
         :param gids:
-        :param context:
         :return:
         """
         if self.may_execute(uid, gids):
@@ -317,7 +321,7 @@ class FileNode(Node):
                 data = pickle.load(f)
 
             if callable(data):
-                return data(context)
+                return data
             else:
                 raise RootspaceNotAnExecutableError()
         else:
