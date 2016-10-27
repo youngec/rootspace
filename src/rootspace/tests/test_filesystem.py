@@ -1,13 +1,39 @@
 # -*- coding: utf-8 -*-
 
 import itertools
+import gzip
+import pickle
 
+import click
 import pytest
 
-from rootspace.exceptions import RootspacePermissionError
+from rootspace.exceptions import RootspacePermissionError, RootspaceFileNotFoundError
 from rootspace.filesystem import Node, DirectoryNode, FileNode, LinkNode, FileSystem
 
 
+def dummy_fun():
+    return 0
+
+
+@pytest.fixture
+def test_pkl(tmpdir_factory):
+    test_pkl_path = tmpdir_factory.mktemp("filesystem").join("test.pkl.gz")
+    with gzip.open(str(test_pkl_path), "wb") as f:
+        pickle.dump("ABC", f)
+
+    return str(test_pkl_path)
+
+
+@pytest.fixture
+def test_pkl_exec(tmpdir_factory):
+    test_pkl_path = tmpdir_factory.mktemp("filesystem").join("test.pkl.gz")
+    with gzip.open(str(test_pkl_path), "wb") as f:
+        pickle.dump(dummy_fun, f)
+
+    return str(test_pkl_path)
+
+
+@pytest.mark.skip
 class TestNode(object):
     def test_instantiation(self):
         parent = Node(None, 0, 0, 0)
@@ -170,9 +196,10 @@ class TestDirectoryNode(object):
     def test_list_perm(self):
         uids = (0, 1, 1000)
         gids = (0, 1, 1000)
-        node = DirectoryNode(None, 0, 1, 0o750)
 
         for u, g in itertools.product(uids, gids):
+            node = DirectoryNode(None, 0, 1, 0o750)
+
             if node.may_read(u, (g,)):
                 node.list(u, (g,))
             else:
@@ -196,10 +223,11 @@ class TestDirectoryNode(object):
     def test_insert_node_perm(self):
         uids = (0, 1, 1000)
         gids = (0, 1, 1000)
-        node = DirectoryNode(None, 0, 1, 0o750)
-        child = DirectoryNode(None, 0, 1, 0o750)
 
         for u, g in itertools.product(uids, gids):
+            node = DirectoryNode(None, 0, 1, 0o750)
+            child = DirectoryNode(None, 0, 1, 0o750)
+
             if node.may_write(u, (g,)):
                 node.insert_node(u, (g,), "child", child)
             else:
@@ -211,9 +239,106 @@ class TestDirectoryNode(object):
             with pytest.raises(TypeError):
                 DirectoryNode(None, 0, 0, 0).insert_node(0, (0,), pp)
 
+    def test_remove_node_perm(self):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+
+        for u, g in itertools.product(uids, gids):
+            node = DirectoryNode(None, 0, 1, 0o750)
+            child = DirectoryNode(None, 0, 1, 0o750)
+            node.insert_node(0, (0,), "child", child)
+
+            if node.may_write(u, (g,)):
+                node.remove_node(u, (g,), "child")
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    node.remove_node(u, (g,), "child")
+
+    def test_remove_node_badfile(self):
+        with pytest.raises(RootspaceFileNotFoundError):
+            DirectoryNode(None, 0, 0, 0o755).remove_node(0, (0,), "child")
+
+    def test_move_node_calls(self, mocker):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+
+        mocker.patch("rootspace.filesystem.DirectoryNode.insert_node")
+        mocker.patch("rootspace.filesystem.DirectoryNode.remove_node")
+
+        for u, g in itertools.product(uids, gids):
+            parent_a = DirectoryNode(None, 0, 1, 0o750)
+            parent_b = DirectoryNode(None, 0, 1, 0o750)
+            child = DirectoryNode(parent_a, 0, 1, 0o750)
+            parent_a._contents["child"] = child
+
+            parent_a.move_node(u, (g,), "child", parent_b, "new_child")
+
+            assert parent_b.insert_node.call_count == 1
+            assert parent_a.remove_node.call_count == 1
+
+            mocker.resetall()
+
+    def test_move_node_input(self):
+        for pp in (None, int(), float(), str(), dict(), list(), tuple(), set(), object()):
+            with pytest.raises(TypeError):
+                DirectoryNode(None, 0, 0, 0).move_node(0, (0,), "some", pp, "other")
+
 
 class TestFileNode(object):
-    pass
+    def test_read_perm(self, test_pkl):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+
+        for u, g in itertools.product(uids, gids):
+            node = FileNode(None, 0, 0, 0o644, source=test_pkl)
+
+            if node.may_read(u, (g,)):
+                node.read(u, (g,))
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    node.read(u, (g,))
+
+    def test_read_value(self, test_pkl):
+        with gzip.open(test_pkl, "rb") as f:
+            assert FileNode(None, 0, 0, 0o644, source=test_pkl).read(0, (0,)) == pickle.load(f)
+
+    def test_write_perm(self, test_pkl):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+
+        for u, g in itertools.product(uids, gids):
+            node = FileNode(None, 0, 0, 0o644, source=test_pkl)
+
+            if node.may_write(u, (g,)):
+                node.write(u, (g,), "CDE")
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    node.write(u, (g,), "CDE")
+
+    def test_write_value(self, test_pkl):
+        FileNode(None, 0, 0, 0o644, source=test_pkl).write(0, (0,), "CDE")
+
+        with gzip.open(test_pkl, "rb") as f:
+            assert pickle.load(f) == "CDE"
+
+    def test_execute_perm(self, test_pkl_exec):
+        uids = (0, 1, 1000)
+        gids = (0, 1, 1000)
+
+        for u, g in itertools.product(uids, gids):
+            node = FileNode(None, 0, 0, 0o770, source=test_pkl_exec)
+
+            if node.may_execute(u, (g,)):
+                node.execute(u, (g,))
+            else:
+                with pytest.raises(RootspacePermissionError):
+                    node.execute(u, (g,))
+
+    def test_execute_value(self, test_pkl_exec):
+        fun = FileNode(None, 0, 0, 0o770, source=test_pkl_exec).execute(0, (0,))
+
+        with gzip.open(test_pkl_exec, "rb") as f:
+            assert pickle.load(f)() == fun()
 
 
 class TestLinkNode(object):

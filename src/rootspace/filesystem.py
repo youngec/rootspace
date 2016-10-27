@@ -19,6 +19,7 @@ class Node(object):
     """
     Describes the generalized functionality of a node in a UNIX-like filesystem.
     """
+    # TODO: I might want to change the signature to provide a default value of parent.
     _parent = attr.ib(validator=instance_of((type(None), weakref.ReferenceType)), convert=ref)
     _uid = attr.ib(validator=instance_of(int))
     _gid = attr.ib(validator=instance_of(int))
@@ -307,13 +308,12 @@ class FileNode(Node):
         else:
             raise RootspacePermissionError()
 
-    def execute(self, uid, gids, context):
+    def execute(self, uid, gids):
         """
         Execute the data within the FileNode.
 
         :param uid:
         :param gids:
-        :param context:
         :return:
         """
         if self.may_execute(uid, gids):
@@ -321,7 +321,7 @@ class FileNode(Node):
                 data = pickle.load(f)
 
             if callable(data):
-                return data(context)
+                return data
             else:
                 raise RootspaceNotAnExecutableError()
         else:
