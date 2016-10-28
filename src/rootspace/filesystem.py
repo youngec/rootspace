@@ -21,11 +21,10 @@ class Node(object):
     """
     Describes the generalized functionality of a node in a UNIX-like filesystem.
     """
-    # TODO: I might want to change the signature to provide a default value of parent.
-    _parent = attr.ib(validator=instance_of((type(None), weakref.ReferenceType)), convert=ref)
     _uid = attr.ib(validator=instance_of(int))
     _gid = attr.ib(validator=instance_of(int))
     _perm = attr.ib(validator=instance_of(int))
+    _parent = attr.ib(default=None, validator=instance_of((type(None), weakref.ReferenceType)), convert=ref)
     _accessed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
     _modified = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
     _changed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
@@ -352,7 +351,7 @@ class SpecialFile(Node):
 @attr.s
 class FileSystem(object):
     _database = attr.ib(validator=instance_of(str))
-    _hierarchy = attr.ib(default=DirectoryNode(None, 0, 0, 0o755), validator=instance_of(Node))
+    _hierarchy = attr.ib(default=DirectoryNode(0, 0, 0o755), validator=instance_of(Node))
     root = attr.ib(default="/", validator=instance_of(str))
     sep = attr.ib(default="/", validator=instance_of(str))
     umask = attr.ib(default=0o022, validator=instance_of(int))
@@ -366,25 +365,25 @@ class FileSystem(object):
         :param umask:
         :return:
         """
-        hier = DirectoryNode(None, 0, 0, 0o755, contents={
-            "bin": DirectoryNode(None, 0, 0, 0o755, contents={}),
-            "boot": DirectoryNode(None, 0, 0, 0o755, contents={
-                "EFI": DirectoryNode(None, 0, 0, 0o755, contents={
-                    "Boot": DirectoryNode(None, 0, 0, 0o755, contents={
-                        "BOOTX64.EFI": FileNode(None, 0, 0, 0o755, source="/boot/EFI/Boot/BOOTX64.EFI")
+        hier = DirectoryNode(0, 0, 0o755, contents={
+            "bin": DirectoryNode(0, 0, 0o755, contents={}),
+            "boot": DirectoryNode(0, 0, 0o755, contents={
+                "EFI": DirectoryNode(0, 0, 0o755, contents={
+                    "Boot": DirectoryNode(0, 0, 0o755, contents={
+                        "BOOTX64.EFI": FileNode(0, 0, 0o755, source="/boot/EFI/Boot/BOOTX64.EFI")
                     })
                 })
             }),
-            "dev": DirectoryNode(None, 0, 0, 0o755, contents={}),
-            "etc": DirectoryNode(None, 0, 0, 0o755, contents={
-                "hostname": FileNode(None, 0, 0, 0o644, source="/etc/hostname"),
-                "passwd": FileNode(None, 0, 0, 0o644, source="/etc/passwd"),
-                "shadow": FileNode(None, 0, 0, 0o000, source="/etc/shadow")
+            "dev": DirectoryNode(0, 0, 0o755, contents={}),
+            "etc": DirectoryNode(0, 0, 0o755, contents={
+                "hostname": FileNode(0, 0, 0o644, source="/etc/hostname"),
+                "passwd": FileNode(0, 0, 0o644, source="/etc/passwd"),
+                "shadow": FileNode(0, 0, 0o000, source="/etc/shadow")
             }),
-            "home": DirectoryNode(None, 0, 0, 0o755, contents={}),
-            "root": DirectoryNode(None, 0, 0, 0o755, contents={}),
-            "usr": DirectoryNode(None, 0, 0, 0o755, contents={}),
-            "var": DirectoryNode(None, 0, 0, 0o755, contents={}) 
+            "home": DirectoryNode(0, 0, 0o755, contents={}),
+            "root": DirectoryNode(0, 0, 0o755, contents={}),
+            "usr": DirectoryNode(0, 0, 0o755, contents={}),
+            "var": DirectoryNode(0, 0, 0o755, contents={}) 
         })
         hier.update_children(0, 0)
         
@@ -517,10 +516,10 @@ class FileSystem(object):
         if isinstance(parent, DirectoryNode):
             if node_type == "directory":
                 perm = 0o777 & ~self.umask
-                parent.insert_node(uid, gids, file_name, DirectoryNode(None, uid, gids[0], perm))
+                parent.insert_node(uid, gids, file_name, DirectoryNode(uid, gids[0], perm))
             elif node_type == "file":
                 perm = 0o777 & ~(self.umask | 0o111)
-                parent.insert_node(uid, gids, file_name, FileNode(None, uid, gids[0], perm))
+                parent.insert_node(uid, gids, file_name, FileNode(uid, gids[0], perm))
             else:
                 raise NotImplementedError("Currently cannot create anything other than DirectoryNode and FileNode.")
         else:
