@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 
 import abc
-import gzip
-import pickle
+import shelve
+import collections
 import datetime
 import weakref
+import uuid
 
 import attr
 from attr.validators import instance_of
 
 from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, \
     RootspaceNotADirectoryError, RootspacePermissionError, RootspaceFileExistsError
-from .utilities import ref
+from .utilities import ref, mkuuid
+from .executables import Executable
 
 
 @attr.s
@@ -48,6 +50,9 @@ class Node(object):
         :param gids:
         :return:
         """
+        if not isinstance(gids, collections.Iterable):
+            gids = (gids,)
+
         perm_bits = (
              ((self._perm // 64) // 4) > 0,
              (((self._perm % 64) // 8) // 4) > 0,
@@ -69,6 +74,9 @@ class Node(object):
         :param gids:
         :return:
         """
+        if not isinstance(gids, collections.Iterable):
+            gids = (gids,)
+            
         perm_bits = (
              (((self._perm // 64) % 4) // 2) > 0,
              ((((self._perm % 64) // 8) % 4) // 2) > 0,
@@ -90,6 +98,9 @@ class Node(object):
         :param gids:
         :return:
         """
+        if not isinstance(gids, collections.Iterable):
+            gids = (gids,)
+            
         perm_bits = (
              ((self._perm // 64) % 2) > 0,
              (((self._perm % 64) // 8) % 2) > 0,
@@ -157,7 +168,7 @@ class Node(object):
                 raise RootspacePermissionError()
         else:
             raise TypeError("Expected 'new_gid' to be an integer.")
-
+    
     def modify_perm(self, uid, gids, new_perm):
         """
         If the supplied UID is the owner of the Node, change the Node permissions.
@@ -176,6 +187,25 @@ class Node(object):
                 raise RootspacePermissionError()
         else:
             raise TypeError("Expected 'new_perm' to be an integer.")
+
+    def reset_perm(self, uid, gids, mask):
+        """
+        Reset the permissions byte using the given mask. Otherwise works exactly like
+        modify_perm.
+
+        :param uid:
+        :param gids:
+        :param mask:
+        :return:
+        """
+        if isinstance(mask, int):
+            if (uid == 0) or (uid == self._uid):
+                self._modified = datetime.datetime.now()
+                self._perm = 0o777 & ~mask
+            else:
+                raise RootspacePermissionError()
+        else:
+            raise TypeError("Expected 'mask' to be an integer.")
 
     def stat(self, uid, gids):
         """
@@ -206,6 +236,22 @@ class DirectoryNode(Node):
     Describes a directory in a UNIX-like filesystem.
     """
     _contents = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+
+    def update_children(self, uid, gids, recursive=True):
+        """
+        Ensure that all children of this node have the correct parent reference.
+
+        :param uid:
+        :param gids:
+        :return:
+        """
+        if self.may_write(uid, gids):
+            for child_node in self._contents.values():
+                child_node.modify_parent(uid, gids, self)
+                if recursive and isinstance(child_node, DirectoryNode):
+                    child_node.update_children(uid, gids)
+        else:
+            raise RootspacePermissionError()
 
     def list(self, uid, gids):
         """
@@ -277,53 +323,18 @@ class DirectoryNode(Node):
 
 @attr.s
 class FileNode(Node):
-    _source = attr.ib(default="", validator=instance_of(str))
+    _source = attr.ib(default=attr.Factory(uuid.uuid4), validator=instance_of(uuid.UUID), convert=mkuuid)
 
-    def read(self, uid, gids):
+    def get_source(self, uid, gids):
         """
-        Read from the FileNode.
+        Return the souce of the file.
 
         :param uid:
         :param gids:
         :return:
         """
-        if self.may_read(uid, gids):
-            with gzip.open(self._source, "rb") as f:
-                return pickle.load(f)
-        else:
-            raise RootspacePermissionError()
-
-    def write(self, uid, gids, data):
-        """
-        Write data to the FileNode.
-
-        :param uid:
-        :param gids:
-        :param data:
-        :return:
-        """
-        if self.may_write(uid, gids):
-            with gzip.open(self._source, "wb") as f:
-                pickle.dump(data, f)
-        else:
-            raise RootspacePermissionError()
-
-    def execute(self, uid, gids):
-        """
-        Execute the data within the FileNode.
-
-        :param uid:
-        :param gids:
-        :return:
-        """
-        if self.may_execute(uid, gids):
-            with gzip.open(self._source, "rb") as f:
-                data = pickle.load(f)
-
-            if callable(data):
-                return data
-            else:
-                raise RootspaceNotAnExecutableError()
+        if self._parent is None or self._parent().may_execute(uid, gids):
+            return self._source
         else:
             raise RootspacePermissionError()
 
@@ -334,11 +345,53 @@ class LinkNode(Node):
 
 
 @attr.s
+class SpecialFile(Node):
+    pass
+
+
+@attr.s
 class FileSystem(object):
+    _database = attr.ib(validator=instance_of(str))
     _hierarchy = attr.ib(default=DirectoryNode(None, 0, 0, 0o755), validator=instance_of(Node))
     root = attr.ib(default="/", validator=instance_of(str))
     sep = attr.ib(default="/", validator=instance_of(str))
     umask = attr.ib(default=0o022, validator=instance_of(int))
+
+    @classmethod
+    def generate_unix(cls, db_path, umask=0o022):
+        """
+        Generate a virtual UNIX-like file system.
+
+        :param db_path:
+        :param umask:
+        :return:
+        """
+        hier = DirectoryNode(None, 0, 0, 0o755, contents={
+            "bin": DirectoryNode(None, 0, 0, 0o755, contents={}),
+            "boot": DirectoryNode(None, 0, 0, 0o755, contents={
+                "EFI": DirectoryNode(None, 0, 0, 0o755, contents={
+                    "Boot": DirectoryNode(None, 0, 0, 0o755, contents={
+                        "BOOTX64.EFI": FileNode(None, 0, 0, 0o755, source="/boot/EFI/Boot/BOOTX64.EFI")
+                    })
+                })
+            }),
+            "dev": DirectoryNode(None, 0, 0, 0o755, contents={}),
+            "etc": DirectoryNode(None, 0, 0, 0o755, contents={
+                "hostname": FileNode(None, 0, 0, 0o644, source="/etc/hostname"),
+                "passwd": FileNode(None, 0, 0, 0o644, source="/etc/passwd"),
+                "shadow": FileNode(None, 0, 0, 0o000, source="/etc/shadow")
+            }),
+            "home": DirectoryNode(None, 0, 0, 0o755, contents={}),
+            "root": DirectoryNode(None, 0, 0, 0o755, contents={}),
+            "usr": DirectoryNode(None, 0, 0, 0o755, contents={}),
+            "var": DirectoryNode(None, 0, 0, 0o755, contents={}) 
+        })
+        hier.update_children(0, 0)
+        
+        with shelve.open(db_path, writeback=True) as db:
+            db[mkuuid("/etc/hostname")] = "hostname"
+        
+        return cls(db_path, hier, "/", "/", umask)
 
     def _split(self, path):
         """
@@ -426,6 +479,7 @@ class FileSystem(object):
             else:
                 parent_node = child_node
 
+
     def find_path(self, uid, gids, search_paths, node_name):
         """
         Given a list of search paths, try to find all occurrences of the specified node name.
@@ -509,3 +563,62 @@ class FileSystem(object):
             source_parent.move_node(uid, gids, source_name, target_parent, target_name, replace)
         else:
             raise RootspaceNotADirectoryError()
+
+    def read(self, uid, gids, path):
+        """
+        Read from a file.
+        """
+        (target, parent) = self._find_node(uid, gids, path)
+
+        if target.may_read(uid, gids):
+            if isinstance(target, FileNode):
+                target_source = target.get_source(uid, gids)
+                with shelve.open(self._database) as db:
+                    if target_source in db:
+                        return db[target_source]
+                    else:
+                        return None
+            else:
+                raise RootspaceIsADirectoryError()
+        else:
+            raise RootspacePermissionError()
+
+    def write(self, uid, gids, path, data):
+        """
+        Write to a file.
+        """
+        (target, parent) = self._find_node(uid, gids, path)
+
+        if target.may_write(uid, gids):
+            if isinstance(target, FileNode):
+                target_source = target.get_source(uid, gids)
+                with shelve.open(self._database) as db:
+                    db[target_source] = data
+                    db.sync()
+            else:
+                raise RootspaceIsADirectoryError()
+        else:
+            raise RootspacePermissionError()
+
+    def execute(self, uid, gids, path, arguments, context):
+        """
+        Execute a file.
+        """
+        (target, parent) = self._find_node(uid, gids, path)
+
+        if target.may_execute(uid, gids):
+            if isinstance(target, FileNode):
+                target_source = target.get_source(uid, gids)
+                with shelve.open(self._database) as db:
+                    if target_source in db:
+                        if issubclass(db[target_source], Executable):
+                            return db[target_source](arguments, context)
+                        else:
+                            raise RootspaceNotAnExecutableError()
+                    else:
+                        return None
+            else:
+                raise RootspaceIsADirectoryError()
+        else:
+            raise RootspacePermissionError()
+

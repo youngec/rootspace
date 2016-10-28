@@ -33,7 +33,6 @@ def test_pkl_exec(tmpdir_factory):
     return str(test_pkl_path)
 
 
-@pytest.mark.skip
 class TestNode(object):
     def test_instantiation(self):
         parent = Node(None, 0, 0, 0)
@@ -285,60 +284,25 @@ class TestDirectoryNode(object):
 
 
 class TestFileNode(object):
-    def test_read_perm(self, test_pkl):
+    def test_get_source_perm(self):
+        parents = (None, DirectoryNode(None, 0, 0, 0o000), DirectoryNode(None, 0, 0, 0o755))
         uids = (0, 1, 1000)
         gids = (0, 1, 1000)
 
-        for u, g in itertools.product(uids, gids):
-            node = FileNode(None, 0, 0, 0o644, source=test_pkl)
-
-            if node.may_read(u, (g,)):
-                node.read(u, (g,))
+        for p, u, g in itertools.product(parents, uids, gids):
+            if p is None or p.may_execute(u, (g,)):
+                FileNode(p, u, g, 0o644).get_source(u, (g,))
             else:
                 with pytest.raises(RootspacePermissionError):
-                    node.read(u, (g,))
+                    FileNode(p, u, g, 0o644).get_source(u, (g,))
 
-    def test_read_value(self, test_pkl):
-        with gzip.open(test_pkl, "rb") as f:
-            assert FileNode(None, 0, 0, 0o644, source=test_pkl).read(0, (0,)) == pickle.load(f)
+    def test_get_source_value(self):
+        node = FileNode(None, 0, 0, 0o644)
+        value = node.get_source(0, (0,))
 
-    def test_write_perm(self, test_pkl):
-        uids = (0, 1, 1000)
-        gids = (0, 1, 1000)
-
-        for u, g in itertools.product(uids, gids):
-            node = FileNode(None, 0, 0, 0o644, source=test_pkl)
-
-            if node.may_write(u, (g,)):
-                node.write(u, (g,), "CDE")
-            else:
-                with pytest.raises(RootspacePermissionError):
-                    node.write(u, (g,), "CDE")
-
-    def test_write_value(self, test_pkl):
-        FileNode(None, 0, 0, 0o644, source=test_pkl).write(0, (0,), "CDE")
-
-        with gzip.open(test_pkl, "rb") as f:
-            assert pickle.load(f) == "CDE"
-
-    def test_execute_perm(self, test_pkl_exec):
-        uids = (0, 1, 1000)
-        gids = (0, 1, 1000)
-
-        for u, g in itertools.product(uids, gids):
-            node = FileNode(None, 0, 0, 0o770, source=test_pkl_exec)
-
-            if node.may_execute(u, (g,)):
-                node.execute(u, (g,))
-            else:
-                with pytest.raises(RootspacePermissionError):
-                    node.execute(u, (g,))
-
-    def test_execute_value(self, test_pkl_exec):
-        fun = FileNode(None, 0, 0, 0o770, source=test_pkl_exec).execute(0, (0,))
-
-        with gzip.open(test_pkl_exec, "rb") as f:
-            assert pickle.load(f)() == fun()
+        assert value == node._source
+        value = "BLABLA"
+        assert value != node._source
 
 
 class TestLinkNode(object):
