@@ -5,6 +5,7 @@ import configparser
 import os.path
 import re
 import weakref
+import uuid
 
 from .exceptions import SetupError
 
@@ -101,3 +102,17 @@ def ref(value):
         return weakref.ref(value)
     else:
         return None
+
+
+def mkuuid(value):
+    """
+    Convert the input to a UUID value. This function is idempotent.
+
+    :param value:
+    :return:
+    """
+    if isinstance(value, uuid.UUID):
+        return value
+    else:
+        return uuid.uuid5(uuid.NAMESPACE_URL, value)
+
