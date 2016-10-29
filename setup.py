@@ -87,7 +87,8 @@ if __name__ == "__main__":
             "pytest",
             "coverage",
             "pytest-cov",
-            "pytest-pep8"
+            "pytest-pep8",
+            "pytest-mock"
         ],
         entry_points={
             "console_scripts": [
