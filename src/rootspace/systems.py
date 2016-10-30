@@ -17,8 +17,8 @@ from sdl2.events import SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP
 from sdl2.keycode import SDLK_RETURN, SDLK_RETURN2, SDLK_TAB, SDLK_BACKSPACE, SDLK_DELETE, SDLK_ESCAPE
 
 from .components import Sprite, DisplayBuffer, InputOutputStream, ShellState, MachineState
-from .filesystem import FileSystem
 from .exceptions import SDLError, SDLTTFError, FixmeWarning
+from .filesystem import FileSystem
 
 
 @attr.s
@@ -457,4 +457,3 @@ class ShellSystem(UpdateSystem):
         cmd_paths = fs.find_path(env.uid, env.gids, env.path, arguments[0])
         if len(cmd_paths) > 0:
             raise NotImplementedError("Cannot execute commands yet.")
-

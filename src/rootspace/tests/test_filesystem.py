@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import itertools
 import gzip
+import itertools
 import pickle
 
 import pytest
-
 from rootspace.exceptions import RootspacePermissionError, RootspaceFileNotFoundError
-from rootspace.filesystem import Node, DirectoryNode, FileNode, LinkNode, FileSystem
+from rootspace.filesystem import Node, DirectoryNode, FileNode
 
 
 def dummy_fun():

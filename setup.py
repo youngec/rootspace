@@ -3,13 +3,15 @@
 # setup.cfg, then run real-setup.py (or inline setup.py)
 # From https://bitbucket.org/dholth/setup-requires
 
-import os
 import configparser
-import pkg_resources
-import sys
+import os
 import subprocess
-import versioneer
+import sys
+
+import pkg_resources
 from setuptools import setup, find_packages
+
+import versioneer
 
 
 def get_requirements():

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import shelve
 import collections
 import datetime
-import weakref
+import shelve
 import uuid
+import weakref
 
 import attr
 from attr.validators import instance_of
@@ -12,8 +12,8 @@ from attr.validators import instance_of
 from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, \
     RootspaceNotADirectoryError, RootspacePermissionError, RootspaceFileExistsError, \
     RootspaceIsADirectoryError
-from .utilities import ref, mkuuid
 from .executables import Executable
+from .utilities import ref, mkuuid
 
 
 @attr.s
@@ -37,7 +37,8 @@ class Node(object):
         """
         perm_digits = (self._perm // 64, (self._perm % 64) // 8, self._perm % 8)
         perm_list = (((p // 4) > 0, ((p % 4) // 2) > 0, (p % 2) > 0) for p in perm_digits)
-        perm_groups = ("{}{}{}".format("r" if p[0] else "-", "w" if p[1] else "-", "x" if p[2] else "-") for p in perm_list)
+        perm_groups = ("{}{}{}".format("r" if p[0] else "-", "w" if p[1] else "-", "x" if p[2] else "-") for p in
+                       perm_list)
         return "".join(perm_groups)
 
     def may_read(self, uid, gids):
@@ -53,9 +54,9 @@ class Node(object):
             gids = (gids,)
 
         perm_bits = (
-             ((self._perm // 64) // 4) > 0,
-             (((self._perm % 64) // 8) // 4) > 0,
-             ((self._perm % 8) // 4) > 0
+            ((self._perm // 64) // 4) > 0,
+            (((self._perm % 64) // 8) // 4) > 0,
+            ((self._perm % 8) // 4) > 0
         )
         privileged = (uid == 0)
         user_perm = (uid == self._uid and perm_bits[0])
@@ -77,9 +78,9 @@ class Node(object):
             gids = (gids,)
 
         perm_bits = (
-             (((self._perm // 64) % 4) // 2) > 0,
-             ((((self._perm % 64) // 8) % 4) // 2) > 0,
-             (((self._perm % 8) % 4) // 2) > 0
+            (((self._perm // 64) % 4) // 2) > 0,
+            ((((self._perm % 64) // 8) % 4) // 2) > 0,
+            (((self._perm % 8) % 4) // 2) > 0
         )
         privileged = (uid == 0)
         user_perm = (uid == self._uid and perm_bits[0])
@@ -101,9 +102,9 @@ class Node(object):
             gids = (gids,)
 
         perm_bits = (
-             ((self._perm // 64) % 2) > 0,
-             (((self._perm % 64) // 8) % 2) > 0,
-             ((self._perm % 8) % 2) > 0
+            ((self._perm // 64) % 2) > 0,
+            (((self._perm % 64) // 8) % 2) > 0,
+            ((self._perm % 8) % 2) > 0
         )
         privileged = (uid == 0 and any(perm_bits))
         user_perm = (uid == self._uid and perm_bits[0])
@@ -478,7 +479,6 @@ class FileSystem(object):
             else:
                 parent_node = child_node
 
-
     def find_path(self, uid, gids, search_paths, node_name):
         """
         Given a list of search paths, try to find all occurrences of the specified node name.
@@ -620,4 +620,3 @@ class FileSystem(object):
                 raise RootspaceIsADirectoryError()
         else:
             raise RootspacePermissionError()
-

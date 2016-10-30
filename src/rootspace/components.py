@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import enum
-import xxhash
 import sys
 import uuid
+import xxhash
 
 import attr
 import numpy
@@ -232,13 +232,13 @@ class FileSystemState(object):
                 "passwd": {"uid": 0, "gid": 0, "perm": 0o644, "id": 0x0001},
                 "shadow": {"uid": 0, "gid": 0, "perm": 0o000, "id": 0x0002}
             }
-            },
+                    },
             "home": {"uid": 0, "gid": 0, "perm": 0o755, "contents": {}},
             "root": {"uid": 0, "gid": 0, "perm": 0o750, "contents": {}},
             "tmp": {"uid": 0, "gid": 0, "perm": 0o777, "contents": {}},
             "usr": {"uid": 0, "gid": 0, "perm": 0o755, "contents": {}}
-              }
         }
+                 }
     }
 
     default_database = {
@@ -573,7 +573,8 @@ class FileSystemState(object):
         if self._flavour == "unix":
             perm_digits = (perm // 64, (perm % 64) // 8, perm % 8)
             perm_list = (((p // 4) > 0, ((p % 4) // 2) > 0, (p % 2) > 0) for p in perm_digits)
-            perm_groups = ("{}{}{}".format("r" if p[0] else "-", "w" if p[1] else "-", "x" if p[2] else "-") for p in perm_list)
+            perm_groups = ("{}{}{}".format("r" if p[0] else "-", "w" if p[1] else "-", "x" if p[2] else "-") for p in
+                           perm_list)
             perm_str = node_type + "".join(perm_groups)
 
         return perm_str
@@ -704,6 +705,7 @@ class ShellState(object):
     env = attr.ib(default=default_env, validator=instance_of(dict))
     line_buffer = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
     path_sep = attr.ib(default=":", validator=instance_of(str))
+
     # stdin = attr.ib()
     # stdout = attr.ib()
 
