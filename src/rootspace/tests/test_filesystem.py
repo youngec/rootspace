@@ -234,7 +234,7 @@ class TestDirectoryNode(object):
     def test_insert_node_input(self):
         for pp in (None, int(), float(), str(), dict(), list(), tuple(), set(), object()):
             with pytest.raises(TypeError):
-                DirectoryNode(0, 0, 0).insert_node(0, (0,), pp)
+                DirectoryNode(0, 0, 0).insert_node(0, (0,), "child", pp)
 
     def test_remove_node_perm(self):
         uids = (0, 1, 1000)
@@ -296,11 +296,7 @@ class TestFileNode(object):
 
     def test_get_source_value(self):
         node = FileNode(0, 0, 0o644)
-        value = node.get_source(0, (0,))
-
-        assert value == node._source
-        value = "BLABLA"
-        assert value != node._source
+        assert node.get_source(0, (0,)) == node._source
 
 
 class TestLinkNode(object):
