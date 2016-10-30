@@ -4,7 +4,6 @@ import itertools
 import gzip
 import pickle
 
-import click
 import pytest
 
 from rootspace.exceptions import RootspacePermissionError, RootspaceFileNotFoundError

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import abc
 import shelve
 import collections
 import datetime
@@ -11,7 +10,8 @@ import attr
 from attr.validators import instance_of
 
 from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, \
-    RootspaceNotADirectoryError, RootspacePermissionError, RootspaceFileExistsError
+    RootspaceNotADirectoryError, RootspacePermissionError, RootspaceFileExistsError, \
+    RootspaceIsADirectoryError
 from .utilities import ref, mkuuid
 from .executables import Executable
 
@@ -75,7 +75,7 @@ class Node(object):
         """
         if not isinstance(gids, collections.Iterable):
             gids = (gids,)
-            
+
         perm_bits = (
              (((self._perm // 64) % 4) // 2) > 0,
              ((((self._perm % 64) // 8) % 4) // 2) > 0,
@@ -99,7 +99,7 @@ class Node(object):
         """
         if not isinstance(gids, collections.Iterable):
             gids = (gids,)
-            
+
         perm_bits = (
              ((self._perm // 64) % 2) > 0,
              (((self._perm % 64) // 8) % 2) > 0,
@@ -167,7 +167,7 @@ class Node(object):
                 raise RootspacePermissionError()
         else:
             raise TypeError("Expected 'new_gid' to be an integer.")
-    
+
     def modify_perm(self, uid, gids, new_perm):
         """
         If the supplied UID is the owner of the Node, change the Node permissions.
@@ -383,13 +383,13 @@ class FileSystem(object):
             "home": DirectoryNode(0, 0, 0o755, contents={}),
             "root": DirectoryNode(0, 0, 0o755, contents={}),
             "usr": DirectoryNode(0, 0, 0o755, contents={}),
-            "var": DirectoryNode(0, 0, 0o755, contents={}) 
+            "var": DirectoryNode(0, 0, 0o755, contents={})
         })
         hier.update_children(0, 0)
-        
+
         with shelve.open(db_path, writeback=True) as db:
             db[mkuuid("/etc/hostname")] = "hostname"
-        
+
         return cls(db_path, hier, "/", "/", umask)
 
     def _split(self, path):
