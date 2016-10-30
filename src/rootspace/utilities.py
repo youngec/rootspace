@@ -91,28 +91,36 @@ def merge_configurations(func_params, config_paths, default_config):
     return configuration
 
 
-def ref(value):
+def to_ref(value):
     """
-    Convert the input value using weakref.ref, but let None pass unharmed.
+    Convert the input value using weakref.ref. This function is idempotent and
+    passes None unmodified.
 
     :param value:
     :return:
     """
     if value is not None:
         return weakref.ref(value)
-    else:
+    elif isinstance(value, weakref.ReferenceType):
+        return value
+    elif value is None:
         return None
+    else:
+        raise TypeError("Expected 'value' to be either an object, a ReferenceType or None.")
 
 
-def mkuuid(value):
+def to_uuid(value):
     """
-    Convert the input to a UUID value. This function is idempotent.
+    Convert the input to a UUID value. This function is idempotent and passes None unmodified.
 
     :param value:
     :return:
     """
     if isinstance(value, uuid.UUID):
         return value
-    else:
+    elif isinstance(value, str):
         return uuid.uuid5(uuid.NAMESPACE_URL, value)
-
+    elif value is None:
+        return None
+    else:
+        raise TypeError("Expected 'value' to be either a UUID, a string or None.")

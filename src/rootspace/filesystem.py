@@ -13,7 +13,7 @@ from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundErro
     RootspaceNotADirectoryError, RootspacePermissionError, RootspaceFileExistsError, \
     RootspaceIsADirectoryError
 from .executables import Executable
-from .utilities import ref, mkuuid
+from .utilities import to_ref, to_uuid
 
 
 @attr.s
@@ -24,7 +24,7 @@ class Node(object):
     _uid = attr.ib(validator=instance_of(int))
     _gid = attr.ib(validator=instance_of(int))
     _perm = attr.ib(validator=instance_of(int))
-    _parent = attr.ib(default=None, validator=instance_of((type(None), weakref.ReferenceType)), convert=ref)
+    _parent = attr.ib(default=None, validator=instance_of((type(None), weakref.ReferenceType)), convert=to_ref)
     _accessed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
     _modified = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
     _changed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
@@ -323,18 +323,22 @@ class DirectoryNode(Node):
 
 @attr.s
 class FileNode(Node):
-    _source = attr.ib(default=attr.Factory(uuid.uuid4), validator=instance_of(uuid.UUID), convert=mkuuid)
+    _source = attr.ib(default=attr.Factory(uuid.uuid4), validator=instance_of(uuid.UUID), convert=to_uuid)
 
-    def get_source(self, uid, gids):
+    def get_source(self, uid, gids, as_bytes=True):
         """
         Return the souce of the file.
 
         :param uid:
         :param gids:
+        :param as_bytes:
         :return:
         """
         if self._parent is None or self._parent().may_execute(uid, gids):
-            return self._source
+            if as_bytes:
+                return self._source.bytes
+            else:
+                return self._source
         else:
             raise RootspacePermissionError()
 
@@ -370,8 +374,8 @@ class FileSystem(object):
             "bin": DirectoryNode(0, 0, 0o755, contents={}),
             "boot": DirectoryNode(0, 0, 0o755, contents={
                 "EFI": DirectoryNode(0, 0, 0o755, contents={
-                    "Boot": DirectoryNode(0, 0, 0o755, contents={
-                        "BOOTX64.EFI": FileNode(0, 0, 0o755, source="/boot/EFI/Boot/BOOTX64.EFI")
+                    "BOOT": DirectoryNode(0, 0, 0o755, contents={
+                        "BOOTX64.EFI": FileNode(0, 0, 0o755, source="/boot/EFI/BOOT/BOOTX64.EFI")
                     })
                 })
             }),
@@ -389,7 +393,14 @@ class FileSystem(object):
         hier.update_children(0, 0)
 
         with shelve.open(db_path, writeback=True) as db:
-            db[mkuuid("/etc/hostname")] = "hostname"
+            db[uuid.uuid5(uuid.NAMESPACE_URL, "/etc/hostname").bytes] = "hostname"
+            db[uuid.uuid5(uuid.NAMESPACE_URL, "/etc/passwd").bytes] = [
+                {"username": "root", "password": "x", "uid": 0, "gid": 0, "gecos": "root", "home": "/root"}
+            ]
+            db[uuid.uuid5(uuid.NAMESPACE_URL, "/etc/shadow").bytes] = [
+                {"username": "root", "password": "!", "changed": 0, "minimum": 0, "maximum": 99999, "warn": 7, "disable": 1, "disabled": 0}
+            ]
+            db[uuid.uuid5(uuid.NAMESPACE_URL, "/boot/EFI/BOOT/BOOTX64.EFI").bytes] = ""
 
         return cls(db_path, hier, "/", "/", umask)
 

@@ -6,7 +6,7 @@ import pickle
 
 import pytest
 from rootspace.exceptions import RootspacePermissionError, RootspaceFileNotFoundError
-from rootspace.filesystem import Node, DirectoryNode, FileNode
+from rootspace.filesystem import Node, DirectoryNode, FileNode, FileSystem
 
 
 def dummy_fun():
@@ -294,14 +294,32 @@ class TestFileNode(object):
                 with pytest.raises(RootspacePermissionError):
                     FileNode(u, g, 0o644, parent=p).get_source(u, (g,))
 
-    def test_get_source_value(self):
+    def test_get_source_value_and_signature(self):
         node = FileNode(0, 0, 0o644)
-        assert node.get_source(0, (0,)) == node._source
+        assert node.get_source(0, (0,)) == node._source.bytes
+        assert node.get_source(0, (0,), as_bytes=True) == node._source.bytes
+        assert node.get_source(0, (0,), as_bytes=False) == node._source
 
 
+@pytest.mark.skip()
 class TestLinkNode(object):
     pass
 
 
-class TestFileSystem(object):
+@pytest.mark.skip()
+class TestSpecialNode(object):
     pass
+
+
+class TestFileSystem(object):
+    def test_generate_unix(self, tmpdir):
+        assert isinstance(FileSystem.generate_unix(str(tmpdir.join("db"))), FileSystem)
+
+    def test_split_input(self):
+        # FIXME: Fuzz this method
+        FileSystem("")._split("/")
+
+    def test_split_value(self):
+        value = FileSystem("")._split("/")
+        assert isinstance(value, tuple)
+        assert all(isinstance(el, str) for el in value) or len(value) == 0
