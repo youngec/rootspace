@@ -118,8 +118,8 @@ def to_uuid(value):
     """
     if isinstance(value, uuid.UUID):
         return value
-    elif isinstance(value, str):
-        return uuid.uuid5(uuid.NAMESPACE_URL, value)
+    elif isinstance(value, (str, bytes, int)):
+        return uuid.UUID(value)
     elif value is None:
         return None
     else:
