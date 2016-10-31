@@ -5,6 +5,8 @@ import datetime
 import shelve
 import uuid
 import weakref
+import json
+import gzip
 
 import attr
 from attr.validators import instance_of
@@ -25,9 +27,30 @@ class Node(object):
     _gid = attr.ib(validator=instance_of(int))
     _perm = attr.ib(validator=instance_of(int))
     _parent = attr.ib(default=None, validator=instance_of((type(None), weakref.ReferenceType)), convert=to_ref)
-    _accessed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
-    _modified = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
-    _changed = attr.ib(default=attr.Factory(datetime.datetime.now), validator=instance_of(datetime.datetime))
+    _accessed = attr.ib(default=0.0, validator=instance_of(float))
+    _modified = attr.ib(default=0.0, validator=instance_of(float))
+    _changed = attr.ib(default=0.0, validator=instance_of(float))
+
+    @classmethod
+    def from_dict(cls, serialised):
+        """
+        Create a Node based on a serialised representation of the Node and its children.
+
+        :param serialised:
+        :return:
+        """
+        return cls(**serialised)
+
+    def to_dict(self, uid, gids, recursive=True):
+        """
+        Serialize the node to a dictionary.
+
+        :param uid:
+        .param gids:
+        :param recursive:
+        :return:
+        """
+        return self.stat(uid, gids)
 
     def _perm_str(self):
         """
@@ -37,8 +60,9 @@ class Node(object):
         """
         perm_digits = (self._perm // 64, (self._perm % 64) // 8, self._perm % 8)
         perm_list = (((p // 4) > 0, ((p % 4) // 2) > 0, (p % 2) > 0) for p in perm_digits)
-        perm_groups = ("{}{}{}".format("r" if p[0] else "-", "w" if p[1] else "-", "x" if p[2] else "-") for p in
-                       perm_list)
+        perm_groups = ("{}{}{}".format(
+            "r" if p[0] else "-", "w" if p[1] else "-", "x" if p[2] else "-"
+        ) for p in perm_list)
         return "".join(perm_groups)
 
     def may_read(self, uid, gids):
@@ -124,7 +148,7 @@ class Node(object):
         """
         if isinstance(new_parent, Node):
             if self._parent is None or self._parent().may_write(uid, gids):
-                self._modified = datetime.datetime.now()
+                self._modified = datetime.datetime.timestamp(datetime.datetime.now())
                 self._parent = weakref.ref(new_parent)
             else:
                 raise RootspacePermissionError()
@@ -143,7 +167,7 @@ class Node(object):
         """
         if isinstance(new_uid, int):
             if (uid == 0) or (uid == self._uid):
-                self._modified = datetime.datetime.now()
+                self._modified = datetime.datetime.timestamp(datetime.datetime.now())
                 self._uid = new_uid
             else:
                 raise RootspacePermissionError()
@@ -162,7 +186,7 @@ class Node(object):
         """
         if isinstance(new_gid, int):
             if (uid == 0) or (uid == self._uid):
-                self._modified = datetime.datetime.now()
+                self._modified = datetime.datetime.timestamp(datetime.datetime.now())
                 self._gid = new_gid
             else:
                 raise RootspacePermissionError()
@@ -181,7 +205,7 @@ class Node(object):
         """
         if isinstance(new_perm, int):
             if (uid == 0) or (uid == self._uid):
-                self._modified = datetime.datetime.now()
+                self._modified = datetime.datetime.timestamp(datetime.datetime.now())
                 self._perm = new_perm
             else:
                 raise RootspacePermissionError()
@@ -200,7 +224,7 @@ class Node(object):
         """
         if isinstance(mask, int):
             if (uid == 0) or (uid == self._uid):
-                self._modified = datetime.datetime.now()
+                self._modified = datetime.datetime.timestamp(datetime.datetime.now())
                 self._perm = 0o777 & ~mask
             else:
                 raise RootspacePermissionError()
@@ -218,13 +242,12 @@ class Node(object):
         """
         if self._parent is None or self._parent().may_read(uid, gids):
             return {
-                "uid": "{}".format(self._uid),
-                "gid": "{}".format(self._gid),
-                "perm": "{:o}".format(self._perm),
-                "perm_str": "{}".format(self._perm_str()),
-                "accessed": self._accessed.isoformat(),
-                "modified": self._modified.isoformat(),
-                "changed": self._changed.isoformat()
+                "uid": self._uid,
+                "gid": self._gid,
+                "perm": self._perm,
+                "accessed": self._accessed,
+                "modified": self._modified,
+                "changed": self._changed
             }
         else:
             raise RootspacePermissionError()
@@ -236,6 +259,19 @@ class DirectoryNode(Node):
     Describes a directory in a UNIX-like filesystem.
     """
     _contents = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+
+    def to_dict(self, uid, gids, recursive=True):
+        serialised = super(DirectoryNode, self).to_dict(uid, gids)
+
+        if recursive:
+            if self.may_read(uid, gids) and self.may_execute(uid, gids):
+                serialised["contents"] = {}
+                for name, node in self._contents.items():
+                    serialised["contents"][name] = node.to_dict(uid, gids)
+            else:
+                raise RootspacePermissionError()
+
+        return serialised
 
     def update_children(self, uid, gids, recursive=True):
         """
@@ -318,39 +354,39 @@ class DirectoryNode(Node):
             else:
                 raise RootspaceFileNotFoundError()
         else:
-            raise TypeError("Expected 'new_parent' to be a Node.")
-
+           raise TypeError("Expected 'new_parent' to be a Node.")
+ 
 
 @attr.s
 class FileNode(Node):
     _source = attr.ib(default=attr.Factory(uuid.uuid4), validator=instance_of(uuid.UUID), convert=to_uuid)
 
-    def get_source(self, uid, gids, as_bytes=True):
+    def to_dict(self, uid, gids, recursive=True):
+        serialised = super(FileNode, self).to_dict(uid, gids)
+        
+        if self._parent is None or self._parent().may_execute(uid, gids):
+            serialised["source"] = str(self._source)
+        else:
+            raise RootspacePermissionError()
+
+        return serialised
+
+    def get_source(self, uid, gids, as_string=True):
         """
         Return the souce of the file.
 
         :param uid:
         :param gids:
-        :param as_bytes:
+        :param as_string:
         :return:
         """
         if self._parent is None or self._parent().may_execute(uid, gids):
-            if as_bytes:
-                return self._source.bytes
+            if as_string:
+                return str(self._source)
             else:
                 return self._source
         else:
             raise RootspacePermissionError()
-
-
-@attr.s
-class LinkNode(Node):
-    _target = attr.ib(default=None, validator=instance_of((type(None), weakref.ReferenceType)))
-
-
-@attr.s
-class SpecialFile(Node):
-    pass
 
 
 @attr.s
@@ -370,20 +406,25 @@ class FileSystem(object):
         :param umask:
         :return:
         """
+        efi = str(uuid.uuid4())
+        hostname = str(uuid.uuid4())
+        passwd = str(uuid.uuid4())
+        shadow = str(uuid.uuid4())
+
         hier = DirectoryNode(0, 0, 0o755, contents={
             "bin": DirectoryNode(0, 0, 0o755, contents={}),
             "boot": DirectoryNode(0, 0, 0o755, contents={
                 "EFI": DirectoryNode(0, 0, 0o755, contents={
                     "BOOT": DirectoryNode(0, 0, 0o755, contents={
-                        "BOOTX64.EFI": FileNode(0, 0, 0o755, source="/boot/EFI/BOOT/BOOTX64.EFI")
+                        "BOOTX64.EFI": FileNode(0, 0, 0o755, source=efi)
                     })
                 })
             }),
             "dev": DirectoryNode(0, 0, 0o755, contents={}),
             "etc": DirectoryNode(0, 0, 0o755, contents={
-                "hostname": FileNode(0, 0, 0o644, source="/etc/hostname"),
-                "passwd": FileNode(0, 0, 0o644, source="/etc/passwd"),
-                "shadow": FileNode(0, 0, 0o000, source="/etc/shadow")
+                "hostname": FileNode(0, 0, 0o644, source=hostname),
+                "passwd": FileNode(0, 0, 0o644, source=passwd),
+                "shadow": FileNode(0, 0, 0o000, source=shadow)
             }),
             "home": DirectoryNode(0, 0, 0o755, contents={}),
             "root": DirectoryNode(0, 0, 0o755, contents={}),
@@ -393,16 +434,46 @@ class FileSystem(object):
         hier.update_children(0, 0)
 
         with shelve.open(db_path, writeback=True) as db:
-            db[uuid.uuid5(uuid.NAMESPACE_URL, "/etc/hostname").bytes] = "hostname"
-            db[uuid.uuid5(uuid.NAMESPACE_URL, "/etc/passwd").bytes] = [
+            db[hostname] = "hostname"
+            db[passwd] = [
                 {"username": "root", "password": "x", "uid": 0, "gid": 0, "gecos": "root", "home": "/root"}
             ]
-            db[uuid.uuid5(uuid.NAMESPACE_URL, "/etc/shadow").bytes] = [
+            db[shadow] = [
                 {"username": "root", "password": "!", "changed": 0, "minimum": 0, "maximum": 99999, "warn": 7, "disable": 1, "disabled": 0}
             ]
-            db[uuid.uuid5(uuid.NAMESPACE_URL, "/boot/EFI/BOOT/BOOTX64.EFI").bytes] = ""
+            db[efi] = ""
 
         return cls(db_path, hier, "/", "/", umask)
+
+    def to_dict(self, uid, gids, recursive=True):
+        """
+        Serialise the file system to a dictionary.
+
+        :param uid:
+        :param gids:
+        :param recursive:
+        :return:
+        """
+        return {
+            "database": self._database,
+            "hierarchy": self._hierarchy.to_dict(uid, gids, recursive),
+            "root": self.root,
+            "sep": self.sep,
+            "umask": self.umask
+        }
+
+    def serialize(self, uid, gids, file_path, recursive=True):
+        """
+        Serialise the file system to a JSON file.
+
+        :param uid:
+        :param gids:
+        :param file_path:
+        :param recursive:
+        :return:
+        """
+        with gzip.open(file_path, "w") as f:
+            json.dump(self.to_dict(uid, gids, recursive), f)
 
     def _split(self, path):
         """

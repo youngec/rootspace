@@ -1,40 +1,36 @@
 # -*- coding: utf-8 -*-
 
-import gzip
 import itertools
-import pickle
+import json
+import uuid
 
 import pytest
 from rootspace.exceptions import RootspacePermissionError, RootspaceFileNotFoundError
 from rootspace.filesystem import Node, DirectoryNode, FileNode, FileSystem
 
 
-def dummy_fun():
-    return 0
-
-
-@pytest.fixture
-def test_pkl(tmpdir_factory):
-    test_pkl_path = tmpdir_factory.mktemp("filesystem").join("test.pkl.gz")
-    with gzip.open(str(test_pkl_path), "wb") as f:
-        pickle.dump("ABC", f)
-
-    return str(test_pkl_path)
-
-
-@pytest.fixture
-def test_pkl_exec(tmpdir_factory):
-    test_pkl_path = tmpdir_factory.mktemp("filesystem").join("test.pkl.gz")
-    with gzip.open(str(test_pkl_path), "wb") as f:
-        pickle.dump(dummy_fun, f)
-
-    return str(test_pkl_path)
-
-
 class TestNode(object):
     def test_instantiation(self):
         parent = Node(0, 0, 0)
         Node(0, 0, 0, parent=parent)
+
+    def test_from_dict(self):
+        s = {"uid": 0, "gid": 0, "perm": 0o755, "accessed": 0.0, "modified": 0.0, "changed": 0.0}
+        assert isinstance(Node.from_dict(s), Node)
+
+    def test_to_dict(self):
+        value = Node(0, 0, 0o755).to_dict(0, (0,))
+        assert isinstance(value, dict)
+        assert isinstance(json.dumps(value), str)
+
+    def test_serialisation(self):
+        s = {"uid": 0, "gid": 0, "perm": 0o755, "accessed": 0.0, "modified": 0.0, "changed": 0.0}
+        n = Node.from_dict(s)
+
+        assert s == n.to_dict(0, (0,))
+
+    def test_perm_str(self):
+        assert isinstance(Node(0, 0, 0)._perm_str(), str)
 
     def test_may_read(self):
         uids = (0, 1, 1000)
@@ -190,6 +186,21 @@ class TestNode(object):
 
 
 class TestDirectoryNode(object):
+    def test_from_dict(self):
+        s = {"uid": 0, "gid": 0, "perm": 0o755, "accessed": 0.0, "modified": 0.0, "changed": 0.0, "contents": {}}
+        assert isinstance(DirectoryNode.from_dict(s), Node)
+
+    def test_to_dict(self):
+        value = DirectoryNode(0, 0, 0o755).to_dict(0, (0,))
+        assert isinstance(value, dict)
+        assert isinstance(json.dumps(value), str)
+
+    def test_serialisation(self):
+        s = {"uid": 0, "gid": 0, "perm": 0o755, "accessed": 0.0, "modified": 0.0, "changed": 0.0, "contents": {}}
+        n = DirectoryNode.from_dict(s)
+
+        assert s == n.to_dict(0, (0,))
+
     def test_list_perm(self):
         uids = (0, 1, 1000)
         gids = (0, 1, 1000)
@@ -282,6 +293,23 @@ class TestDirectoryNode(object):
 
 
 class TestFileNode(object):
+    def test_from_dict(self):
+        src = str(uuid.uuid5(uuid.NAMESPACE_URL, "/path"))
+        s = {"uid": 0, "gid": 0, "perm": 0o644, "accessed": 0.0, "modified": 0.0, "changed": 0.0, "source": src}
+        assert isinstance(FileNode.from_dict(s), Node)
+
+    def test_to_dict(self):
+        value = FileNode(0, 0, 0o644).to_dict(0, (0,))
+        assert isinstance(value, dict)
+        assert isinstance(json.dumps(value), str)
+
+    def test_serialisation(self):
+        src = str(uuid.uuid5(uuid.NAMESPACE_URL, "/path"))
+        s = {"uid": 0, "gid": 0, "perm": 0o644, "accessed": 0.0, "modified": 0.0, "changed": 0.0, "source": src}
+        n = FileNode.from_dict(s)
+
+        assert s == n.to_dict(0, (0,))
+
     def test_get_source_perm(self):
         parents = (None, DirectoryNode(0, 0, 0o000), DirectoryNode(0, 0, 0o755))
         uids = (0, 1, 1000)
@@ -296,19 +324,9 @@ class TestFileNode(object):
 
     def test_get_source_value_and_signature(self):
         node = FileNode(0, 0, 0o644)
-        assert node.get_source(0, (0,)) == node._source.bytes
-        assert node.get_source(0, (0,), as_bytes=True) == node._source.bytes
-        assert node.get_source(0, (0,), as_bytes=False) == node._source
-
-
-@pytest.mark.skip()
-class TestLinkNode(object):
-    pass
-
-
-@pytest.mark.skip()
-class TestSpecialNode(object):
-    pass
+        assert node.get_source(0, (0,)) == str(node._source)
+        assert node.get_source(0, (0,), as_string=True) == str(node._source)
+        assert node.get_source(0, (0,), as_string=False) == node._source
 
 
 class TestFileSystem(object):
