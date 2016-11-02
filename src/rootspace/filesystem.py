@@ -1,20 +1,19 @@
 # -*- coding: utf-8 -*-
 
 import collections
+import copy
 import datetime
 import shelve
 import uuid
+import warnings
 import weakref
-import json
-import gzip
 
 import attr
 from attr.validators import instance_of
-import tinydb
 
 from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, \
     RootspaceNotADirectoryError, RootspacePermissionError, RootspaceFileExistsError, \
-    RootspaceIsADirectoryError
+    RootspaceIsADirectoryError, FixmeWarning
 from .executables import Executable, registry
 from .utilities import to_ref, to_uuid
 
@@ -353,6 +352,17 @@ class DirectoryNode(Node):
             raise RootspacePermissionError()
 
     def move_node(self, uid, gids, old_name, new_parent, new_name, replace=True):
+        """
+        Move a node from one directory to the next.
+
+        :param uid:
+        :param gids:
+        :param old_name:
+        :param new_parent:
+        :param new_name:
+        :param replace:
+        :return:
+        """
         if isinstance(new_parent, Node):
             if old_name in self._contents:
                 new_parent.insert_node(uid, gids, new_name, self._contents[old_name], replace)
@@ -360,8 +370,29 @@ class DirectoryNode(Node):
             else:
                 raise RootspaceFileNotFoundError()
         else:
-           raise TypeError("Expected 'new_parent' to be a Node.")
- 
+            raise TypeError("Expected 'new_parent' to be a Node.")
+
+    def copy_node(self, uid, gids, old_name, new_parent, new_name, replace=True):
+        """
+        Copy a node to another directory.
+
+        :param uid:
+        :param gids:
+        :param old_name:
+        :param new_parent:
+        :param new_name:
+        :param replace:
+        :return:
+        """
+        if isinstance(new_parent, Node):
+            if old_name in self._contents:
+                node_copy = copy.deepcopy(self._contents[old_name])
+                new_parent.insert_node(uid, gids, new_name, node_copy, replace)
+            else:
+                raise RootspaceFileNotFoundError()
+        else:
+            raise TypeError("Expected 'new_parent' to be a Node.")
+
 
 @attr.s
 class FileNode(Node):
@@ -369,7 +400,7 @@ class FileNode(Node):
 
     def to_dict(self, uid, gids, recursive=True):
         serialised = super(FileNode, self).to_dict(uid, gids)
-        
+
         if self._parent is None or self._parent().may_execute(uid, gids):
             serialised["source"] = str(self._source)
         else:
@@ -561,6 +592,8 @@ class FileSystem(object):
         """
         Given a list of search paths, try to find all occurrences of the specified node name.
 
+        :param uid:
+        :param gids:
         :param search_paths:
         :param node_name:
         :return:
@@ -638,6 +671,30 @@ class FileSystem(object):
 
         if isinstance(source_parent, DirectoryNode):
             source_parent.move_node(uid, gids, source_name, target_parent, target_name, replace)
+        else:
+            raise RootspaceNotADirectoryError()
+
+    def copy_node(self, uid, gids, source_path, target_path, replace=True):
+        """
+        Copy the Node from the source to the target path.
+
+        :param uid:
+        :param gids:
+        :param source_path:
+        :param target_path:
+        :param replace:
+        :return:
+        """
+        warnings.warn("The method copy_node currently does not copy the file contents.", FixmeWarning)
+
+        source_parent_path, source_name = self._separate(source_path)
+        target_parent_path, target_name = self._separate(target_path)
+
+        (source_parent, _) = self._find_node(uid, gids, source_parent_path)
+        (target_parent, _) = self._find_node(uid, gids, target_parent_path)
+
+        if isinstance(source_parent, DirectoryNode):
+            source_parent.copy_node(uid, gids, source_name, target_parent, target_name, replace)
         else:
             raise RootspaceNotADirectoryError()
 

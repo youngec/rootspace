@@ -3,10 +3,9 @@
 import itertools
 import json
 import uuid
-import warnings
 
 import pytest
-from rootspace.exceptions import RootspacePermissionError, RootspaceFileNotFoundError, FixmeWarning
+from rootspace.exceptions import RootspacePermissionError, RootspaceFileNotFoundError
 from rootspace.filesystem import Node, DirectoryNode, FileNode, FileSystem
 
 
@@ -331,18 +330,21 @@ class TestFileNode(object):
 
 
 class TestFileSystem(object):
+    @pytest.mark.skip
     def test_generate_unix(self, tmpdir):
         assert isinstance(FileSystem.generate_unix(str(tmpdir.join("db"))), FileSystem)
 
-    def test_split_input(self):
-        warnings.warn("This test needs to fuzz the split method.", FixmeWarning)
-        FileSystem("")._split("/")
-
-    def test_split_value(self):
-        warnings.warn("This test needs to fuzz the separate method.", FixmeWarning)
-        value = FileSystem("")._split("/")
-        assert isinstance(value, tuple)
-        assert all(isinstance(el, str) for el in value) or len(value) == 0
+    @pytest.mark.parametrize(("path", "expected"), (
+        ("/directory/basename/", ("directory", "basename")),
+        ("//directory/basename", ("directory", "basename")),
+        ("/directory//basename", ("directory", "basename")),
+        ("/path/to/basename", ("path", "to", "basename")),
+        ("/directory/basename", ("directory", "basename")),
+        ("/basename", ("basename",)),
+        ("/", tuple())
+    ))
+    def test_split(self, path, expected):
+        assert FileSystem("")._split(path) == expected
 
     def test_separate_calls(self, mocker):
         mocker.patch("rootspace.filesystem.FileSystem._split")
@@ -354,7 +356,12 @@ class TestFileSystem(object):
         fs._split.assert_called_once_with(input_path)
 
     @pytest.mark.parametrize(("path", "expected"), (
+        ("/directory/basename/", ("/directory", "basename")),
+        ("//directory/basename", ("/directory", "basename")),
+        ("/directory//basename", ("/directory", "basename")),
+        ("/path/to/basename", ("/path/to", "basename")),
         ("/directory/basename", ("/directory", "basename")),
+        ("/basename", ("/", "basename")),
         ("/", ("/", ""))
     ))
     def test_separate_value(self, path, expected):
