@@ -10,11 +10,12 @@ import gzip
 
 import attr
 from attr.validators import instance_of
+import tinydb
 
 from .exceptions import RootspaceNotAnExecutableError, RootspaceFileNotFoundError, \
     RootspaceNotADirectoryError, RootspacePermissionError, RootspaceFileExistsError, \
     RootspaceIsADirectoryError
-from .executables import Executable
+from .executables import Executable, registry
 from .utilities import to_ref, to_uuid
 
 
@@ -26,6 +27,7 @@ class Node(object):
     _uid = attr.ib(validator=instance_of(int))
     _gid = attr.ib(validator=instance_of(int))
     _perm = attr.ib(validator=instance_of(int))
+    _uuid = attr.ib(default=uuid.uuid4(), validator=instance_of(uuid.UUID))
     _parent = attr.ib(default=None, validator=instance_of((type(None), weakref.ReferenceType)), convert=to_ref)
     _accessed = attr.ib(default=0.0, validator=instance_of(float))
     _modified = attr.ib(default=0.0, validator=instance_of(float))
@@ -40,6 +42,10 @@ class Node(object):
         :return:
         """
         return cls(**serialised)
+
+    @property
+    def uuid(self):
+        return self._uuid
 
     def to_dict(self, uid, gids, recursive=True):
         """
@@ -391,8 +397,8 @@ class FileNode(Node):
 
 @attr.s
 class FileSystem(object):
-    _database = attr.ib(validator=instance_of(str))
-    _hierarchy = attr.ib(default=DirectoryNode(0, 0, 0o755), validator=instance_of(Node))
+    _db = attr.ib(validator=instance_of(str))
+    _hier = attr.ib(default=DirectoryNode(0, 0, 0o755), validator=instance_of(Node))
     root = attr.ib(default="/", validator=instance_of(str))
     sep = attr.ib(default="/", validator=instance_of(str))
     umask = attr.ib(default=0o022, validator=instance_of(int))
@@ -455,25 +461,12 @@ class FileSystem(object):
         :return:
         """
         return {
-            "database": self._database,
-            "hierarchy": self._hierarchy.to_dict(uid, gids, recursive),
+            "db": self._db,
+            "hier": self._hier.to_dict(uid, gids, recursive),
             "root": self.root,
             "sep": self.sep,
             "umask": self.umask
         }
-
-    def serialize(self, uid, gids, file_path, recursive=True):
-        """
-        Serialise the file system to a JSON file.
-
-        :param uid:
-        :param gids:
-        :param file_path:
-        :param recursive:
-        :return:
-        """
-        with gzip.open(file_path, "w") as f:
-            json.dump(self.to_dict(uid, gids, recursive), f)
 
     def _split(self, path):
         """
@@ -497,7 +490,10 @@ class FileSystem(object):
         :return:
         """
         path_parts = self._split(path)
-        return self.sep.join(path_parts[:-2]), path_parts[-1]
+        if len(path_parts) > 0:
+            return self.root + self.sep.join(path_parts[:-1]), path_parts[-1]
+        else:
+            return self.root, ""
 
     def _get_child_node(self, uid, gids, parent_node, child_name):
         """
@@ -530,7 +526,7 @@ class FileSystem(object):
         :return:
         """
         path_parts = self._split(path)
-        parent_node = self._hierarchy
+        parent_node = self._hier
         try:
             for i, node_name in enumerate(path_parts):
                 child_node = self._get_child_node(uid, gids, parent_node, node_name)
@@ -553,7 +549,7 @@ class FileSystem(object):
         :return:
         """
         path_parts = self._split(path)
-        parent_node = self._hierarchy
+        parent_node = self._hier
         for i, node_name in enumerate(path_parts):
             child_node = self._get_child_node(uid, gids, parent_node, node_name)
             if i == len(path_parts) - 1:
@@ -654,7 +650,7 @@ class FileSystem(object):
         if target.may_read(uid, gids):
             if isinstance(target, FileNode):
                 target_source = target.get_source(uid, gids)
-                with shelve.open(self._database) as db:
+                with shelve.open(self._db) as db:
                     if target_source in db:
                         return db[target_source]
                     else:
@@ -673,7 +669,7 @@ class FileSystem(object):
         if target.may_write(uid, gids):
             if isinstance(target, FileNode):
                 target_source = target.get_source(uid, gids)
-                with shelve.open(self._database) as db:
+                with shelve.open(self._db) as db:
                     db[target_source] = data
                     db.sync()
             else:
@@ -690,14 +686,17 @@ class FileSystem(object):
         if target.may_execute(uid, gids):
             if isinstance(target, FileNode):
                 target_source = target.get_source(uid, gids)
-                with shelve.open(self._database) as db:
-                    if target_source in db:
-                        if issubclass(db[target_source], Executable):
-                            return db[target_source](arguments, context)
+                if target_source in registry:
+                    return registry[target_source](arguments, context)
+                else:
+                    with shelve.open(self._db) as db:
+                        if target_source in db:
+                            if issubclass(db[target_source], Executable):
+                                return db[target_source](arguments, context)
+                            else:
+                                raise RootspaceNotAnExecutableError()
                         else:
                             raise RootspaceNotAnExecutableError()
-                    else:
-                        return None
             else:
                 raise RootspaceIsADirectoryError()
         else:
