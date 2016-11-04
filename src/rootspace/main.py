@@ -41,7 +41,8 @@ def main(verbose, debug, profile):
             log_level = logging.ERROR
 
     # Configure the logging system.
-    root_logger = logging.getLogger("rootspace")
+    warnings.simplefilter("default")
+    logging.captureWarnings(True)
     logging_default_handler = logging.StreamHandler()
     logging_default_handler.setLevel(log_level)
     logging_default_formatter = colorlog.ColoredFormatter(
@@ -49,12 +50,16 @@ def main(verbose, debug, profile):
         style="{"
     )
     logging_default_handler.setFormatter(logging_default_formatter)
+
+    # Configure the rootspace logger
+    root_logger = logging.getLogger("rootspace")
     root_logger.addHandler(logging_default_handler)
     root_logger.setLevel(log_level)
 
-    # TODO: Why does captureWarnings suppress warnings?
-    # logging.captureWarnings(True)
-    warnings.simplefilter("default")
+    # Configure the warnings logger
+    py_warnings = logging.getLogger("py.warnings")
+    py_warnings.addHandler(logging_default_handler)
+    py_warnings.setLevel(log_level)
 
     # Create the project
     user_home = os.path.expanduser("~")
