@@ -6,11 +6,117 @@ import shelve
 
 import attr
 import sdl2.video
+import sdl2.render
 from attr.validators import instance_of
 
 from .entities import LocalComputer
 from .systems import DisplaySystem, DisplayInterpreterSystem, TextInputSystem, ShellSystem
+from .worlds import World
 from .utilities import merge_configurations
+
+
+@attr.s
+class NewProject(object):
+    """
+    The project is used by the Engine to set the main loop parameters,
+    the systems, entities, resources, states, etc.
+    """
+    State = collections.namedtuple("State", ("systems", "entities"))
+
+    _name = attr.ib(validator=instance_of(str))
+    _resources_root = attr.ib(validator=instance_of(str))
+    _states_root = attr.ib(validator=instance_of(str))
+    _debug = attr.ib(validator=instance_of(bool))
+    _world = attr.ib(validator=instance_of(World))
+    _renderer = attr.ib(validator=instance_of(sdl2.render.SDL_Renderer)
+
+    @classmethod
+    def create(cls, name, user_home, engine_location, world, renderer, debug=False):
+        """
+        Create a new project instance.
+
+        :param name:
+        :param user_home:
+        :param engine_location:
+        :return:
+        """
+        config_dir = ".config"
+        resources_dir = "resources"
+
+        resources_path = os.path.join(engine_location, resources_dir, name)
+        states_path = os.path.join(user_home, config_dir, name)
+
+        if not os.path.exists(resources_path):
+            raise FileNotFoundError(resources_path)
+        elif not os.path.isdir(resources_path):
+            raise NotADirectoryError(resources_path)
+
+        if not os.path.exists(states_path):
+            os.makedirs(states_path)
+
+        return cls(name, resources_path, states_path, world, renderer, debug)
+
+    def load_state(self, state_name=None):
+        """
+        Load the specified state. If none is specified, create the initial state.
+
+        :param state_name:
+        :return:
+        """
+        if state_name is None:
+            return self._init_state()
+        elif isinstance(state_name, str):
+            return self._load_state(state_name)
+        else:
+            raise TypeError("The parameter 'state_name' must be None or a string.")
+
+    def save_state(self, state, state_name):
+        """
+        Save the specified state under the specified name.
+
+        :param state:
+        :param state_name:
+        :return:
+        """
+        if isinstance(state_name, str):
+            if isinstance(state, NewProject.State):
+                self._save_state(state, state_name)
+            else:
+                raise TypeError("The parameter 'state' must be a NewProject.State instance.")
+        else:
+            raise TypeError("The parameter 'state_name' must be a string.")
+
+    def _load_state(self, state_name):
+        """
+        Load the state with the specified name.
+
+        :param state_name:
+        :return:
+        """
+        state_file = os.path.join(self._states_root, state_name)
+        with gzip.open(state_file, "rt") as sf:
+            state_serialised = json.load(sf)
+            return NewProject.State(**state_serialised)
+
+    def _save_state(self, state, state_name):
+        """
+        Load the state with the specified name.
+
+        :param state:
+        :param state_name:
+        :return:
+        """
+        state_file = os.path.join(self._states_root, state_name)
+        with gzip.open(state_file, "wb") as sf:
+            json.dump(state._asdict(), sf)
+
+    def _init_state(self):
+        """
+        Load the initial state.
+
+        :return:
+        """
+        pass
 
 
 @attr.s

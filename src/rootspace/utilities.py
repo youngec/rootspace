@@ -7,6 +7,8 @@ import re
 import weakref
 import uuid
 
+import click
+
 from .exceptions import SetupError
 
 __docformat__ = 'restructuredtext'
@@ -124,3 +126,29 @@ def to_uuid(value):
         return None
     else:
         raise TypeError("Expected 'value' to be either a UUID, a string or None.")
+
+def get_log_level(verbose, debug):
+    """
+    Determine the logging level from the verbose and debug flags.
+
+    :param verbose:
+    :param debug:
+    :return:
+    """
+    if debug:
+        log_level = logging.DEBUG
+    else:
+        if verbose == 0:
+            log_level = logging.ERROR
+        elif verbose == 1:
+            log_level = logging.WARN
+        elif verbose == 2:
+            log_level = logging.INFO
+        elif verbose == 3:
+            log_level = logging.DEBUG
+        else:
+            click.echo("Only four verbosity levels are understood: 0, 1, 2 and 3.")
+            log_level = logging.ERROR
+
+    return log_level
+

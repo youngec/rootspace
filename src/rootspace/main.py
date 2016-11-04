@@ -12,6 +12,7 @@ import colorlog
 from ._version import get_versions
 from .core import Engine
 from .projects import RootSpace
+from .utilities import get_log_level
 
 
 @click.command()
@@ -24,23 +25,8 @@ def main(verbose, debug, profile):
     Start a game using the rootspace game engine.
     Command line parameters take precedence over configuration values.
     """
-    # Determine the log level.
-    if debug:
-        log_level = logging.DEBUG
-    else:
-        if verbose == 0:
-            log_level = logging.ERROR
-        elif verbose == 1:
-            log_level = logging.WARN
-        elif verbose == 2:
-            log_level = logging.INFO
-        elif verbose == 3:
-            log_level = logging.DEBUG
-        else:
-            click.echo("Only four verbosity levels are understood: 0, 1, 2 and 3.")
-            log_level = logging.ERROR
-
     # Configure the logging system.
+    log_level = get_log_level(verbose, debug)
     warnings.simplefilter("default")
     logging.captureWarnings(True)
     logging_default_handler = logging.StreamHandler()
@@ -61,10 +47,12 @@ def main(verbose, debug, profile):
     py_warnings.addHandler(logging_default_handler)
     py_warnings.setLevel(log_level)
 
-    # Create the project
+    # Determine the location of the user home directory and the engine
     user_home = os.path.expanduser("~")
-    config_dir = os.path.join(user_home, ".config", "rootspace")
     engine_location = os.path.dirname(os.path.realpath(__file__))
+
+    # Create the project
+    config_dir = os.path.join(user_home, ".config", "rootspace")
     resource_path = os.path.join(engine_location, "resources", "rootspace")
     state_path = os.path.join(config_dir, "state-data")
     config_path = os.path.join(config_dir, "config.ini")
