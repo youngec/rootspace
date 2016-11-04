@@ -84,44 +84,13 @@ class Entity(object):
 
 
 @attr.s
-class Computer(Entity):
+class LocalComputer(Entity):
     """
-    Define an entity that models a computer.
+    Define an entity that models the local computer.
     """
     machine_state = attr.ib(validator=instance_of(MachineState), hash=False)
     network_state = attr.ib(validator=instance_of(NetworkState), hash=False)
     file_system = attr.ib(validator=instance_of(FileSystem), hash=False)
-
-    @classmethod
-    def create(cls, world, **kwargs):
-        """
-        Create a computer.
-
-        :param world:
-        :param kwargs:
-        :return:
-        """
-        inst = super(Computer, cls).create(
-            world=world,
-            machine_state=MachineState(),
-            network_state=NetworkState(),
-            file_system=FileSystem(),
-            **kwargs
-        )
-
-        # Register the components
-        inst.register_component(inst.machine_state)
-        inst.register_component(inst.network_state)
-        inst.register_component(inst.file_system)
-
-        return inst
-
-
-@attr.s
-class LocalComputer(Computer):
-    """
-    Define an entity that models the local computer.
-    """
     sprite = attr.ib(validator=instance_of(Sprite), hash=False)
     terminal_display_buffer = attr.ib(validator=instance_of(DisplayBuffer), hash=False)
     input_output_stream = attr.ib(validator=instance_of(InputOutputStream), hash=False)
@@ -139,11 +108,16 @@ class LocalComputer(Computer):
         position = (50, 50)
         display_shape = (700, 500)
         text_matrix_shape = (24, 80)
+        resource_manager = kwargs.pop("resource_manager")
+        db_path = resource_manager.get_path("local_computer.db")
         args = {k: kwargs.pop(k) for k in ("depth", "renderer", "pixel_format", "bpp", "masks") if
                 k in kwargs}
 
         inst = super(LocalComputer, cls).create(
             world=world,
+            machine_state=MachineState(),
+            network_state=NetworkState(),
+            file_system=FileSystem(db_path),
             sprite=Sprite.create(position, display_shape, access=sdl2.render.SDL_TEXTUREACCESS_TARGET, **args),
             terminal_display_buffer=DisplayBuffer.create(text_matrix_shape),
             input_output_stream=InputOutputStream(),
@@ -152,6 +126,9 @@ class LocalComputer(Computer):
         )
 
         # Register the components
+        inst.register_component(inst.machine_state)
+        inst.register_component(inst.network_state)
+        inst.register_component(inst.file_system)
         inst.register_component(inst.sprite)
         inst.register_component(inst.terminal_display_buffer)
         inst.register_component(inst.input_output_stream)

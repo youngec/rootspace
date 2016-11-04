@@ -130,7 +130,7 @@ class RootSpace(Project):
                 ShellSystem.create()
             )
             ent = (
-                LocalComputer.create(world, renderer=renderer),
+                LocalComputer.create(world, resource_manager=resource_manager, renderer=renderer),
             )
             systems.extend(sys)
             entities.extend(ent)
