@@ -63,10 +63,12 @@ def main(verbose, debug, profile):
 
     # Create the project
     user_home = os.path.expanduser("~")
+    config_dir = os.path.join(user_home, ".config", "rootspace")
     engine_location = os.path.dirname(os.path.realpath(__file__))
     resource_path = os.path.join(engine_location, "resources", "rootspace")
-    config_path = os.path.join(user_home, ".config", "rootspace", "config.ini")
-    project = RootSpace.create(resource_path, config_path=config_path, debug=debug)
+    state_path = os.path.join(config_dir, "state-data")
+    config_path = os.path.join(config_dir, "config.ini")
+    project = RootSpace.create(resource_path, state_path, config_path=config_path, debug=debug)
 
     # Create the engine instance
     engine = Engine(project, debug)

@@ -96,7 +96,7 @@ class Engine(object):
         self._dbg("Creating the initial scene.")
         ctx["systems"] = list()
         ctx["entities"] = list()
-        self._project.load_scene(ctx["world"], ctx["renderer"].sdlrenderer, ctx["resources"], ctx["systems"],
+        self._project.load_state(ctx["world"], ctx["renderer"].sdlrenderer, ctx["resources"], ctx["systems"],
                                  ctx["entities"])
         ctx["systems"].append(SpriteRenderSystem.create(ctx["renderer"].sdlrenderer))
 
