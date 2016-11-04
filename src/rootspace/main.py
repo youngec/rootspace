@@ -52,13 +52,6 @@ def main(verbose, debug, profile):
     root_logger.addHandler(logging_default_handler)
     root_logger.setLevel(log_level)
 
-    root_logger.debug("Hi there!")
-    root_logger.info("Hi there!")
-    root_logger.warn("Hi there!")
-    root_logger.error("Hi there!")
-    root_logger.critical("Hi there!")
-    return
-
     # TODO: Why does captureWarnings suppress warnings?
     # logging.captureWarnings(True)
     warnings.simplefilter("default")
