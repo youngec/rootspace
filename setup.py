@@ -80,6 +80,7 @@ if __name__ == "__main__":
         platforms="any",
         install_requires=[
             "click",
+            "colorlog",
             "attrs",
             "numpy",
             "pysdl2",
