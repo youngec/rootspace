@@ -7,6 +7,7 @@ import sys
 import warnings
 
 import click
+import colorlog
 
 from ._version import get_versions
 from .core import Engine
@@ -24,28 +25,39 @@ def main(verbose, debug, profile):
     Command line parameters take precedence over configuration values.
     """
     # Determine the log level.
-    if verbose == 0:
-        log_level = logging.ERROR
-    elif verbose == 1:
-        log_level = logging.WARN
-    elif verbose == 2:
-        log_level = logging.INFO
-    elif verbose == 3 or debug:
+    if debug:
         log_level = logging.DEBUG
     else:
-        click.echo("Only four verbosity levels are understood: 0, 1, 2 and 3.")
-        log_level = logging.ERROR
+        if verbose == 0:
+            log_level = logging.ERROR
+        elif verbose == 1:
+            log_level = logging.WARN
+        elif verbose == 2:
+            log_level = logging.INFO
+        elif verbose == 3:
+            log_level = logging.DEBUG
+        else:
+            click.echo("Only four verbosity levels are understood: 0, 1, 2 and 3.")
+            log_level = logging.ERROR
 
     # Configure the logging system.
     root_logger = logging.getLogger("rootspace")
     logging_default_handler = logging.StreamHandler()
     logging_default_handler.setLevel(log_level)
-    logging_default_formatter = logging.Formatter(
-        fmt="[%(levelname)s:%(name)s] %(message)s"
+    logging_default_formatter = colorlog.ColoredFormatter(
+        "{log_color}{levelname:8s}{reset} @{white}{name}{reset}: {log_color}{message}{reset}",
+        style="{"
     )
     logging_default_handler.setFormatter(logging_default_formatter)
     root_logger.addHandler(logging_default_handler)
     root_logger.setLevel(log_level)
+
+    root_logger.debug("Hi there!")
+    root_logger.info("Hi there!")
+    root_logger.warn("Hi there!")
+    root_logger.error("Hi there!")
+    root_logger.critical("Hi there!")
+    return
 
     # TODO: Why does captureWarnings suppress warnings?
     # logging.captureWarnings(True)
