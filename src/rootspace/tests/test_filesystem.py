@@ -367,3 +367,38 @@ class TestFileSystem(object):
     def test_separate_value(self, path, expected):
         assert FileSystem("")._separate(path) == expected
 
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_get_child_node_perm(self):
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_get_child_node_badparent(self):
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_get_child_node_badchild(self):
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_get_child_node_value(self):
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_find_node_calls(self, mocker):
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_find_node_value(self):
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_create_node_calls_dir(self):
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_create_node_calls_file(self):
+        raise NotImplementedError()
+
+    @pytest.mark.xfail(raises=NotImplementedError)
+    def test_create_node_badparent(self):
+        raise NotImplementedError()
