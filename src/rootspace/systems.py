@@ -451,9 +451,4 @@ class ShellSystem(UpdateSystem):
         :param context:
         :return:
         """
-        arguments = line_buffer.split(self._keyword_separator)
-        fs = context["fs"]
-        env = context["env"]
-        cmd_paths = fs.find_path(env.uid, env.gids, env.path, arguments[0])
-        if len(cmd_paths) > 0:
-            raise NotImplementedError("Cannot execute commands yet.")
+        raise NotImplementedError("Cannot interpret commands yet.")

@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import configparser
+import logging
 import os.path
 import re
-import weakref
 import uuid
+import weakref
 
 import click
 
@@ -126,6 +127,7 @@ def to_uuid(value):
         return None
     else:
         raise TypeError("Expected 'value' to be either a UUID, a string or None.")
+
 
 def get_log_level(verbose, debug):
     """

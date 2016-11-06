@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 
 import abc
+import collections
+import gzip
+import json
 import os.path
 import shelve
 
 import attr
-import sdl2.video
 import sdl2.render
+import sdl2.video
 from attr.validators import instance_of
 
 from .entities import LocalComputer
 from .systems import DisplaySystem, DisplayInterpreterSystem, TextInputSystem, ShellSystem
-from .worlds import World
 from .utilities import merge_configurations
+from .worlds import World
 
 
 @attr.s
@@ -28,7 +31,7 @@ class NewProject(object):
     _states_root = attr.ib(validator=instance_of(str))
     _debug = attr.ib(validator=instance_of(bool))
     _world = attr.ib(validator=instance_of(World))
-    _renderer = attr.ib(validator=instance_of(sdl2.render.SDL_Renderer)
+    _renderer = attr.ib(validator=instance_of(sdl2.render.SDL_Renderer))
 
     @classmethod
     def create(cls, name, user_home, engine_location, world, renderer, debug=False):
@@ -197,7 +200,7 @@ class Project(object, metaclass=abc.ABCMeta):
         # Create the state directory if it's not already present
         if not os.path.exists(state_path):
             os.makedirs(state_path)
-            
+
         # Define configuration search paths (giving precedence to user configurations)
         cfg_paths = (
             config_path,
@@ -268,7 +271,7 @@ class RootSpace(Project):
 
         systems.extend(self._systems)
         entities.extend(self._entities)
-    
+
     def save_state(self, state_name):
         state_file = os.path.join(self._configuration["state_path"], state_name)
         with shelve.open(state_file) as db:
