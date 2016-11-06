@@ -51,6 +51,42 @@ class UpdateSystem(object, metaclass=abc.ABCMeta):
         """
         pass
 
+    @classmethod
+    def get_logger(cls):
+        """
+        Get the logger that best describes the specified class.
+
+        :return:
+        """
+        return logging.getLogger("{}.{}".format(__name__, cls.__name__))
+
+    def _dbg(self, message):
+        """
+        Send a debug message.
+
+        :param message:
+        :return:
+        """
+        self._log.debug(message)
+
+    def _nfo(self, message):
+        """
+        Send an info message.
+
+        :param message:
+        :return:
+        """
+        self._log.info(message)
+
+    def _wrn(self, message):
+        """
+        Send a warning message.
+
+        :param message:
+        :return:
+        """
+        self._log.warn(message)
+
 
 @attr.s
 class RenderSystem(object, metaclass=abc.ABCMeta):
@@ -80,6 +116,42 @@ class RenderSystem(object, metaclass=abc.ABCMeta):
         :return:
         """
         pass
+
+    @classmethod
+    def get_logger(cls):
+        """
+        Get the logger that best describes the specified class.
+
+        :return:
+        """
+        return logging.getLogger("{}.{}".format(__name__, cls.__name__))
+
+    def _dbg(self, message):
+        """
+        Send a debug message.
+
+        :param message:
+        :return:
+        """
+        self._log.debug(message)
+
+    def _nfo(self, message):
+        """
+        Send an info message.
+
+        :param message:
+        :return:
+        """
+        self._log.info(message)
+
+    def _wrn(self, message):
+        """
+        Send a warning message.
+
+        :param message:
+        :return:
+        """
+        self._log.warn(message)
 
 
 @attr.s
@@ -112,6 +184,42 @@ class EventSystem(object, metaclass=abc.ABCMeta):
         """
         pass
 
+    @classmethod
+    def get_logger(cls):
+        """
+        Get the logger that best describes the specified class.
+
+        :return:
+        """
+        return logging.getLogger("{}.{}".format(__name__, cls.__name__))
+
+    def _dbg(self, message):
+        """
+        Send a debug message.
+
+        :param message:
+        :return:
+        """
+        self._log.debug(message)
+
+    def _nfo(self, message):
+        """
+        Send an info message.
+
+        :param message:
+        :return:
+        """
+        self._log.info(message)
+
+    def _wrn(self, message):
+        """
+        Send a warning message.
+
+        :param message:
+        :return:
+        """
+        self._log.warn(message)
+
 
 @attr.s
 class SpriteRenderSystem(RenderSystem):
@@ -128,7 +236,7 @@ class SpriteRenderSystem(RenderSystem):
             is_applicator=False,
             sort_func=lambda e: e.depth,
             renderer=renderer.contents,
-            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
+            log=cls.get_logger()
         )
 
     def render(self, world, components):
@@ -190,7 +298,7 @@ class DisplaySystem(UpdateSystem):
             font_color=color,
             font_size=font_size,
             renderer=renderer.contents,
-            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
+            log=cls.get_logger()
         )
 
     def update(self, time, delta_time, world, components):
@@ -287,7 +395,7 @@ class DisplayInterpreterSystem(UpdateSystem):
             is_applicator=True,
             tab_width=4,
             encoding=encoding,
-            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
+            log=cls.get_logger()
         )
 
     def update(self, time, delta_time, world, components):
@@ -367,7 +475,7 @@ class TextInputSystem(EventSystem):
             is_applicator=True,
             event_types=(SDL_TEXTINPUT, SDL_TEXTEDITING, SDL_KEYDOWN, SDL_KEYUP),
             encoding=encoding,
-            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
+            log=cls.get_logger()
         )
 
     def dispatch(self, event, world, components):
@@ -420,7 +528,7 @@ class ShellSystem(UpdateSystem):
             keyword_separator=b" ",
             line_separator=b"\n",
             encoding=encoding,
-            log=logging.getLogger("{}.{}".format(__name__, __class__.__name__))
+            log=cls.get_logger()
         )
 
     def update(self, time, delta_time, world, components):
