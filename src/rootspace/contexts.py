@@ -1,24 +1,20 @@
 # -*- coding: utf-8 -*-
 
-import abc
 import collections
-import gzip
 import json
 import os.path
-import shelve
 import shutil
 import logging
 
 import attr
 import sdl2.render
+import sdl2.sdlttf
 import sdl2.ext
 from sdl2.video import SDL_WINDOW_SHOWN, SDL_WINDOW_RESIZABLE
 from attr.validators import instance_of
 
-from .entities import LocalComputer
-from .systems import DisplaySystem, DisplayInterpreterSystem, TextInputSystem, ShellSystem
-from .utilities import merge_configurations
 from .worlds import World
+from .exceptions import SDLTTFError
 
 
 @attr.s
@@ -29,7 +25,7 @@ class Context(object):
     """
     Data = collections.namedtuple("Data", (
         "delta_time", "max_frame_duration", "epsilon", "window_title", "window_shape",
-        "window_flags", "render_scale_quality", "render_color", "window", "renderer", "world"
+        "window_flags", "render_scale_quality", "render_color"
     ))
 
     default_ctx = Data(
@@ -40,10 +36,7 @@ class Context(object):
         window_shape=(800, 600),
         window_flags=(SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE),
         render_scale_quality=b"0",
-        render_color=(0, 0, 0, 1),
-        window=None,
-        renderer=None,
-        world=None
+        render_color=(0, 0, 0, 1)
     )
     default_config_dir = ".config"
     default_resources_dir = "resources"
@@ -52,7 +45,10 @@ class Context(object):
     _name = attr.ib(validator=instance_of(str))
     _resources_root = attr.ib(validator=instance_of(str))
     _states_root = attr.ib(validator=instance_of(str))
-    _ctx = attr.ib(validator=instance_of(Data), repr=False)
+    _data = attr.ib(validator=instance_of(Data), repr=False)
+    _window = attr.ib(validator=instance_of((type(None), sdl2.ext.Window)))
+    _renderer = attr.ib(validator=instance_of((type(None), sdl2.ext.Renderer)))
+    _world = attr.ib(validator=instance_of((type(None), World)))
     _debug = attr.ib(validator=instance_of(bool))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
 
@@ -94,7 +90,7 @@ class Context(object):
         # Create the logger
         log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
 
-        return cls(name, resources_path, states_path, ctx, debug, log)
+        return cls(name, resources_path, states_path, ctx, None, None, None, debug, log)
 
     @property
     def data(self):
@@ -103,7 +99,34 @@ class Context(object):
 
         :return:
         """
-        return self._ctx
+        return self._data
+
+    @property
+    def window(self):
+        """
+        Return a reference to the Window or None.
+
+        :return:
+        """
+        return self._window
+
+    @property
+    def renderer(self):
+        """
+        Return a reference to the Renderer or None.
+
+        :return:
+        """
+        return self._renderer
+
+    @property
+    def world(self):
+        """
+        Return a reference to the World or None.
+
+        :return:
+        """
+        return self._world
 
     def _dbg(self, message):
         """
@@ -135,7 +158,7 @@ class Context(object):
     def __enter__(self):
         """
         Enter the context provided by this instance.
-        
+
         :return:
         """
         self._nfo("Initializing all components of the project.")
@@ -150,22 +173,22 @@ class Context(object):
 
         # Create the Window
         self._dbg("Creating the window.")
-        self._ctx.window = sdl2.ext.Window(
-            self._ctx.window_title,
-            self._ctx.window_shape,
-            flags=self._ctx.window_flags
+        self._window = sdl2.ext.Window(
+            self._data.window_title,
+            self._data.window_shape,
+            flags=self._data.window_flags
         )
 
         # Create the Renderer
         self._dbg("Creating the renderer.")
-        sdl2.SDL_SetHint(sdl2.SDL_HINT_RENDER_SCALE_QUALITY, self._ctx.render_scale_quality)
-        self._ctx.renderer = sdl2.ext.Renderer(self._ctx.window)
-        sdl2.SDL_RenderSetLogicalSize(self._ctx.renderer.sdlrenderer, *self._ctx.window_shape)
-        self._ctx.renderer.color = sdl2.ext.Color(*self._ctx.render_color)
+        sdl2.SDL_SetHint(sdl2.SDL_HINT_RENDER_SCALE_QUALITY, self._data.render_scale_quality)
+        self._renderer = sdl2.ext.Renderer(self._window)
+        sdl2.SDL_RenderSetLogicalSize(self._renderer.sdlrenderer, *self._data.window_shape)
+        self._renderer.color = sdl2.ext.Color(*self._data.render_color)
 
         # Create the World
         self._dbg("Creating the world.")
-        self._ctx.world = World()
+        self._world = World()
 
         return self
 
@@ -176,11 +199,6 @@ class Context(object):
         :param exc:
         :return:
         """
-        try:
-            self._nfo("Closing down SDL2.")
-            sdl2.ext.quit()
-        except Exception:
-            return True
-        else:
-            return False
-
+        self._nfo("Closing down SDL2.")
+        sdl2.ext.quit()
+        return False
