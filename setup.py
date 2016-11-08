@@ -51,9 +51,12 @@ if __name__ == "__main__":
     pkg_resources.working_set.add_entry("setup-requires")
 
     try:
+        pip_call = [
+            sys.executable, "-m", "pip", "install", "-t", "setup-requires"
+        ]
         to_install = list(get_requirements())
         if to_install:
-            subprocess.call([sys.executable, "-m", "pip", "install", "-t", "setup-requires"] + to_install)
+            subprocess.call(pip_call + to_install)
 
     except (configparser.NoSectionError, configparser.NoOptionError):
         pass
@@ -98,7 +101,7 @@ if __name__ == "__main__":
                 "rootspace = rootspace.main:main"
             ]
         },
-        packages=find_packages(where="src", exclude=("historical", "tests", "specs")),
+        packages=find_packages(where="src"),
         package_dir={"": "src"},
         package_data={
             "rootspace": ["config.ini", "keymap.ini"]
