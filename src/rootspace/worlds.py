@@ -2,6 +2,8 @@
 
 import collections
 import inspect
+import logging
+import weakref
 
 import attr
 from attr.validators import instance_of
@@ -34,6 +36,7 @@ class World(object):
     The order in which data is processed depends on the order of the
     added systems.
     """
+    _ctx = attr.ib(validator=instance_of(weakref.ReferenceType))
     _entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
     _components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
     _systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
@@ -41,6 +44,20 @@ class World(object):
     _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+    _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
+
+    @classmethod
+    def create(cls, ctx):
+        """
+        Create a World from a given context.
+
+        :param ctx:
+        :return:
+        """
+        ctx = weakref.ref(ctx)
+        log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
+
+        return cls(ctx, log=log)
 
     def combined_components(self, comp_types):
         """

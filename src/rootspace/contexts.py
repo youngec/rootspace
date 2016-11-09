@@ -203,7 +203,7 @@ class Context(object):
 
         # Create the World
         self._dbg("Creating the world.")
-        self._world = World()
+        self._world = World.create(self)
 
         return self
 
