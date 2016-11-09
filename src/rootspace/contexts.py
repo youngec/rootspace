@@ -171,7 +171,7 @@ class Context(object):
 
         :return:
         """
-        self._nfo("Initializing all the context.")
+        self._nfo("Initializing the context.")
 
         # Initialise SDL2 and SDL2 TTF
         self._dbg("Initializing SDL2.")
@@ -182,6 +182,7 @@ class Context(object):
             raise SDLTTFError()
 
         # Create the resource manager
+        self._dbg("Creating the resource manager.")
         self._resources = sdl2.ext.Resources(self._resources_root)
 
         # Create the Window
@@ -214,10 +215,10 @@ class Context(object):
         """
         self._nfo("Closing down the context.")
         self._dbg("Deleting the Resources, Window, Renderer and World instances.")
-        self._resources = None
-        self._window = None
-        self._renderer = None
         self._world = None
+        self._renderer = None
+        self._window = None
+        self._resources = None
 
         self._dbg("Quitting SDL2.")
         sdl2.ext.quit()

@@ -28,7 +28,7 @@ class Loop(object):
     The Loop runs a fixed time step implementation of the main loop.
     """
     _name = attr.ib(validator=instance_of(str))
-    _ctx = attr.ib(default=Context, validator=subclass_of(Context))
+    _ctx = attr.ib(default=Context, validator=subclass_of(Context), repr=False)
     _debug = attr.ib(default=False, validator=instance_of(bool))
     _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
 
