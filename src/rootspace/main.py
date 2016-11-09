@@ -2,16 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import os
-import warnings
 
 import click
-import colorlog
 
 from ._version import get_versions
-from .core import Engine
-from .projects import RootSpace
-from .utilities import get_log_level
+from .core import Loop
+from .contexts import Context
+from .utilities import get_log_level, configure_logger
 
 
 @click.command()
@@ -24,49 +21,22 @@ def main(verbose, debug, profile):
     Start a game using the rootspace game engine.
     Command line parameters take precedence over configuration values.
     """
+    project_name = "rootspace"
+
     # Configure the logging system.
     log_level = get_log_level(verbose, debug)
-    warnings.simplefilter("default")
-    logging.captureWarnings(True)
-    logging_default_handler = logging.StreamHandler()
-    logging_default_handler.setLevel(log_level)
-    logging_default_formatter = colorlog.ColoredFormatter(
-        "{log_color}{levelname:8s}{reset} @{white}{name}{reset}: {log_color}{message}{reset}",
-        style="{"
-    )
-    logging_default_handler.setFormatter(logging_default_formatter)
-
-    # Configure the rootspace logger
-    root_logger = logging.getLogger("rootspace")
-    root_logger.addHandler(logging_default_handler)
-    root_logger.setLevel(log_level)
-
-    # Configure the warnings logger
-    py_warnings = logging.getLogger("py.warnings")
-    py_warnings.addHandler(logging_default_handler)
-    py_warnings.setLevel(log_level)
-
-    # Determine the location of the user home directory and the engine
-    user_home = os.path.expanduser("~")
-    engine_location = os.path.dirname(os.path.realpath(__file__))
-
-    # Create the project
-    config_dir = os.path.join(user_home, ".config", "rootspace")
-    resource_path = os.path.join(engine_location, "resources", "rootspace")
-    state_path = os.path.join(config_dir, "state-data")
-    config_path = os.path.join(config_dir, "config.ini")
-    project = RootSpace.create(resource_path, state_path, config_path=config_path, debug=debug)
+    log = configure_logger(project_name, log_level, with_warnings=debug)
 
     # Create the engine instance
-    engine = Engine(project, debug)
+    loop = Loop(project_name, Context, debug)
 
     # Run the engine instance
-    root_logger.debug("Dispatching: {}".format(engine))
+    log.project.debug("Dispatching: {}".format(loop))
     if profile:
         import cProfile
-        cProfile.runctx("engine.run()", None, {"engine": engine}, sort="time")
+        cProfile.runctx("loop.run()", None, {"loop": loop}, sort="time")
     else:
-        engine.run()
+        loop.run()
 
     # Kill the logging system
     logging.shutdown()
