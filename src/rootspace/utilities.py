@@ -9,6 +9,7 @@ import uuid
 import weakref
 
 import click
+import attr
 
 from .exceptions import SetupError
 
@@ -153,4 +154,36 @@ def get_log_level(verbose, debug):
             log_level = logging.ERROR
 
     return log_level
+
+
+@attr.s(repr=False, slots=True)
+class SubclassValidator(object):
+    cls = attr.ib()
+
+    def __call__(self, instance, attribute, value):
+        if not issubclass(value, self.cls):
+            raise TypeError(
+                "'{name}' must be {cls!r} (got {value!r} that is a "
+                "{actual!r})."
+                .format(name=attribute.name, cls=self.cls,
+                        actual=value.__class__, value=value),
+                attribute, self.cls, value
+            )
+
+    def __repr__(self):
+        return (
+            "<subclass_of validator for class {cls!r}>"
+            .format(cls=self.cls)
+        )
+
+
+def subclass_of(cls):
+    """
+    Return a validator that evaluates issubclass(.) on
+    the supplied attribute. To be used with attrs.
+
+    :param cls:
+    :return:
+    """
+    return SubclassValidator(cls)
 
