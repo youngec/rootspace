@@ -46,6 +46,7 @@ class Context(object):
     _resources_root = attr.ib(validator=instance_of(str))
     _states_root = attr.ib(validator=instance_of(str))
     _data = attr.ib(validator=instance_of(Data), repr=False)
+    _resources = attr.ib(validator=instance_of((type(None), sdl2.ext.Resources))
     _window = attr.ib(validator=instance_of((type(None), sdl2.ext.Window)))
     _renderer = attr.ib(validator=instance_of((type(None), sdl2.ext.Renderer)))
     _world = attr.ib(validator=instance_of((type(None), World)))
@@ -90,7 +91,7 @@ class Context(object):
         # Create the logger
         log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
 
-        return cls(name, resources_path, states_path, ctx, None, None, None, debug, log)
+        return cls(name, resources_path, states_path, ctx, None, None, None, None, debug, log)
 
     @property
     def data(self):
@@ -100,6 +101,15 @@ class Context(object):
         :return:
         """
         return self._data
+
+    @property
+    def resources(self):
+        """
+        Return a reference to the Resources or None.
+
+        :return:
+        """
+        return self._resources
 
     @property
     def window(self):
@@ -161,7 +171,7 @@ class Context(object):
 
         :return:
         """
-        self._nfo("Initializing all components of the project.")
+        self._nfo("Initializing all the context.")
 
         # Initialise SDL2 and SDL2 TTF
         self._dbg("Initializing SDL2.")
@@ -170,6 +180,9 @@ class Context(object):
         self._dbg("Initializing SDL2 TTF.")
         if sdl2.sdlttf.TTF_Init() != 0:
             raise SDLTTFError()
+
+        # Create the resource manager
+        self._resources = sdl2.ext.Resources(self._resources_root)
 
         # Create the Window
         self._dbg("Creating the window.")
@@ -199,6 +212,13 @@ class Context(object):
         :param exc:
         :return:
         """
-        self._nfo("Closing down SDL2.")
+        self._nfo("Closing down the context.")
+        self._dbg("Deleting the Resources, Window, Renderer and World instances.")
+        self._resources = None
+        self._window = None
+        self._renderer = None
+        self._world = None
+
+        self._dbg("Quitting SDL2.")
         sdl2.ext.quit()
         return False
