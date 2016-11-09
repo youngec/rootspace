@@ -25,7 +25,7 @@ class Context(object):
     """
     Data = collections.namedtuple("Data", (
         "delta_time", "max_frame_duration", "epsilon", "window_title", "window_shape",
-        "window_flags", "render_scale_quality", "render_color"
+        "window_flags", "render_scale_quality", "render_color", "extra"
     ))
 
     default_ctx = Data(
@@ -36,7 +36,8 @@ class Context(object):
         window_shape=(800, 600),
         window_flags=(SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE),
         render_scale_quality=b"0",
-        render_color=(0, 0, 0, 1)
+        render_color=(0, 0, 0, 1),
+        extra=None
     )
     default_config_dir = ".config"
     default_resources_dir = "resources"
