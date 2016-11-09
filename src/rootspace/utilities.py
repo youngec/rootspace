@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import collections
 import configparser
 import logging
 import os.path
 import re
 import uuid
 import weakref
+import warnings
 
 import click
+import attr
+import colorlog
 
 from .exceptions import SetupError
 
@@ -153,4 +157,72 @@ def get_log_level(verbose, debug):
             log_level = logging.ERROR
 
     return log_level
+
+
+def configure_logger(name, log_level, with_warnings=True):
+    """
+    Configure the project logger of the specified name
+    using colorlog.
+
+    :param name:
+    :param log_level:
+    :param with_warnings:
+    :return:
+    """
+    logging_default_handler = logging.StreamHandler()
+    logging_default_handler.setLevel(log_level)
+    logging_default_formatter = colorlog.ColoredFormatter(
+        "{log_color}{levelname:8s}{reset} @{white}{name}{reset}: {log_color}{message}{reset}",
+        style="{"
+    )
+    logging_default_handler.setFormatter(logging_default_formatter)
+
+    # Configure the rootspace logger
+    project_logger = logging.getLogger(name)
+    project_logger.addHandler(logging_default_handler)
+    project_logger.setLevel(log_level)
+
+    py_warnings = None
+    if with_warnings:
+        # Configure the warnings logger
+        warnings.simplefilter("default")
+        logging.captureWarnings(True)
+        py_warnings = logging.getLogger("py.warnings")
+        py_warnings.addHandler(logging_default_handler)
+        py_warnings.setLevel(log_level)
+
+    loggers = collections.namedtuple("loggers", ("project", "py_warnings"))
+    return loggers(project_logger, py_warnings)
+
+
+@attr.s(repr=False, slots=True)
+class SubclassValidator(object):
+    cls = attr.ib()
+
+    def __call__(self, instance, attribute, value):
+        if not issubclass(value, self.cls):
+            raise TypeError(
+                "'{name}' must be {cls!r} (got {value!r} that is a "
+                "{actual!r})."
+                .format(name=attribute.name, cls=self.cls,
+                        actual=value.__class__, value=value),
+                attribute, self.cls, value
+            )
+
+    def __repr__(self):
+        return (
+            "<subclass_of validator for class {cls!r}>"
+            .format(cls=self.cls)
+        )
+
+
+def subclass_of(cls):
+    """
+    Return a validator that evaluates issubclass(.) on
+    the supplied attribute. To be used with attrs.
+
+    :param cls:
+    :return:
+    """
+    return SubclassValidator(cls)
 
