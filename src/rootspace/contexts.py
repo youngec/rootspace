@@ -43,8 +43,8 @@ class Context(object):
     default_config_file = "config.json"
 
     _name = attr.ib(validator=instance_of(str))
-    _resources_root = attr.ib(validator=instance_of(str))
-    _states_root = attr.ib(validator=instance_of(str))
+    _resources_root = attr.ib(validator=instance_of(str), repr=False)
+    _states_root = attr.ib(validator=instance_of(str), repr=False)
     _data = attr.ib(validator=instance_of(Data), repr=False)
     _resources = attr.ib(validator=instance_of((type(None), sdl2.ext.Resources)))
     _window = attr.ib(validator=instance_of((type(None), sdl2.ext.Window)))
