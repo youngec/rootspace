@@ -186,8 +186,12 @@ class World(object):
         :return:
         """
         for system in self._render_systems:
-            for comp_type in system.component_types:
-                system.render(self, self._components[comp_type].values())
+            if system.is_applicator:
+                comps = self.combined_components(system.component_types)
+                system.render(self, comps)
+            else:
+                for comp_type in system.component_types:
+                    system.render(self, self._components[comp_type].values())
 
     def dispatch(self, event):
         """
