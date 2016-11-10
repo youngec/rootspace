@@ -9,7 +9,6 @@ from attr.validators import instance_of
 from .components import MachineState, NetworkState, DisplayBuffer, Sprite, InputOutputStream, \
     ShellState
 from .filesystem import FileSystem
-from .worlds import World
 
 
 @attr.s
@@ -17,17 +16,7 @@ class Entity(object):
     """
     An entity is a container with a unique identifier.
     """
-    _world = attr.ib(validator=instance_of(World), hash=False)
     _ident = attr.ib(validator=instance_of(uuid.UUID))
-
-    @property
-    def world(self):
-        """
-        Return the parent world.
-
-        :return:
-        """
-        return self._world
 
     @property
     def ident(self):
@@ -47,40 +36,10 @@ class Entity(object):
         :param kwargs:
         :return:
         """
-        inst = cls(world, uuid.uuid4(), **kwargs)
+        inst = cls(uuid.uuid4(), **kwargs)
         world.add_entity(inst)
 
         return inst
-
-    def register_component(self, instance):
-        """
-        Register a component with the world.
-
-        :param instance:
-        :return:
-        """
-        self._world.add_component(self, instance)
-
-    def get_component(self, name):
-        """
-        Get a reference to a registered component.
-
-        :param name:
-        :return:
-        """
-        comp_type = self._world.component_types.get(name)
-        if comp_type is None:
-            raise AttributeError("{!r} has no attribute {!r}".format(self, name))
-
-        return self._world.components[comp_type][self]
-
-    def delete(self):
-        """
-        Removes the entity from the parent world.
-
-        :return:
-        """
-        self._world.delete_entity(self)
 
 
 @attr.s
@@ -126,12 +85,12 @@ class LocalComputer(Entity):
         )
 
         # Register the components
-        inst.register_component(inst.machine_state)
-        inst.register_component(inst.network_state)
-        inst.register_component(inst.file_system)
-        inst.register_component(inst.sprite)
-        inst.register_component(inst.terminal_display_buffer)
-        inst.register_component(inst.input_output_stream)
-        inst.register_component(inst.shell_state)
+        world.add_component(inst.machine_state)
+        world.add_component(inst.network_state)
+        world.add_component(inst.file_system)
+        world.add_component(inst.sprite)
+        world.add_component(inst.terminal_display_buffer)
+        world.add_component(inst.input_output_stream)
+        world.add_component(inst.shell_state)
 
         return inst
