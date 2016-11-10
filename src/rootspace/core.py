@@ -777,7 +777,7 @@ class Loop(object):
         accumulator = 0.0
 
         # Create and run the event loop
-        while glfw.window_should_close(ctx.window):
+        while not glfw.window_should_close(ctx.window):
             # Determine how much time we have to perform the physics
             # simulation.
             new_time = glfw.get_time()
