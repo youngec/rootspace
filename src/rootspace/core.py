@@ -5,11 +5,9 @@
 
 import os.path
 import logging
-import time
 
 import attr
-from sdl2 import SDL_QUIT
-from sdl2.ext import get_events
+import glfw
 from attr.validators import instance_of
 
 from .contexts import Context
@@ -58,15 +56,14 @@ class Loop(object):
 
         # Define the time for the event loop
         t = 0.0
-        current_time = time.monotonic()
+        current_time = glfw.get_time()
         accumulator = 0.0
 
         # Create and run the event loop
-        running = True
-        while running:
+        while glfw.window_should_close(ctx.window):
             # Determine how much time we have to perform the physics
             # simulation.
-            new_time = time.monotonic()
+            new_time = glfw.get_time()
             frame_time = new_time - current_time
             current_time = new_time
             frame_time = min(frame_time, ctx.data.max_frame_duration)
@@ -75,20 +72,15 @@ class Loop(object):
             # Run the game update until we have one DELTA_TIME left for the
             # rendering step.
             while accumulator >= ctx.data.delta_time:
-                # Process SDL events
-                for event in get_events():
-                    if event.type == SDL_QUIT:
-                        running = False
-                    else:
-                        ctx.world.dispatch(event)
+                glfw.poll_events()
 
                 ctx.world.update(t, ctx.data.delta_time)
                 t += ctx.data.delta_time
                 accumulator -= ctx.data.delta_time
 
             # Clear the screen and render the world.
-            ctx.renderer.clear()
             ctx.world.render()
+            glfw.swap_buffers(ctx.window)
 
     def _dbg(self, message):
         """
@@ -116,4 +108,3 @@ class Loop(object):
         :return:
         """
         self._log.warn(message)
-
