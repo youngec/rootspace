@@ -184,6 +184,7 @@ class Context(object):
 
         # Create the resource manager
         self._dbg("Creating the resource manager.")
+        # FIXME: Implement a Resource Manager of my own.
         self._resources = sdl2.ext.Resources(self._resources_root)
 
         # Create the Window
