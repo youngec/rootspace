@@ -86,7 +86,7 @@ if __name__ == "__main__":
             "colorlog",
             "attrs",
             "numpy",
-            "pysdl2",
+            "glfw",
             "xxhash"
         ],
         tests_require=[
