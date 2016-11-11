@@ -2,7 +2,7 @@
 
 import collections
 import json
-import os.path
+import pathlib
 import shutil
 import logging
 
@@ -44,8 +44,8 @@ class Context(object):
     default_config_file = "config.json"
 
     _name = attr.ib(validator=instance_of(str))
-    _resources_root = attr.ib(validator=instance_of(str), repr=False)
-    _states_root = attr.ib(validator=instance_of(str), repr=False)
+    _resources_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
+    _states_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
     _data = attr.ib(validator=instance_of(Data), repr=False)
     _resources = attr.ib(validator=instance_of((type(None), sdl2.ext.Resources)))
     _window = attr.ib(validator=instance_of((type(None), sdl2.ext.Window)))
@@ -65,28 +65,28 @@ class Context(object):
         :return:
         """
         # Specify the configuration directory and the resources directory
-        resources_path = os.path.join(engine_location, cls.default_resources_dir, name)
-        states_path = os.path.join(user_home, cls.default_config_dir, name)
+        resources_path = engine_location / cls.default_resources_dir / name
+        states_path = user_home / cls.default_config_dir / name
 
         # Specify the configuration file paths
-        config_default = os.path.join(resources_path, cls.default_config_file)
-        config_user = os.path.join(states_path, cls.default_config_file)
+        config_default = resources_path / cls.default_config_file
+        config_user = states_path / cls.default_config_file
 
         # Ensure that both directories (resources and states) are present
-        if not os.path.exists(resources_path):
+        if not resources_path.exists():
             raise FileNotFoundError(resources_path)
-        elif not os.path.isdir(resources_path):
+        elif not resources_path.is_dir():
             raise NotADirectoryError(resources_path)
 
-        if not os.path.exists(states_path):
-            os.makedirs(states_path)
+        if not states_path.exists():
+            states_path.mkdir(parents=True)
 
         # Copy the default configuration to the user-specific directory
-        if not os.path.exists(config_user):
-            shutil.copyfile(config_default, config_user)
+        if not config_user.exists():
+            shutil.copyfile(str(config_default), str(config_user))
 
         # Load the configuration
-        with open(config_user, "r") as f:
+        with config_user.open(mode="r") as f:
             ctx = cls.default_ctx._replace(**json.load(f))
 
         # Create the logger
@@ -185,7 +185,7 @@ class Context(object):
         # Create the resource manager
         self._dbg("Creating the resource manager.")
         # FIXME: Implement a Resource Manager of my own.
-        self._resources = sdl2.ext.Resources(self._resources_root)
+        self._resources = sdl2.ext.Resources(str(self._resources_root))
 
         # Create the Window
         self._dbg("Creating the window.")

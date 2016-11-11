@@ -3,7 +3,7 @@
 
 """The engine core holds the entry point into the game execution."""
 
-import os.path
+import pathlib
 import logging
 import time
 
@@ -32,8 +32,8 @@ class Loop(object):
 
         :return:
         """
-        user_home = os.path.expanduser("~")
-        engine_location = os.path.dirname(os.path.realpath(__file__))
+        user_home = pathlib.Path.home()
+        engine_location = pathlib.Path(__file__).parent
 
         self._dbg("The user home is at '{}'.".format(user_home))
         self._dbg("The engine is located at '{}'.".format(engine_location))
