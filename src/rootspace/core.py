@@ -13,6 +13,7 @@ import shutil
 import time
 import uuid
 import weakref
+import sys
 
 import attr
 import sdl2
@@ -685,42 +686,50 @@ class Context(object):
 
         :return:
         """
-        self._nfo("Initializing the context.")
+        try:
+            self._nfo("Initializing the context.")
 
-        # Initialise SDL2 and SDL2 TTF
-        self._dbg("Initializing SDL2.")
-        sdl2.ext.init()
+            # Initialise SDL2 and SDL2 TTF
+            self._dbg("Initializing SDL2.")
+            sdl2.ext.init()
 
-        self._dbg("Initializing SDL2 TTF.")
-        if sdl2.sdlttf.TTF_Init() != 0:
-            raise SDLTTFError()
+            self._dbg("Initializing SDL2 TTF.")
+            if sdl2.sdlttf.TTF_Init() != 0:
+                raise SDLTTFError()
 
-        # Create the Window
-        self._dbg("Creating the window.")
-        self._window = sdl2.ext.Window(
-            self._data.window_title,
-            self._data.window_shape,
-            flags=self._data.window_flags
-        )
+            # Create the Window
+            self._dbg("Creating the window.")
+            self._window = sdl2.ext.Window(
+                self._data.window_title,
+                self._data.window_shape,
+                flags=self._data.window_flags
+            )
 
-        # Create the Renderer
-        self._dbg("Creating the renderer.")
-        sdl2.SDL_SetHint(sdl2.SDL_HINT_RENDER_SCALE_QUALITY, self._data.render_scale_quality)
-        self._renderer = sdl2.ext.Renderer(self._window)
-        sdl2.SDL_RenderSetLogicalSize(self._renderer.sdlrenderer, *self._data.window_shape)
-        self._renderer.color = sdl2.ext.Color(*self._data.render_color)
+            # Create the Renderer
+            self._dbg("Creating the renderer.")
+            sdl2.SDL_SetHint(sdl2.SDL_HINT_RENDER_SCALE_QUALITY, self._data.render_scale_quality)
+            self._renderer = sdl2.ext.Renderer(self._window)
+            sdl2.SDL_RenderSetLogicalSize(self._renderer.sdlrenderer, *self._data.window_shape)
+            self._renderer.color = sdl2.ext.Color(*self._data.render_color)
 
-        # Create the World
-        self._dbg("Creating the world.")
-        self._world = World.create(self)
+            # Create the World
+            self._dbg("Creating the world.")
+            self._world = World.create(self)
+        except Exception as e:
+            if self.__exit__(*sys.exc_info()):
+                pass
+            else:
+                raise e
 
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, exc_type, exc_val, trcbak):
         """
         Exit the context provided by this instance.
 
-        :param exc:
+        :param exc_type:
+        :param exc_val:
+        :param trcbak:
         :return:
         """
         self._nfo("Closing down the context.")
