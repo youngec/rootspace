@@ -5,9 +5,6 @@
 A collection of exceptions used by Rootspace.
 """
 
-import sdl2.error
-import sdl2.sdlttf
-
 
 class SetupError(Exception):
     """
@@ -16,38 +13,11 @@ class SetupError(Exception):
     pass
 
 
-class SDLError(Exception):
+class GLFWError(Exception):
     """
-    This exception indicates that there was an issue with the SDL2 library.
+    This exception indicates that the GLFW library failed in some respect.
     """
-
-    def __init__(self, msg=None):
-        super(SDLError, self).__init__()
-
-        if msg is None:
-            self.msg = sdl2.error.SDL_GetError().decode("utf-8")
-        else:
-            self.msg = msg
-
-    def __str__(self):
-        return repr(self.msg)
-
-
-class SDLTTFError(Exception):
-    """
-    This exception indicates that there was an issue with SDL2 TTF.
-    """
-
-    def __init__(self, msg=None):
-        super(SDLTTFError, self).__init__()
-
-        if msg is None:
-            self.msg = sdl2.sdlttf.TTF_GetError().decode("utf-8")
-        else:
-            self.msg = msg
-
-    def __str__(self):
-        return repr(self.msg)
+    pass
 
 
 class RootspaceFileNotFoundError(Exception):
