@@ -546,7 +546,7 @@ class Context(object):
     _resources_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
     _states_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
     _data = attr.ib(validator=instance_of(Data), repr=False)
-    _window = attr.ib(validator=instance_of((type(None), object)))
+    _window = attr.ib()
     _world = attr.ib(validator=instance_of((type(None), World)))
     _debug = attr.ib(validator=instance_of(bool))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
