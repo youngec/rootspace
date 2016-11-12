@@ -10,7 +10,6 @@ import json
 import logging
 import pathlib
 import shutil
-import time
 import uuid
 import weakref
 import sys
@@ -19,7 +18,7 @@ import attr
 import glfw
 from attr.validators import instance_of
 
-from .exceptions import SDLTTFError
+from .exceptions import GLFWError
 from .utilities import subclass_of, camelcase_to_underscore
 
 
@@ -527,7 +526,7 @@ class Context(object):
     """
     Data = collections.namedtuple("Data", (
         "delta_time", "max_frame_duration", "epsilon", "window_title", "window_shape",
-        "window_flags", "render_scale_quality", "render_color", "extra"
+        "render_color", "extra"
     ))
 
     default_ctx = Data(
@@ -536,8 +535,6 @@ class Context(object):
         epsilon=1e-5,
         window_title="Untitled",
         window_shape=(800, 600),
-        window_flags=(sdl2.video.SDL_WINDOW_SHOWN | sdl2.video.SDL_WINDOW_RESIZABLE),
-        render_scale_quality=b"0",
         render_color=(0, 0, 0, 1),
         extra=None
     )
@@ -549,8 +546,7 @@ class Context(object):
     _resources_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
     _states_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
     _data = attr.ib(validator=instance_of(Data), repr=False)
-    _window = attr.ib(validator=instance_of((type(None), sdl2.ext.Window)))
-    _renderer = attr.ib(validator=instance_of((type(None), sdl2.ext.Renderer)))
+    _window = attr.ib(validator=instance_of((type(None), object)))
     _world = attr.ib(validator=instance_of((type(None), World)))
     _debug = attr.ib(validator=instance_of(bool))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
@@ -594,7 +590,7 @@ class Context(object):
         # Create the logger
         log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
 
-        return cls(name, resources_path, states_path, ctx, None, None, None, debug, log)
+        return cls(name, resources_path, states_path, ctx, None, None, debug, log)
 
     @property
     def resources(self):
@@ -686,28 +682,24 @@ class Context(object):
         try:
             self._nfo("Initializing the context.")
 
-            # Initialise SDL2 and SDL2 TTF
-            self._dbg("Initializing SDL2.")
-            sdl2.ext.init()
-
-            self._dbg("Initializing SDL2 TTF.")
-            if sdl2.sdlttf.TTF_Init() != 0:
-                raise SDLTTFError()
+            self._dbg("Initializing GLFW.")
+            if not glfw.init():
+                raise GLFWError("Cannot initialize GLFW.")
 
             # Create the Window
             self._dbg("Creating the window.")
-            self._window = sdl2.ext.Window(
+            self._window = glfw.create_window(
+                self._data.window_shape[0],
+                self._data.window_shape[1],
                 self._data.window_title,
-                self._data.window_shape,
-                flags=self._data.window_flags
+                None,
+                None
             )
+            if not self._window:
+                raise GLFWError("Cannot create a GLFW Window.")
 
-            # Create the Renderer
-            self._dbg("Creating the renderer.")
-            sdl2.SDL_SetHint(sdl2.SDL_HINT_RENDER_SCALE_QUALITY, self._data.render_scale_quality)
-            self._renderer = sdl2.ext.Renderer(self._window)
-            sdl2.SDL_RenderSetLogicalSize(self._renderer.sdlrenderer, *self._data.window_shape)
-            self._renderer.color = sdl2.ext.Color(*self._data.render_color)
+            # Make the OpenGL context current
+            glfw.make_context_current(self._window)
 
             # Create the World
             self._dbg("Creating the world.")
@@ -730,13 +722,13 @@ class Context(object):
         :return:
         """
         self._nfo("Closing down the context.")
-        self._dbg("Deleting the Resources, Window, Renderer and World instances.")
+        self._dbg("Deleting the Window and World instances.")
         self._world = None
-        self._renderer = None
         self._window = None
 
-        self._dbg("Quitting SDL2.")
-        sdl2.ext.quit()
+        self._dbg("Quitting GLFW.")
+        glfw.terminate()
+
         return False
 
 
