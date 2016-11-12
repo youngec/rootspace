@@ -1,45 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import uuid
-
 import attr
 import sdl2.render
 from attr.validators import instance_of
 
 from .components import MachineState, NetworkState, DisplayBuffer, Sprite, InputOutputStream, \
     ShellState
+from .core import Entity
 from .filesystem import FileSystem
-
-
-@attr.s
-class Entity(object):
-    """
-    An entity is a container with a unique identifier.
-    """
-    _ident = attr.ib(validator=instance_of(uuid.UUID))
-
-    @property
-    def ident(self):
-        """
-        Return the unique identifier of this entity.
-
-        :return:
-        """
-        return self._ident
-
-    @classmethod
-    def create(cls, world, **kwargs):
-        """
-        Create an entity.
-
-        :param world:
-        :param kwargs:
-        :return:
-        """
-        inst = cls(uuid.uuid4(), **kwargs)
-        world.add_entity(inst)
-
-        return inst
 
 
 @attr.s

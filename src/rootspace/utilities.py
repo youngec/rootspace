@@ -5,13 +5,12 @@ import collections
 import logging
 import re
 import uuid
-import weakref
 import warnings
+import weakref
 
-import click
 import attr
+import click
 import colorlog
-
 
 __docformat__ = 'restructuredtext'
 FIRST_CAP_RE = re.compile(r"(.)([A-Z][a-z]+)")
@@ -145,15 +144,15 @@ class SubclassValidator(object):
             raise TypeError(
                 "'{name}' must be {cls!r} (got {value!r} that is a "
                 "{actual!r})."
-                .format(name=attribute.name, cls=self.cls,
-                        actual=value.__class__, value=value),
+                    .format(name=attribute.name, cls=self.cls,
+                            actual=value.__class__, value=value),
                 attribute, self.cls, value
             )
 
     def __repr__(self):
         return (
             "<subclass_of validator for class {cls!r}>"
-            .format(cls=self.cls)
+                .format(cls=self.cls)
         )
 
 
@@ -166,4 +165,3 @@ def subclass_of(cls):
     :return:
     """
     return SubclassValidator(cls)
-

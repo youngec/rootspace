@@ -6,8 +6,7 @@ import logging
 import click
 
 from ._version import get_versions
-from .core import Loop
-from .contexts import Context
+from .core import Loop, Context
 from .utilities import get_log_level, configure_logger
 
 
