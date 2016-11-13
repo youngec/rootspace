@@ -19,8 +19,8 @@ def mat4x4_rotation_z(angle):
     s = math.sin(angle)
     c = math.cos(angle)
     Q = (
-        (c, -s, 0, 0),
-        (s, c, 0, 0),
+        (c, s, 0, 0),
+        (-s, c, 0, 0),
         (0, 0, 1, 0),
         (0, 0, 0, 1)
     )
@@ -84,12 +84,16 @@ def main():
     layout(location = 0) in vec4 vPos;
     layout(location = 1) in vec4 vCol;
 
-    uniform mat4 MVP;
+    uniform mat4 model;
+    uniform mat4 view;
+    uniform mat4 projection;
 
     smooth out vec4 color;
 
     void main() {
-        gl_Position = MVP * vPos;
+
+
+        gl_Position = projection * view * model * vPos;
         color = vCol;
     }
     """
@@ -117,7 +121,9 @@ def main():
     )
 
     # Get the shader parameter locations
-    mvp_loc = GL.glGetUniformLocation(shader_program, "MVP")
+    model_loc = GL.glGetUniformLocation(shader_program, "model")
+    view_loc = GL.glGetUniformLocation(shader_program, "view")
+    projection_loc = GL.glGetUniformLocation(shader_program, "projection")
     vpos_loc = GL.glGetAttribLocation(shader_program, "vPos")
     vcol_loc = GL.glGetAttribLocation(shader_program, "vCol")
 
@@ -153,7 +159,6 @@ def main():
         m = mat4x4_identity()
         v = mat4x4_rotation_z(glfw.get_time())
         p = mat4x4_ortho(-ratio, ratio, -1, 1, 1, -1)
-        mvp = p @ v @ m
 
         # Update the viewport size
         GL.glViewport(0, 0, width, height)
@@ -163,7 +168,9 @@ def main():
         GL.glUseProgram(shader_program)
         GL.glBindVertexArray(vao)
 
-        GL.glUniformMatrix4fv(mvp_loc, 1, True, mvp)
+        GL.glUniformMatrix4fv(model_loc, 1, False, m)
+        GL.glUniformMatrix4fv(view_loc, 1, False, v)
+        GL.glUniformMatrix4fv(projection_loc, 1, False, p)
 
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, num_vertices)
 
