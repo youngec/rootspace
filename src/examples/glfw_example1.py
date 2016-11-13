@@ -156,8 +156,8 @@ def main():
         ratio = width / height
 
         # Calculate the model-view-projection matrix
-        m = mat4x4_identity()
-        v = mat4x4_rotation_z(glfw.get_time())
+        m = mat4x4_rotation_z(glfw.get_time())
+        v = mat4x4_identity()
         p = mat4x4_ortho(-ratio, ratio, -1, 1, 1, -1)
 
         # Update the viewport size
@@ -175,7 +175,7 @@ def main():
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, num_vertices)
 
         # Unbind the programs and buffers
-        GL.glBindVertexArray(vao)
+        GL.glBindVertexArray(0)
         GL.glUseProgram(0)
 
         # Swap front and back buffers
