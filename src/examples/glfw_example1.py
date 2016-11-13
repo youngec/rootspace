@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# Also check out http://www.lfd.uci.edu/~gohlke/code/transformations.py.html
+
 import math
 import ctypes
 import glfw
