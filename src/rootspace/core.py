@@ -688,7 +688,7 @@ class Context(object):
                 raise GLFWError("Cannot initialize GLFW.")
             ctx_mgr.callback(glfw.terminate)
 
-            # Create the Window, Renderer and World
+            # Create the Window
             self._dbg("Creating the window.")
             self._window = glfw.create_window(
                 self._data.window_shape[0],
