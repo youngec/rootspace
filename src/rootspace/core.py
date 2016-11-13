@@ -699,6 +699,8 @@ class Context(object):
             )
             if not self._window:
                 raise GLFWError("Cannot create a GLFW Window.")
+            else:
+                ctx_mgr.callback(glfw.destroy_window, self._window)
 
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
