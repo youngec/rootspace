@@ -87,6 +87,7 @@ if __name__ == "__main__":
             "attrs",
             "numpy",
             "glfw",
+            "pyopengl",
             "xxhash"
         ],
         tests_require=[
