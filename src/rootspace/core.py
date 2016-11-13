@@ -16,10 +16,12 @@ import weakref
 
 import attr
 import glfw
+import OpenGL.GL as gl
 from attr.validators import instance_of
 
 from .exceptions import GLFWError
 from .utilities import subclass_of, camelcase_to_underscore
+from .opengl_math import Matrix4x4, mat4x4_ortho, mat4x4_identity
 
 
 @attr.s
@@ -253,6 +255,67 @@ class EventSystem(object, metaclass=abc.ABCMeta):
         self._log.warn(message)
 
 
+@attr.s(slots=True)
+class Transform(object):
+    # FIXME: Transform is incomplete
+    model = attr.ib(default=mat4x4_identity(), validator=instance_of(Matrix4x4))
+
+
+@attr.s(slots=True)
+class Shader(object):
+    # FIXME: Shader is incomplete
+    program = attr.ib(default=-1, validator=instance_of(int))
+    model_loc = attr.ib(default=-1, validator=instance_of(int))
+    view_loc = attr.ib(default=-1, validator=instance_of(int))
+    projection_loc = attr.ib(default=-1, validator=instance_of(int))
+
+
+@attr.s(slots=True)
+class Mesh(object):
+    # FIXME: Mesh is incomplete
+    vao = attr.ib(default=-1, validator=instance_of(int))
+    num_vertices = attr.ib(default=0, validator=instance_of(int))
+
+
+@attr.s
+class OpenGLRenderer(RenderSystem):
+    @classmethod
+    def create(cls):
+        return cls(
+            component_types=(Transform, Shader, Mesh),
+            is_applicator=True,
+            log=cls.get_logger()
+        )
+
+    def render(self, world, components):
+        # Determine the Window size and set the OpenGL viewport accordingly
+        shape = glfw.get_framebuffer_size(world.ctx.window)
+        gl.glViewport(0, 0, *shape)
+
+        # Clear the viewport
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+
+        # Calculate the projection matrix
+        ratio = shape[0] / shape[1]
+        view = mat4x4_identity()
+        projection = mat4x4_ortho(-ratio, ratio, -1, 1, 1, -1)
+
+        for transform, shader, mesh in components:
+            # Bind the shader program and the VAO
+            gl.glUseProgram(shader.program)
+            gl.glBindVertexArray(mesh.vao)
+
+            gl.glUniformMatrix4fv(shader.model_loc, 1, False, transform.model)
+            gl.glUniformMatrix4fv(shader.view_loc, 1, False, view)
+            gl.glUniformMatrix4fv(shader.projection_loc, 1, False, projection)
+
+            gl.glDrawArrays(gl.GL_TRIANGLES, 0, mesh.num_vertices)
+
+            # Unbind the shader program and the VAO
+            gl.glBindVertexArray(0)
+            gl.glUseProgram(0)
+
+
 @attr.s
 class World(object):
     """A simple application world.
@@ -287,6 +350,10 @@ class World(object):
     _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
     _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
+
+    @property
+    def ctx(self):
+        return self._ctx()
 
     @classmethod
     def create(cls, ctx):
@@ -526,7 +593,7 @@ class Context(object):
     """
     Data = collections.namedtuple("Data", (
         "delta_time", "max_frame_duration", "epsilon", "window_title", "window_shape",
-        "render_color", "extra"
+        "window_hints", "swap_interval", "clear_color", "extra"
     ))
 
     default_ctx = Data(
@@ -535,7 +602,14 @@ class Context(object):
         epsilon=1e-5,
         window_title="Untitled",
         window_shape=(800, 600),
-        render_color=(0, 0, 0, 1),
+        window_hints={
+            glfw.CONTEXT_VERSION_MAJOR: 3,
+            glfw.CONTEXT_VERSION_MINOR: 3,
+            glfw.OPENGL_FORWARD_COMPAT: True,
+            glfw.OPENGL_PROFILE: glfw.OPENGL_CORE_PROFILE
+        },
+        swap_interval=1,
+        clear_color=(0, 0, 0, 1),
         extra=None
     )
     default_config_dir = ".config"
@@ -688,6 +762,10 @@ class Context(object):
                 raise GLFWError("Cannot initialize GLFW.")
             ctx_mgr.callback(glfw.terminate)
 
+            # Add the GLFW window hints
+            for k, v in self._data.window_hints.items():
+                glfw.window_hint(k, v)
+
             # Create the Window
             self._dbg("Creating the window.")
             self._window = glfw.create_window(
@@ -704,6 +782,9 @@ class Context(object):
 
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
+
+            # Set the buffer swap interval (i.e. VSync)
+            glfw.swap_interval(self._data.swap_interval)
 
             # Create the World
             self._dbg("Creating the world.")
