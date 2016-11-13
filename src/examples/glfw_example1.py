@@ -2,46 +2,59 @@
 
 # Also check out http://www.lfd.uci.edu/~gohlke/code/transformations.py.html
 
-import math
 import ctypes
+import math
+
+import OpenGL.GL as GL
 import glfw
 import numpy
-import OpenGL.GL as GL
 from OpenGL.GL.shaders import compileProgram, compileShader
 
 
 def mat4x4_identity():
-    return numpy.eye(4, dtype=numpy.float)
+    return numpy.eye(4)
 
 
 def mat4x4_rotation_z(angle):
-    sin = math.sin(angle)
-    cos = math.cos(angle)
-    return numpy.array((
-            (cos, -sin, 0, 0),
-            (sin, cos, 0, 0),
-            (0, 0, 1, 0),
-            (0, 0, 0, 1)
-        ),
-        dtype=numpy.float
+    s = math.sin(angle)
+    c = math.cos(angle)
+    Q = (
+        (c, s, 0, 0),
+        (-s, c, 0, 0),
+        (0, 0, 1, 0),
+        (0, 0, 0, 1)
     )
 
+    return numpy.array(Q)
 
-def mat4x4_ortho(l, r, b, t, n, f):
-    return numpy.array((
-            (2 / (r - l), 0, 0, 0),
-            (0, 2 / (t - b), 0, 0),
-            (0, 0, -2 / (f - n), 0),
-            (0, 0, 0, 1)
-        ),
-        dtype=numpy.float
+
+def mat4x4_ortho(left, right, bottom, top, near, far):
+    l = left
+    r = right
+    b = bottom
+    t = top
+    n = near
+    f = far
+    P = (
+        (2 / (r - l), 0, 0, 0),
+        (0, 2 / (t - b), 0, 0),
+        (0, 0, -2 / (f - n), 0),
+        (-(r + l) / (r - l), -(t + b) / (t - b), -(f + n) / (f - n), 1)
     )
+
+    return numpy.array(P)
 
 
 def main():
     # Initialize the library
     if not glfw.init():
         return
+
+    # version hints
+    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+    glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
+    glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
 
     # Create a windowed mode window and its OpenGL context
     window = glfw.create_window(640, 480, "Hello World", None, None)
@@ -54,40 +67,48 @@ def main():
     glfw.swap_interval(1)
 
     # Define the vertices
-    vertex_pos = [
-        -0.6, -0.4, 1.0, 0.0, 0.0,
-        0.6, -0.4, 0.0, 1.0, 0.0,
-        0, 0.6, 0.0, 0.0, 1.0
-    ]
+    vertex_pos = numpy.array([
+        -0.6, -0.4, 0.0, 1.0,
+        0.6, -0.4, 0.0, 1.0,
+        0, 0.6, 0.0, 1.0,
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+    ], dtype=numpy.float32)
     num_vertices = 3
 
     # Define the shaders
-    vertex_shader = """uniform mat4 MVP;
-    attribute vec3 vCol;
-    attribute vec2 vPos;
-    varying vec3 color;
+    vertex_shader = """
+    #version 330 core
+
+    layout(location = 0) in vec4 vPos;
+    layout(location = 1) in vec4 vCol;
+
+    uniform mat4 MVP;
+
+    smooth out vec4 color;
+
     void main() {
-        gl_Position = MVP * vec4(vPos, 0.0, 1.0);
+        gl_Position = MVP * vPos;
         color = vCol;
     }
     """
 
-    fragment_shader = """varying vec3 color;
+    fragment_shader = """
+    #version 330 core
+
+    smooth in vec4 color;
+
+    out vec4 fragColor;
+
     void main() {
-        gl_FragColor = vec4(color, 1.0);
+        fragColor = color;
     }
     """
 
-    # Initialize the vertex buffer
-    vbo_pos = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo_pos)
-    array_type = (GL.GLfloat * len(vertex_pos))
-    GL.glBufferData(
-        GL.GL_ARRAY_BUFFER, len(vertex_pos) * ctypes.sizeof(GL.GLfloat),
-        array_type(*vertex_pos),
-        GL.GL_STATIC_DRAW
-    )
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    # Create and bind the vertex attribute array
+    vao = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vao)
 
     # Initialize the shaders
     shader_program = compileProgram(
@@ -100,18 +121,28 @@ def main():
     vpos_loc = GL.glGetAttribLocation(shader_program, "vPos")
     vcol_loc = GL.glGetAttribLocation(shader_program, "vCol")
 
-    # Bind the vertex array
-    GL.glEnableVertexAttribArray(vpos_loc)
-    GL.glVertexAttribPointer(vpos_loc, 2, GL.GL_FLOAT, False,
-        ctypes.sizeof(GL.GLfloat) * 5, 0
-    )
-    GL.glEnableVertexAttribArray(vcol_loc)
-    GL.glVertexAttribPointer(vcol_loc, 3, GL.GL_FLOAT, False,
-        ctypes.sizeof(GL.GLfloat) * 5, ctypes.sizeof(GL.GLfloat) * 2
+    # Initialize the vertex buffer
+    vbo_pos = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo_pos)
+    GL.glBufferData(
+        GL.GL_ARRAY_BUFFER, vertex_pos.nbytes, vertex_pos, GL.GL_STATIC_DRAW
     )
 
+    # Bind the vertex array
+    GL.glEnableVertexAttribArray(vpos_loc)
+    GL.glVertexAttribPointer(
+        vpos_loc, 4, GL.GL_FLOAT, False, 0, None
+    )
+    GL.glEnableVertexAttribArray(vcol_loc)
+    GL.glVertexAttribPointer(
+        vcol_loc, 4, GL.GL_FLOAT, False, 0, ctypes.c_void_p(vertex_pos.nbytes // 2)
+    )
+
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    GL.glBindVertexArray(0)
+
     # Set the clear color
-    GL.glClearColor(0.0, 0.0, 0.0, 0.0)
+    GL.glClearColor(0, 0, 0, 1)
 
     # Loop until the user closes the window
     while not glfw.window_should_close(window):
@@ -130,17 +161,14 @@ def main():
 
         # Bind the programs and buffers
         GL.glUseProgram(shader_program)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo_pos)
-        GL.glEnableVertexAttribArray(vpos_loc)
-        GL.glEnableVertexAttribArray(vcol_loc)
+        GL.glBindVertexArray(vao)
 
         GL.glUniformMatrix4fv(mvp_loc, 1, False, mvp)
+
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, num_vertices)
 
         # Unbind the programs and buffers
-        GL.glDisableVertexAttribArray(vcol_loc)
-        GL.glDisableVertexAttribArray(vpos_loc)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        GL.glBindVertexArray(vao)
         GL.glUseProgram(0)
 
         # Swap front and back buffers
@@ -149,7 +177,9 @@ def main():
         # Poll for and process events
         glfw.poll_events()
 
+    glfw.destroy_window(window)
     glfw.terminate()
+
 
 if __name__ == "__main__":
     main()
