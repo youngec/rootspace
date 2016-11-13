@@ -5,6 +5,7 @@
 
 import abc
 import collections
+import contextlib
 import inspect
 import json
 import logging
@@ -13,7 +14,6 @@ import shutil
 import time
 import uuid
 import weakref
-import sys
 
 import attr
 import sdl2
@@ -557,6 +557,7 @@ class Context(object):
     _world = attr.ib(validator=instance_of((type(None), World)))
     _debug = attr.ib(validator=instance_of(bool))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
+    _ctx_exit = attr.ib(validator=instance_of((type(None), contextlib.ExitStack)))
 
     @classmethod
     def create(cls, name, user_home, engine_location, debug=False):
@@ -597,7 +598,7 @@ class Context(object):
         # Create the logger
         log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
 
-        return cls(name, resources_path, states_path, ctx, None, None, None, debug, log)
+        return cls(name, resources_path, states_path, ctx, None, None, None, debug, log, None)
 
     @property
     def resources(self):
@@ -686,25 +687,25 @@ class Context(object):
 
         :return:
         """
-        try:
+        with contextlib.ExitStack() as ctx_mgr:
             self._nfo("Initializing the context.")
 
             # Initialise SDL2 and SDL2 TTF
             self._dbg("Initializing SDL2.")
             sdl2.ext.init()
+            ctx_mgr.callback(sdl2.ext.quit)
 
             self._dbg("Initializing SDL2 TTF.")
             if sdl2.sdlttf.TTF_Init() != 0:
                 raise SDLTTFError()
 
-            # Create the Window
+            # Create the Window, Renderer and World
             self._dbg("Creating the window.")
             self._window = sdl2.ext.Window(
                 self._data.window_title,
                 self._data.window_shape,
                 flags=self._data.window_flags
             )
-
             # Create the Renderer
             self._dbg("Creating the renderer.")
             sdl2.SDL_SetHint(sdl2.SDL_HINT_RENDER_SCALE_QUALITY, self._data.render_scale_quality)
@@ -715,13 +716,10 @@ class Context(object):
             # Create the World
             self._dbg("Creating the world.")
             self._world = World.create(self)
-        except Exception as e:
-            if self.__exit__(*sys.exc_info()):
-                pass
-            else:
-                raise e
 
-        return self
+            self._ctx_exit = ctx_mgr.pop_all().close
+
+            return self
 
     def __exit__(self, exc_type, exc_val, trcbak):
         """
@@ -732,14 +730,7 @@ class Context(object):
         :param trcbak:
         :return:
         """
-        self._nfo("Closing down the context.")
-        self._dbg("Deleting the Resources, Window, Renderer and World instances.")
-        self._world = None
-        self._renderer = None
-        self._window = None
-
-        self._dbg("Quitting SDL2.")
-        sdl2.ext.quit()
+        self._ctx_exit()
         return False
 
 
