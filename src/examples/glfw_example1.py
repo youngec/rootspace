@@ -19,8 +19,8 @@ def mat4x4_rotation_z(angle):
     s = math.sin(angle)
     c = math.cos(angle)
     Q = (
-        (c, s, 0, 0),
-        (-s, c, 0, 0),
+        (c, -s, 0, 0),
+        (s, c, 0, 0),
         (0, 0, 1, 0),
         (0, 0, 0, 1)
     )
@@ -163,7 +163,7 @@ def main():
         GL.glUseProgram(shader_program)
         GL.glBindVertexArray(vao)
 
-        GL.glUniformMatrix4fv(mvp_loc, 1, False, mvp)
+        GL.glUniformMatrix4fv(mvp_loc, 1, True, mvp)
 
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, num_vertices)
 
