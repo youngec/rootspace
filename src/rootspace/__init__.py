@@ -9,9 +9,7 @@ from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
-# Add the SDL2 library path (this is necessary for some linux versions)
-if sys.platform == "linux" and os.path.isdir("/run/current-system"):
-    pysdl2_dll = "/run/current-system/sw/lib:{}".format(
-        os.environ.get("PYSDL2_DLL_PATH", "")
-    )
-    os.environ["PYSDL2_DLL_PATH"] = pysdl2_dll
+# Add OpenGL to the library path, so that PyOpenGL can find it
+if sys.platform == "linux" and os.path.isdir("/run/opengl-driver"):
+    os.environ["LIBRARY_PATH"] = "/run/opengl-driver/lib:/run/opengl-driver-32/lib:{}".format(os.environ.get("LIBRARY_PATH", ""))
+
