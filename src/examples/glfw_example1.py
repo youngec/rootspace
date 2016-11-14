@@ -25,8 +25,8 @@ def mat4x4_rotation_z(angle):
     s = math.sin(angle)
     c = math.cos(angle)
     Q = (
-        (c, s, 0, 0),
-        (-s, c, 0, 0),
+        (c, -s, 0, 0),
+        (s, c, 0, 0),
         (0, 0, 1, 0),
         (0, 0, 0, 1)
     )
@@ -42,10 +42,10 @@ def mat4x4_ortho(left, right, bottom, top, near, far):
     n = near
     f = far
     P = (
-        (2 / (r - l), 0, 0, 0),
-        (0, 2 / (t - b), 0, 0),
-        (0, 0, -2 / (f - n), 0),
-        (-(r + l) / (r - l), -(t + b) / (t - b), -(f + n) / (f - n), 1)
+        (2 / (r - l), 0, 0, -(r + l) / (r - l)),
+        (0, 2 / (t - b), 0, -(t + b) / (t - b)),
+        (0, 0, -2 / (f - n), -(f + n) / (f - n)),
+        (0, 0, 0, 1)
     )
 
     return numpy.array(P)
@@ -90,16 +90,14 @@ def main():
     layout(location = 0) in vec4 vPos;
     layout(location = 1) in vec4 vCol;
 
-    uniform mat4 model;
-    uniform mat4 view;
-    uniform mat4 projection;
+    uniform mat4 mvp_matrix;
 
     smooth out vec4 color;
 
     void main() {
 
 
-        gl_Position = projection * view * model * vPos;
+        gl_Position = mvp_matrix * vPos;
         color = vCol;
     }
     """
@@ -127,9 +125,7 @@ def main():
     )
 
     # Get the shader parameter locations
-    model_loc = GL.glGetUniformLocation(shader_program, "model")
-    view_loc = GL.glGetUniformLocation(shader_program, "view")
-    projection_loc = GL.glGetUniformLocation(shader_program, "projection")
+    mvp_loc = GL.glGetUniformLocation(shader_program, "mvp_matrix")
     vpos_loc = GL.glGetAttribLocation(shader_program, "vPos")
     vcol_loc = GL.glGetAttribLocation(shader_program, "vCol")
 
@@ -174,9 +170,7 @@ def main():
         GL.glUseProgram(shader_program)
         GL.glBindVertexArray(vao)
 
-        GL.glUniformMatrix4fv(model_loc, 1, False, m)
-        GL.glUniformMatrix4fv(view_loc, 1, False, v)
-        GL.glUniformMatrix4fv(projection_loc, 1, False, p)
+        GL.glUniformMatrix4fv(mvp_loc, 1, True, p @ v @ m)
 
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, num_vertices)
 

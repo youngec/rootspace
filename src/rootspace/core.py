@@ -6,6 +6,7 @@
 import abc
 import collections
 import contextlib
+import ctypes
 import inspect
 import json
 import logging
@@ -17,13 +18,14 @@ import warnings
 
 import attr
 import glfw
+import numpy
 import OpenGL.GL as gl
 from attr.validators import instance_of
 from OpenGL.GL.shaders import compileShader, compileProgram
 
 from .exceptions import GLFWError, FixmeWarning
 from .utilities import subclass_of, camelcase_to_underscore
-from .opengl_math import Matrix4x4, mat4x4_ortho, mat4x4_identity
+from .opengl_math import mat4x4_ortho, mat4x4_identity
 
 
 @attr.s
@@ -139,7 +141,6 @@ class RenderSystem(object, metaclass=abc.ABCMeta):
     """
     component_types = attr.ib(validator=instance_of(tuple))
     is_applicator = attr.ib(validator=instance_of(bool))
-    sort_func = attr.ib()
     _log = attr.ib(validator=instance_of(logging.Logger))
 
     @abc.abstractmethod
@@ -260,7 +261,7 @@ class EventSystem(object, metaclass=abc.ABCMeta):
 @attr.s(slots=True)
 class Transform(object):
     # FIXME: Transform is incomplete
-    model = attr.ib(default=mat4x4_identity(), validator=instance_of(Matrix4x4))
+    model = attr.ib(default=mat4x4_identity(), validator=instance_of(numpy.ndarray))
 
 
 @attr.s(slots=True)
@@ -269,36 +270,105 @@ class RenderData(object):
 
     vao = attr.ib(default=-1, validator=instance_of(int))
     vbo = attr.ib(default=-1, validator=instance_of(int))
-    vertices = attr.ib(default=tuple(), validator=instance_of(tuple))
-    coordinate_components = attr.ib(default=4, validator=instance_of(int))
-    color_components = attr.ib(default=4, validator=instance_of(int))
+    num_vertices = attr.ib(default=0, validator=instance_of(int))
     program = attr.ib(default=-1, validator=instance_of(int))
+    mvp_location = attr.ib(default=-1, validator=instance_of(int))
     uniforms = attr.ib(default=attr.Factory(list), validator=instance_of(list))
 
-    @property
-    def num_vertices(self):
-        return len(self.vertices) // (self.coordinate_components + self.color_components)
-
     @classmethod
-    def create(cls, vertices, vertex_shader, fragment_shader):
+    def create(cls, vertices, num_vertices, vertex_shader, fragment_shader):
         warnings.warn("The VAO, the VBO and the shaders are not deleted yet.", FixmeWarning)
 
         # Create and bind the Vertex Array Object
         vao = gl.glGenVertexArrays(1)
         gl.glBindVertexArray(vao)
 
+        # Compile the shader program
         warnings.warn("Get rid of compileProgram, compileShader and write my own.", FixmeWarning)
         program = compileProgram(
             compileShader(vertex_shader, gl.GL_VERTEX_SHADER),
             compileShader(fragment_shader, gl.GL_FRAGMENT_SHADER)
         )
 
-        # FIXME: Get the shader variable locations, somehow
-        # FIXME: ...
+        # FIXME: This needs to be generalised
+        mvp_location = gl.glGetUniformLocation(program, "mvp_matrix")
+        position_location = gl.glGetAttribLocation(program, "vert_pos")
+        color_location = gl.glGetAttribLocation(program, "vert_col")
 
+        # Initialise the vertex buffer
+        vbo = gl.glGenBuffers(1)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
+
+        # Set the appropriate pointers
+        gl.glEnableVertexAttribArray(position_location)
+        gl.glVertexAttribPointer(
+            position_location, 4, gl.GL_FLOAT, False, 0, None
+        )
+        gl.glEnableVertexAttribArray(color_location)
+        gl.glVertexAttribPointer(
+            color_location, 4, gl.GL_FLOAT, False, 0, ctypes.c_void_p(vertices.nbytes // 2)
+        )
+
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
         gl.glBindVertexArray(0)
 
-        return cls() 
+        return cls(vao, vbo, num_vertices, program, mvp_location)
+
+    def update_uniforms(self):
+        pass
+
+
+@attr.s
+class TestEntity(Entity):
+    transform = attr.ib(validator=instance_of(Transform))
+    render_data = attr.ib(validator=instance_of(RenderData))
+
+    @classmethod
+    def create(cls, world, **kwargs):
+        vertices = numpy.array([
+            -0.6, -0.4, 0.0, 1.0,
+            0.6, -0.4, 0.0, 1.0,
+            0, 0.6, 0.0, 1.0,
+            1.0, 0.0, 0.0, 1.0,
+            0.0, 1.0, 0.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+        ], dtype=numpy.float32)
+        num_vertices = 3
+        vertex_shader = """
+            #version 330 core
+
+            layout(location = 0) in vec4 vPos;
+            layout(location = 1) in vec4 vCol;
+
+            uniform mat4 mvp_matrix;
+
+            smooth out vec4 color;
+
+            void main() {
+
+
+                gl_Position = mvp_matrix * vPos;
+                color = vCol;
+            }
+            """
+
+        fragment_shader = """
+            #version 330 core
+
+            smooth in vec4 color;
+
+            out vec4 fragColor;
+
+            void main() {
+                fragColor = color;
+            }
+            """
+
+        trf = Transform(mat4x4_identity())
+        dat = RenderData.create(vertices, num_vertices, vertex_shader, fragment_shader)
+
+        return super(cls).create(world=world, transform=trf, render_data=dat, **kwargs)
 
 
 @attr.s
@@ -317,27 +387,29 @@ class OpenGLRenderer(RenderSystem):
         gl.glViewport(0, 0, *shape)
 
         # Clear the viewport
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
         # Calculate the projection matrix
         ratio = shape[0] / shape[1]
         view = mat4x4_identity()
-        projection = mat4x4_ortho(-ratio, ratio, -1, 1, 1, -1)
+        proj = mat4x4_ortho(-ratio, ratio, -1, 1, 1, -1)
+        pv = proj @ view
 
-        for transform, shader, mesh in components:
+        for transform, data in components:
             # Bind the shader program and the VAO
-            gl.glUseProgram(shader.program)
-            gl.glBindVertexArray(mesh.vao)
+            gl.glUseProgram(data.program)
+            gl.glBindVertexArray(data.vao)
 
-            gl.glUniformMatrix4fv(shader.model_loc, 1, False, transform.model)
-            gl.glUniformMatrix4fv(shader.view_loc, 1, False, view)
-            gl.glUniformMatrix4fv(shader.projection_loc, 1, False, projection)
+            gl.glUniformMatrix4fv(data.mvp_location, 1, True, pv @ transform.model)
+            data.update_uniforms()
 
-            gl.glDrawArrays(gl.GL_TRIANGLES, 0, mesh.num_vertices)
+            gl.glDrawArrays(gl.GL_TRIANGLES, 0, data.num_vertices)
 
             # Unbind the shader program and the VAO
             gl.glBindVertexArray(0)
             gl.glUseProgram(0)
+
+        glfw.swap_buffers(world.ctx.window)
 
 
 @attr.s
@@ -814,6 +886,9 @@ class Context(object):
             self._dbg("Creating the world.")
             self._world = World.create(self)
 
+            self._world.add_system(OpenGLRenderer.create())
+            self._world.add_entity(TestEntity.create(self._world))
+
             self._ctx_exit = ctx_mgr.pop_all().close
 
             return self
@@ -897,7 +972,6 @@ class Loop(object):
 
             # Clear the screen and render the world.
             ctx.world.render()
-            glfw.swap_buffers(ctx.window)
 
     def _dbg(self, message):
         """
