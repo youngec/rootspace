@@ -13,13 +13,15 @@ import pathlib
 import shutil
 import uuid
 import weakref
+import warnings
 
 import attr
 import glfw
 import OpenGL.GL as gl
 from attr.validators import instance_of
+from OpenGL.GL.shaders import compileShader, compileProgram
 
-from .exceptions import GLFWError
+from .exceptions import GLFWError, FixmeWarning
 from .utilities import subclass_of, camelcase_to_underscore
 from .opengl_math import Matrix4x4, mat4x4_ortho, mat4x4_identity
 
@@ -262,19 +264,41 @@ class Transform(object):
 
 
 @attr.s(slots=True)
-class Shader(object):
-    # FIXME: Shader is incomplete
-    program = attr.ib(default=-1, validator=instance_of(int))
-    model_loc = attr.ib(default=-1, validator=instance_of(int))
-    view_loc = attr.ib(default=-1, validator=instance_of(int))
-    projection_loc = attr.ib(default=-1, validator=instance_of(int))
+class RenderData(object):
+    Uniform = collections.namedtuple("Uniform", ("type", "location", "value"))
 
-
-@attr.s(slots=True)
-class Mesh(object):
-    # FIXME: Mesh is incomplete
     vao = attr.ib(default=-1, validator=instance_of(int))
-    num_vertices = attr.ib(default=0, validator=instance_of(int))
+    vbo = attr.ib(default=-1, validator=instance_of(int))
+    vertices = attr.ib(default=tuple(), validator=instance_of(tuple))
+    coordinate_components = attr.ib(default=4, validator=instance_of(int))
+    color_components = attr.ib(default=4, validator=instance_of(int))
+    program = attr.ib(default=-1, validator=instance_of(int))
+    uniforms = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+
+    @property
+    def num_vertices(self):
+        return len(self.vertices) // (self.coordinate_components + self.color_components)
+
+    @classmethod
+    def create(cls, vertices, vertex_shader, fragment_shader):
+        warnings.warn("The VAO, the VBO and the shaders are not deleted yet.", FixmeWarning)
+
+        # Create and bind the Vertex Array Object
+        vao = gl.glGenVertexArrays(1)
+        gl.glBindVertexArray(vao)
+
+        warnings.warn("Get rid of compileProgram, compileShader and write my own.", FixmeWarning)
+        program = compileProgram(
+            compileShader(vertex_shader, gl.GL_VERTEX_SHADER),
+            compileShader(fragment_shader, gl.GL_FRAGMENT_SHADER)
+        )
+
+        # FIXME: Get the shader variable locations, somehow
+        # FIXME: ...
+
+        gl.glBindVertexArray(0)
+
+        return cls() 
 
 
 @attr.s
@@ -282,7 +306,7 @@ class OpenGLRenderer(RenderSystem):
     @classmethod
     def create(cls):
         return cls(
-            component_types=(Transform, Shader, Mesh),
+            component_types=(Transform, RenderData),
             is_applicator=True,
             log=cls.get_logger()
         )
