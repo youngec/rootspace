@@ -10,6 +10,11 @@ from attr.validators import instance_of
 from .exceptions import OpenGLError
 
 
+# TODO: Possibly introduce a Lexer that can parse Wavefront OBJ files.
+# Reference to PLY lexer: http://www.dabeaz.com/ply/ply.html
+# Reference to OBJ file format: https://people.cs.clemson.edu/~dhouse/courses/405/docs/brief-obj-file-format.html
+
+
 @attr.s
 class Shader(object):
     _obj = attr.ib(validator=instance_of(int))
