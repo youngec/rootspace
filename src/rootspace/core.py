@@ -338,35 +338,13 @@ class TestEntity(Entity):
         ], dtype=numpy.float32)
         num_vertices = 3
 
-        vertex_shader = """
-            #version 330 core
+        vertex_path = world.ctx.resources / "shaders" / "simple_vertex.glsl"
+        with vertex_path.open(mode="r") as f:
+            vertex_shader = f.read()
 
-            layout(location = 0) in vec4 vert_pos;
-            layout(location = 1) in vec4 vert_col;
-
-            uniform mat4 mvp_matrix;
-
-            smooth out vec4 color;
-
-            void main() {
-
-
-            gl_Position = mvp_matrix * vert_pos;
-            color = vert_col;
-            }
-        """
-
-        fragment_shader = """
-            #version 330 core
-
-            smooth in vec4 color;
-
-            out vec4 fragColor;
-
-            void main() {
-                fragColor = color;
-            }
-        """
+        fragment_path = world.ctx.resources / "shaders" / "simple_fragment.glsl"
+        with fragment_path.open(mode="r") as f:
+            fragment_shader = f.read()
 
         trf = Transform(mat4x4_identity())
         dat = RenderData.create(vertices, num_vertices, vertex_shader, fragment_shader)
