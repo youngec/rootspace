@@ -369,7 +369,7 @@ class ObjectRotationSystem(UpdateSystem):
 
     def update(self, time, delta_time, world, components):
         for transform in components:
-            transform.model = mat4x4_rotation_z(glfw.get_time())
+            transform.model = mat4x4_rotation_z(time)
 
 
 @attr.s
