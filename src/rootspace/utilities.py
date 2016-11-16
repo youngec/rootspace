@@ -12,7 +12,7 @@ import attr
 import click
 import colorlog
 
-__docformat__ = 'restructuredtext'
+__docformat__ = "restructuredtext"
 FIRST_CAP_RE = re.compile(r"(.)([A-Z][a-z]+)")
 ALL_CAP_RE = re.compile(r"([a-z0-9])([A-Z])")
 
@@ -24,7 +24,7 @@ def underscore_to_camelcase(name):
     :param str name:
     :return:
     """
-    return "".join(x.capitalize() or '_' for x in name.split("_"))
+    return "".join(x.capitalize() or "_" for x in name.split("_"))
 
 
 def camelcase_to_underscore(name):
@@ -34,8 +34,8 @@ def camelcase_to_underscore(name):
     :param str name:
     :return:
     """
-    s1 = FIRST_CAP_RE.sub(r'\1_\2', name)
-    return ALL_CAP_RE.sub(r'\1_\2', s1).lower()
+    s1 = FIRST_CAP_RE.sub(r"\1_\2", name)
+    return ALL_CAP_RE.sub(r"\1_\2", s1).lower()
 
 
 def to_ref(value):
