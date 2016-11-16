@@ -9,8 +9,8 @@ def mat4x4_identity():
 
 
 def mat4x4_rotation_z(angle):
-    s = math.sin(angle)
-    c = math.cos(angle)
+    s = math.sin(angle % (2 * math.pi))
+    c = math.cos(angle % (2 * math.pi))
     Q = (
         (c, -s, 0, 0),
         (s, c, 0, 0),
