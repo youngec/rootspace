@@ -13,8 +13,8 @@ from .exceptions import OpenGLError
 @attr.s
 class Shader(object):
     _obj = attr.ib(validator=instance_of(int))
-    _log = attr.ib(validator=instance_of(logging.Logger))
-    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack))
+    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
+    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
     def create(cls, shader_type, shader_source):
@@ -54,8 +54,8 @@ class Shader(object):
 @attr.s
 class Program(object):
     _obj = attr.ib(validator=instance_of(int))
-    _log = attr.ib(validator=instance_of(logging.Logger))
-    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack))
+    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
+    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
     
     @classmethod
     def create(cls, shaders):

@@ -23,9 +23,10 @@ import OpenGL.GL as gl
 from attr.validators import instance_of
 from OpenGL.GL.shaders import compileShader, compileProgram
 
-from .exceptions import GLFWError, FixmeWarning
+from .exceptions import GLFWError, FixmeWarning, TodoWarning
 from .utilities import subclass_of, camelcase_to_underscore
-from .opengl_math import mat4x4_ortho, mat4x4_identity
+from .opengl_math import mat4x4_ortho, mat4x4_identity, mat4x4_rotation_z
+from .wrappers import Shader, Program
 
 
 @attr.s
@@ -74,7 +75,7 @@ class UpdateSystem(object, metaclass=abc.ABCMeta):
     """
     component_types = attr.ib(validator=instance_of(tuple))
     is_applicator = attr.ib(validator=instance_of(bool))
-    _log = attr.ib(validator=instance_of(logging.Logger))
+    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
 
     @abc.abstractmethod
     def update(self, time, delta_time, world, components):
@@ -141,7 +142,7 @@ class RenderSystem(object, metaclass=abc.ABCMeta):
     """
     component_types = attr.ib(validator=instance_of(tuple))
     is_applicator = attr.ib(validator=instance_of(bool))
-    _log = attr.ib(validator=instance_of(logging.Logger))
+    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
 
     @abc.abstractmethod
     def render(self, world, components):
@@ -207,7 +208,7 @@ class EventSystem(object, metaclass=abc.ABCMeta):
     component_types = attr.ib(validator=instance_of(tuple))
     is_applicator = attr.ib(validator=instance_of(bool))
     event_types = attr.ib(validator=instance_of(tuple))
-    _log = attr.ib(validator=instance_of(logging.Logger))
+    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
 
     @abc.abstractmethod
     def dispatch(self, event, world, components):
@@ -260,60 +261,61 @@ class EventSystem(object, metaclass=abc.ABCMeta):
 
 @attr.s(slots=True)
 class Transform(object):
-    # FIXME: Transform is incomplete
-    model = attr.ib(default=mat4x4_identity(), validator=instance_of(numpy.ndarray))
+    model = attr.ib(validator=instance_of(numpy.ndarray))
 
 
 @attr.s(slots=True)
 class RenderData(object):
     Uniform = collections.namedtuple("Uniform", ("type", "location", "value"))
 
-    vao = attr.ib(default=-1, validator=instance_of(int))
-    vbo = attr.ib(default=-1, validator=instance_of(int))
-    num_vertices = attr.ib(default=0, validator=instance_of(int))
-    program = attr.ib(default=-1, validator=instance_of(int))
-    mvp_location = attr.ib(default=-1, validator=instance_of(int))
-    uniforms = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    vao = attr.ib(validator=instance_of(int))
+    vbo = attr.ib(validator=instance_of(int))
+    num_vertices = attr.ib(validator=instance_of(int))
+    program = attr.ib(validator=instance_of(Program))
+    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
-    def create(cls, vertices, num_vertices, vertex_shader, fragment_shader):
-        warnings.warn("The VAO, the VBO and the shaders are not deleted yet.", FixmeWarning)
+    def create(cls, vertices, num_vertices, vertex_shader_src, fragment_shader_src):
+        with contextlib.ExitStack() as ctx:
+            warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
+            # Create and bind the Vertex Array Object
+            vao = int(gl.glGenVertexArrays(1))
+            ctx.callback(gl.glDeleteVertexArrays, 1, vao)
+            gl.glBindVertexArray(vao)
 
-        # Create and bind the Vertex Array Object
-        vao = gl.glGenVertexArrays(1)
-        gl.glBindVertexArray(vao)
+            # Compile the shader program
+            vertex_shader = Shader.create(gl.GL_VERTEX_SHADER, vertex_shader_src)
+            fragment_shader = Shader.create(gl.GL_FRAGMENT_SHADER, fragment_shader_src)
+            program = Program.create((vertex_shader, fragment_shader))
 
-        # Compile the shader program
-        warnings.warn("Get rid of compileProgram, compileShader and write my own.", FixmeWarning)
-        program = compileProgram(
-            compileShader(vertex_shader, gl.GL_VERTEX_SHADER),
-            compileShader(fragment_shader, gl.GL_FRAGMENT_SHADER)
-        )
+            position_location = program.attribute_location("vert_pos")
+            color_location = program.attribute_location("vert_col")
 
-        # FIXME: This needs to be generalised
-        mvp_location = gl.glGetUniformLocation(program, "mvp_matrix")
-        position_location = gl.glGetAttribLocation(program, "vert_pos")
-        color_location = gl.glGetAttribLocation(program, "vert_col")
+            # Initialise the vertex buffer
+            vbo = int(gl.glGenBuffers(1))
+            ctx.callback(gl.glDeleteBuffers, 1, vbo)
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
 
-        # Initialise the vertex buffer
-        vbo = gl.glGenBuffers(1)
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-        gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
+            # Set the appropriate pointers
+            gl.glEnableVertexAttribArray(position_location)
+            gl.glVertexAttribPointer(
+                position_location, 4, gl.GL_FLOAT, False, 0, None
+            )
+            gl.glEnableVertexAttribArray(color_location)
+            gl.glVertexAttribPointer(
+                color_location, 4, gl.GL_FLOAT, False, 0, ctypes.c_void_p(vertices.nbytes // 2)
+            )
 
-        # Set the appropriate pointers
-        gl.glEnableVertexAttribArray(position_location)
-        gl.glVertexAttribPointer(
-            position_location, 4, gl.GL_FLOAT, False, 0, None
-        )
-        gl.glEnableVertexAttribArray(color_location)
-        gl.glVertexAttribPointer(
-            color_location, 4, gl.GL_FLOAT, False, 0, ctypes.c_void_p(vertices.nbytes // 2)
-        )
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+            gl.glBindVertexArray(0)
 
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-        gl.glBindVertexArray(0)
+            ctx_exit = ctx.pop_all()
 
-        return cls(vao, vbo, num_vertices, program, mvp_location)
+            return cls(vao, vbo, num_vertices, program, ctx_exit)
+    
+    def __del__(self):
+        self._ctx_exit.close()
 
     def update_uniforms(self):
         pass
@@ -321,8 +323,8 @@ class RenderData(object):
 
 @attr.s
 class TestEntity(Entity):
-    transform = attr.ib(validator=instance_of(Transform))
-    render_data = attr.ib(validator=instance_of(RenderData))
+    transform = attr.ib(validator=instance_of(Transform), hash=False)
+    render_data = attr.ib(validator=instance_of(RenderData), hash=False)
 
     @classmethod
     def create(cls, world, **kwargs):
@@ -335,11 +337,12 @@ class TestEntity(Entity):
             0.0, 0.0, 1.0, 1.0,
         ], dtype=numpy.float32)
         num_vertices = 3
+
         vertex_shader = """
             #version 330 core
 
-            layout(location = 0) in vec4 vPos;
-            layout(location = 1) in vec4 vCol;
+            layout(location = 0) in vec4 vert_pos;
+            layout(location = 1) in vec4 vert_col;
 
             uniform mat4 mvp_matrix;
 
@@ -348,10 +351,10 @@ class TestEntity(Entity):
             void main() {
 
 
-                gl_Position = mvp_matrix * vPos;
-                color = vCol;
+            gl_Position = mvp_matrix * vert_pos;
+            color = vert_col;
             }
-            """
+        """
 
         fragment_shader = """
             #version 330 core
@@ -363,12 +366,32 @@ class TestEntity(Entity):
             void main() {
                 fragColor = color;
             }
-            """
+        """
 
         trf = Transform(mat4x4_identity())
         dat = RenderData.create(vertices, num_vertices, vertex_shader, fragment_shader)
 
-        return super(cls).create(world=world, transform=trf, render_data=dat, **kwargs)
+        inst = super().create(world=world, transform=trf, render_data=dat, **kwargs)
+        
+        world.add_component(inst, inst.transform)
+        world.add_component(inst, inst.render_data)
+
+        return inst
+
+
+@attr.s
+class ObjectRotationSystem(UpdateSystem):
+    @classmethod
+    def create(cls):
+        return cls(
+            component_types=(Transform,),
+            is_applicator=False,
+            log=cls.get_logger()
+        )
+
+    def update(self, time, delta_time, world, components):
+        for transform in components:
+            transform.model = mat4x4_rotation_z(glfw.get_time())
 
 
 @attr.s
@@ -397,17 +420,18 @@ class OpenGLRenderer(RenderSystem):
 
         for transform, data in components:
             # Bind the shader program and the VAO
-            gl.glUseProgram(data.program)
+            data.program.enable()
             gl.glBindVertexArray(data.vao)
 
-            gl.glUniformMatrix4fv(data.mvp_location, 1, True, pv @ transform.model)
-            data.update_uniforms()
+            mvp_location = data.program.uniform_location("mvp_matrix")
+            gl.glUniformMatrix4fv(mvp_location, 1, True, pv @ transform.model)
+            # data.update_uniforms()
 
             gl.glDrawArrays(gl.GL_TRIANGLES, 0, data.num_vertices)
 
             # Unbind the shader program and the VAO
             gl.glBindVertexArray(0)
-            gl.glUseProgram(0)
+            data.program.disable()
 
         glfw.swap_buffers(world.ctx.window)
 
@@ -437,14 +461,14 @@ class World(object):
     The order in which data is processed depends on the order of the
     added systems.
     """
-    _ctx = attr.ib(validator=instance_of(weakref.ReferenceType))
+    _ctx = attr.ib(validator=instance_of(weakref.ReferenceType), repr=False)
     _entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
-    _components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
-    _systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    _components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict), repr=False)
+    _systems = attr.ib(default=attr.Factory(list), validator=instance_of(list), repr=False)
     _update_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-    _component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+    _component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict), repr=False)
     _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
 
     @property
@@ -520,7 +544,7 @@ class World(object):
         """
         self._entities.add(entity)
 
-    def delete_entity(self, entity):
+    def remove_entity(self, entity):
         """
         Remove an entity and all its data from the world.
 
@@ -531,6 +555,10 @@ class World(object):
             comp_set.pop(entity, None)
 
         self._entities.discard(entity)
+
+    def remove_entities(self):
+        for entity in self._entities.copy():
+            self.remove_entity(entity)
 
     def get_components(self, comp_type):
         """
@@ -584,6 +612,10 @@ class World(object):
         :return:
         """
         self._systems.remove(system)
+
+    def remove_systems(self):
+        for system in self._systems.copy():
+            self.remove_system(system)
 
     def update(self, t, dt):
         """
@@ -720,7 +752,7 @@ class Context(object):
     _world = attr.ib(validator=instance_of((type(None), World)))
     _debug = attr.ib(validator=instance_of(bool))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
-    _ctx_exit = attr.ib(validator=instance_of((type(None), contextlib.ExitStack)))
+    _ctx_exit = attr.ib(validator=instance_of((type(None), contextlib.ExitStack)), repr=False)
 
     @classmethod
     def create(cls, name, user_home, engine_location, debug=False):
@@ -886,10 +918,15 @@ class Context(object):
             self._dbg("Creating the world.")
             self._world = World.create(self)
 
+            # Add the initial systems
             self._world.add_system(OpenGLRenderer.create())
-            self._world.add_entity(TestEntity.create(self._world))
+            self._world.add_system(ObjectRotationSystem.create())
+            ctx_mgr.callback(self._world.remove_systems)
 
-            self._ctx_exit = ctx_mgr.pop_all().close
+            self._world.add_entity(TestEntity.create(self._world))
+            ctx_mgr.callback(self._world.remove_entities)
+
+            self._ctx_exit = ctx_mgr.pop_all()
 
             return self
 
@@ -902,7 +939,7 @@ class Context(object):
         :param trcbak:
         :return:
         """
-        self._ctx_exit()
+        self._ctx_exit.close()
         return False
 
 
