@@ -6,9 +6,16 @@ A collection of exceptions used by Rootspace.
 """
 
 
-class SetupError(Exception):
+class TodoWarning(Warning):
     """
-    This exception indicates that the project was installed incorrectly.
+    This warning is raised if something remains to be done, but is not necessary.
+    """
+    pass
+
+
+class FixmeWarning(Warning):
+    """
+    This warning is raised if something should be fixed.
     """
     pass
 
@@ -16,6 +23,13 @@ class SetupError(Exception):
 class GLFWError(Exception):
     """
     This exception indicates that the GLFW library failed in some respect.
+    """
+    pass
+
+
+class OpenGLError(Exception):
+    """
+    This exception indicates that some OpenGL call failed.
     """
     pass
 
@@ -61,9 +75,3 @@ class RootspaceNotAnExecutableError(Exception):
     """
     pass
 
-
-class FixmeWarning(Warning):
-    """
-    This warning is raised if something should be fixed.
-    """
-    pass
