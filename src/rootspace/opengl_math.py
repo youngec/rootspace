@@ -2,13 +2,26 @@
 
 import math
 import numpy
+import collections
+
+
+Vector3 = collections.namedtuple("Vector3", ("x", "y", "z"))
 
 
 def identity():
     return numpy.eye(4)
 
 
-def rotaiton_z(angle):
+def translation(vector):
+    return numpy.array((
+        (1, 0, 0, vector.x),
+        (0, 1, 0, vector.y),
+        (0, 0, 1, vector.z),
+        (0, 0, 0, 1)
+    ))
+
+
+def rotation_z(angle):
     s = math.sin(angle % (2 * math.pi))
     c = math.cos(angle % (2 * math.pi))
 
