@@ -25,9 +25,9 @@ from attr.validators import instance_of
 
 from .exceptions import GLFWError, TodoWarning, FixmeWarning
 from .utilities import subclass_of, camelcase_to_underscore
-from .opengl_math import identity, rotaiton_z, perspective
+from .opengl_math import identity, rotation_z, perspective, translation, Vector3
 from .wrappers import Shader, Program
-from .events import KeyEvent, CharEvent, CursorEvent, CursorEnterEvent, MouseButtonEvent, ScrollEvent
+from .events import KeyEvent, CharEvent, CursorEvent, CursorEnterEvent, MouseButtonEvent, ScrollEvent, KeyMap
 
 
 @attr.s
@@ -329,6 +329,7 @@ class CameraData(object):
     view = attr.ib(validator=instance_of(numpy.ndarray))
     projection = attr.ib(validator=instance_of(numpy.ndarray))
     shape = attr.ib(validator=instance_of(tuple))
+    speed = attr.ib(validator=instance_of(Vector3))
 
 
 @attr.s
@@ -387,16 +388,69 @@ class Camera(Entity):
     def create(cls, world, **kwargs):
         fov = kwargs.pop("field_of_view")
         shape = kwargs.pop("shape")
+        speed = kwargs.pop("speed")
         aspect = shape[0] / shape[1]
         near = kwargs.pop("near_plane")
         far = kwargs.pop("far_plane")
-        camera_data = CameraData(identity(), perspective(fov, aspect, near, far), shape)
+        camera_data = CameraData(identity(), perspective(fov, aspect, near, far), shape, speed)
 
         inst = super().create(world=world, camera_data=camera_data, **kwargs)
 
         world.add_component(inst, inst.camera_data)
 
         return inst
+
+
+@attr.s
+class PlayerControlSystem(EventSystem):
+    @classmethod
+    def create(cls):
+        return cls(
+            component_types=(CameraData,),
+            is_applicator=False,
+            event_types=(KeyEvent, ),
+            log=cls.get_logger()
+        )
+
+    def dispatch(self, event, world, components):
+        if event.action in (glfw.PRESS, glfw.REPEAT) and event.mods == 0:
+            key_map = world.ctx.data.key_map
+            dt = world.ctx.data.delta_time
+            for data in components:
+                if event.key == key_map.left:
+                    vec = Vector3(-data.speed.x * dt, 0, 0)
+                    data.view = translation(vec) @ data.view
+                elif event.key == key_map.right:
+                    vec = Vector3(data.speed.x * dt, 0, 0)
+                    data.view = translation(vec) @ data.view
+                elif event.key == key_map.up:
+                    vec = Vector3(0, data.speed.y * dt, 0)
+                    data.view = translation(vec) @ data.view
+                elif event.key == key_map.down:
+                    vec = Vector3(0, -data.speed.y * dt, 0)
+                    data.view = translation(vec) @ data.view
+                elif event.key == key_map.forward:
+                    vec = Vector3(0, 0, data.speed.z * dt)
+                    data.view = translation(vec) @ data.view
+                elif event.key == key_map.backward:
+                    vec = Vector3(0, 0, -data.speed.z * dt)
+                    data.view = translation(vec) @ data.view
+
+
+@attr.s
+class CameraViewSystem(EventSystem):
+    @classmethod
+    def create(cls):
+        return cls(
+            component_types=(CameraData,),
+            is_applicator=False,
+            event_types=(CursorEvent,),
+            log=cls.get_logger()
+        )
+
+    def dispatch(self, event, world, components):
+        for data in components:
+            data.shape = glfw.get_framebuffer_size(world.ctx.window)
 
 
 @attr.s
@@ -411,7 +465,7 @@ class ObjectRotationSystem(UpdateSystem):
 
     def update(self, time, delta_time, world, components):
         for transform in components:
-            transform.model = rotaiton_z(time)
+            transform.model = rotation_z(time)
 
 
 @attr.s
@@ -704,6 +758,17 @@ class World(object):
         """
         self.dispatch(CharEvent(window, codepoint))
 
+    def dispatch_cursor(self, window, xpos, ypos):
+        """
+        Dispatch a cursor movement event, as sent by GLFW.
+
+        :param window:
+        :param xpos:
+        :param ypos:
+        :return:
+        """
+        self.dispatch(CursorEvent(window, xpos, ypos))
+
     def dispatch(self, event):
         """
         Dispatch an SDL2 event.
@@ -712,7 +777,7 @@ class World(object):
         :return:
         """
         for system in self._event_systems:
-            if event.type in system.event_types:
+            if isinstance(event, system.event_types):
                 if system.is_applicator:
                     comps = self.combined_components(system.component_types)
                     system.dispatch(event, self, comps)
@@ -779,7 +844,7 @@ class Context(object):
     Data = collections.namedtuple("Data", (
         "delta_time", "max_frame_duration", "epsilon", "window_title", "window_shape",
         "window_hints", "swap_interval", "clear_color", "clear_bits", "field_of_view",
-        "near_plane", "far_plane", "extra"
+        "speed", "near_plane", "far_plane", "key_map", "extra"
     ))
 
     default_ctx = Data(
@@ -798,8 +863,10 @@ class Context(object):
         clear_color=(0, 0, 0, 1),
         clear_bits=(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT),
         field_of_view=math.pi/2,
+        speed=Vector3(10, 10, 10),
         near_plane=0.1,
         far_plane=10,
+        key_map=KeyMap(glfw.KEY_A, glfw.KEY_D, glfw.KEY_W, glfw.KEY_S, glfw.KEY_Z, glfw.KEY_X),
         extra=None
     )
     default_config_dir = ".config"
@@ -946,6 +1013,7 @@ class Context(object):
         """
         self._dbg("Registering GLFW event callbacks with World.")
         glfw.set_key_callback(self._window, self._world.dispatch_key)
+        glfw.set_cursor_pos_callback(self._window, self._world.dispatch_cursor)
 
     def _clear_callbacks(self):
         """
@@ -955,6 +1023,7 @@ class Context(object):
         """
         self._dbg("Clearing GLFW event callbacks.")
         glfw.set_key_callback(self._window, None)
+        glfw.set_cursor_pos_callback(self._window, None)
 
     def _del_glfw(self):
         """
@@ -1033,6 +1102,8 @@ class Context(object):
 
             # Add the initial systems
             self._world.add_system(OpenGLRenderer.create())
+            self._world.add_system(PlayerControlSystem.create())
+            self._world.add_system(CameraViewSystem.create())
             self._world.add_system(ObjectRotationSystem.create())
             ctx_mgr.callback(self._world.remove_systems)
 
@@ -1040,6 +1111,7 @@ class Context(object):
                 self._world,
                 field_of_view=self._data.field_of_view,
                 shape=self._data.window_shape,
+                speed=self._data.speed,
                 near_plane=self._data.near_plane,
                 far_plane=self._data.far_plane
             ))
