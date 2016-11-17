@@ -4,11 +4,11 @@ import math
 import numpy
 
 
-def mat4x4_identity():
+def identity():
     return numpy.eye(4)
 
 
-def mat4x4_rotation_z(angle):
+def rotaiton_z(angle):
     s = math.sin(angle % (2 * math.pi))
     c = math.cos(angle % (2 * math.pi))
     Q = (
@@ -21,7 +21,7 @@ def mat4x4_rotation_z(angle):
     return numpy.array(Q)
 
 
-def mat4x4_ortho(left, right, bottom, top, near, far):
+def orthographic(left, right, bottom, top, near, far):
     l = left
     r = right
     b = bottom
@@ -36,3 +36,7 @@ def mat4x4_ortho(left, right, bottom, top, near, far):
     )
 
     return numpy.array(P)
+
+
+def perspective():
+    return numpy.eye(4)
