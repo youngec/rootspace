@@ -18,7 +18,6 @@ from .exceptions import OpenGLError
 @attr.s
 class Shader(object):
     _obj = attr.ib(validator=instance_of(int))
-    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
@@ -29,7 +28,7 @@ class Shader(object):
             if obj == 0:
                 raise OpenGLError("Failed to create a shader object.")
             ctx_mgr.callback(gl.glDeleteShader, obj)
-            
+
             # Set the shader source code
             gl.glShaderSource(obj, shader_source)
 
@@ -42,26 +41,24 @@ class Shader(object):
                 log_string = gl.glGetShaderInfoLog(obj, log_length, None)
                 raise OpenGLError(log_string.decode("utf-8"))
 
-            log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
-
             ctx_exit = ctx_mgr.pop_all()
 
-            return cls(obj, log, ctx_exit)
+            return cls(obj, ctx_exit)
 
     def __del__(self):
         self._ctx_exit.close()
 
     @property
     def obj(self):
-        self._log.debug("Access to Shader location reference")
         return self._obj
+
 
 @attr.s
 class Program(object):
     _obj = attr.ib(validator=instance_of(int))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
-    
+
     @classmethod
     def create(cls, shaders):
         with contextlib.ExitStack() as ctx_mgr:
@@ -99,7 +96,6 @@ class Program(object):
 
     @property
     def obj(self):
-        self._log.debug("Access to Program location reference.")
         return self._obj
 
     @property
@@ -108,12 +104,14 @@ class Program(object):
 
     def enable(self):
         if not self.enabled:
+            self._log.debug("Activating shader program '{}'.".format(self._obj))
             gl.glUseProgram(self._obj)
         else:
             self._log.warning("Attempting to enable an active shader program.")
 
     def disable(self):
         if self.enabled:
+            self._log.debug("Deactivating shader program '{}'.".format(self._obj))
             gl.glUseProgram(0)
         else:
             self._log.warning("Attempting to disable an inactive shader program.")
@@ -134,7 +132,3 @@ class Program(object):
 
     def uniform(self, name, values, transpose=True):
         loc = self.uniform_location(name)
-
-    def attribute(self, name, values):
-        loc = self.attribute_location(name)
-
