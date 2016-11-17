@@ -271,12 +271,14 @@ class RenderData(object):
 
     vao = attr.ib(validator=instance_of(int))
     vbo = attr.ib(validator=instance_of(int))
+    mode = attr.ib(validator=instance_of(int))
+    start_index = attr.ib(validator=instance_of(int))
     num_vertices = attr.ib(validator=instance_of(int))
     program = attr.ib(validator=instance_of(Program))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
-    def create(cls, vertices, num_vertices, vertex_shader_src, fragment_shader_src):
+    def create(cls, vertices, mode, start_index, num_vertices, vertex_shader_src, fragment_shader_src):
         with contextlib.ExitStack() as ctx:
             warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
             # Create and bind the Vertex Array Object
@@ -313,7 +315,7 @@ class RenderData(object):
 
             ctx_exit = ctx.pop_all()
 
-            return cls(vao, vbo, num_vertices, program, ctx_exit)
+            return cls(vao, vbo, mode, start_index, num_vertices, program, ctx_exit)
 
     def __del__(self):
         self._ctx_exit.close()
@@ -344,6 +346,8 @@ class TestEntity(Entity):
             0.0, 1.0, 0.0, 1.0,
             0.0, 0.0, 1.0, 1.0,
         ], dtype=numpy.float32)
+        mode = gl.GL_TRIANGLES
+        start_index = 0
         num_vertices = 3
 
         vertex_path = world.ctx.resources / "shaders" / "simple_vertex.glsl"
@@ -355,7 +359,9 @@ class TestEntity(Entity):
             fragment_shader = f.read()
 
         trf = Transform(identity())
-        dat = RenderData.create(vertices, num_vertices, vertex_shader, fragment_shader)
+        dat = RenderData.create(
+            vertices, mode, start_index, num_vertices, vertex_shader, fragment_shader
+        )
 
         inst = super().create(world=world, transform=trf, render_data=dat, **kwargs)
 
@@ -443,7 +449,7 @@ class OpenGLRenderer(RenderSystem):
             gl.glUniformMatrix4fv(mvp_location, 1, True, pv @ transform.model)
             # data.update_uniforms()
 
-            gl.glDrawArrays(gl.GL_TRIANGLES, 0, data.num_vertices)
+            gl.glDrawArrays(data.mode, data.start_index, data.num_vertices)
 
             # Unbind the shader program and the VAO
             gl.glBindVertexArray(0)
