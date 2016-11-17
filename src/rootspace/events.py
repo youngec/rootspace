@@ -9,3 +9,5 @@ CursorEvent = collections.namedtuple("CursorEvent", ("window", "xpos", "ypos"))
 CursorEnterEvent = collections.namedtuple("CursorEnterEvent", ("window", "entered"))
 MouseButtonEvent = collections.namedtuple("MouseButtonEvent", ("window", "button", "action", "mods"))
 ScrollEvent = collections.namedtuple("ScrollEvent", ("window", "xoffset", "yoffset"))
+
+KeyMap = collections.namedtuple("KeyMap", ("left", "right", "up", "down", "forward", "backward"))
