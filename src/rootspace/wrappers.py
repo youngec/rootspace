@@ -104,14 +104,12 @@ class Program(object):
 
     def enable(self):
         if not self.enabled:
-            self._log.debug("Activating shader program '{}'.".format(self._obj))
             gl.glUseProgram(self._obj)
         else:
             self._log.warning("Attempting to enable an active shader program.")
 
     def disable(self):
         if self.enabled:
-            self._log.debug("Deactivating shader program '{}'.".format(self._obj))
             gl.glUseProgram(0)
         else:
             self._log.warning("Attempting to disable an inactive shader program.")
