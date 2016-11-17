@@ -27,6 +27,7 @@ from .exceptions import GLFWError, TodoWarning, FixmeWarning
 from .utilities import subclass_of, camelcase_to_underscore
 from .opengl_math import identity, rotaiton_z, perspective
 from .wrappers import Shader, Program
+from .events import KeyEvent, CharEvent, CursorEvent, CursorEnterEvent, MouseButtonEvent, ScrollEvent
 
 
 @attr.s
@@ -557,6 +558,7 @@ class World(object):
         :param entity:
         :return:
         """
+        self._log.debug("Adding Entity '{}'.".format(entity))
         self._entities.add(entity)
 
     def remove_entity(self, entity):
@@ -572,6 +574,7 @@ class World(object):
         self._entities.discard(entity)
 
     def remove_entities(self):
+        self._log.debug("Removing all Entities from this World.")
         for entity in self._entities.copy():
             self.remove_entity(entity)
 
@@ -613,6 +616,7 @@ class World(object):
         :return:
         """
         if self._is_valid_system(system):
+            self._log.debug("Adding System '{}'.".format(system))
             for component_type in system.component_types:
                 if component_type not in self._components:
                     self.add_component_type(component_type)
@@ -637,6 +641,7 @@ class World(object):
         self._systems.remove(system)
 
     def remove_systems(self):
+        self._log.debug("Removing all Systems from this World.")
         for system in self._systems.copy():
             self.remove_system(system)
 
@@ -669,6 +674,29 @@ class World(object):
             else:
                 for comp_type in system.component_types:
                     system.render(self, self._components[comp_type].values())
+
+    def dispatch_key(self, window, key, scancode, action, mode):
+        """
+        Dispatch a Key press event, as sent by GLFW.
+
+        :param window:
+        :param key:
+        :param scancode:
+        :param action:
+        :param mode:
+        :return:
+        """
+        self.dispatch(KeyEvent(window, key, scancode, action, mode))
+
+    def dispatch_char(self, window, codepoint):
+        """
+        Dispatch a Character entry event, as sent by GLFW.
+
+        :param window:
+        :param codepoint:
+        :return:
+        """
+        self.dispatch(CharEvent(window, codepoint))
 
     def dispatch(self, event):
         """
@@ -904,6 +932,52 @@ class Context(object):
         """
         self._log.warn(message)
 
+    def _register_events(self):
+        """
+        Register event callbacks of World with GLFW.
+
+        :return:
+        """
+        self._dbg("Registering GLFW event callbacks with World.")
+        glfw.set_key_callback(self._window, self._world.dispatch_key)
+
+    def _clear_callbacks(self):
+        """
+        Clear the callbacks registered with GLFW.
+
+        :return:
+        """
+        self._dbg("Clearing GLFW event callbacks.")
+        glfw.set_key_callback(self._window, None)
+
+    def _del_glfw(self):
+        """
+        Close down GLFW.
+
+        :return:
+        """
+        self._dbg("Closing down GLFW.")
+        glfw.terminate()
+
+    def _del_window(self):
+        """
+        Delete the reference to the Window.
+
+        :return:
+        """
+        self._dbg("Destroying the Window and deleting its reference.")
+        glfw.destroy_window(self._window)
+        self._window = None
+
+    def _del_world(self):
+        """
+        Delete the reference to the World.
+
+        :return:
+        """
+        self._dbg("Deleting the reference to World.")
+        self._world = None
+
     def __enter__(self):
         """
         Enter the context provided by this instance.
@@ -916,7 +990,7 @@ class Context(object):
             self._dbg("Initializing GLFW.")
             if not glfw.init():
                 raise GLFWError("Cannot initialize GLFW.")
-            ctx_mgr.callback(glfw.terminate)
+            ctx_mgr.callback(self._del_glfw)
 
             # Add the GLFW window hints
             for k, v in self._data.window_hints.items():
@@ -934,7 +1008,7 @@ class Context(object):
             if not self._window:
                 raise GLFWError("Cannot create a GLFW Window.")
             else:
-                ctx_mgr.callback(glfw.destroy_window, self._window)
+                ctx_mgr.callback(self._del_window)
 
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
@@ -945,6 +1019,11 @@ class Context(object):
             # Create the World
             self._dbg("Creating the world.")
             self._world = World.create(self)
+            ctx_mgr.callback(self._del_world)
+
+            # Register the GLFW event callbacks
+            self._register_events()
+            ctx_mgr.callback(self._clear_callbacks)
 
             # Add the initial systems
             self._world.add_system(OpenGLRenderer.create())
@@ -974,6 +1053,7 @@ class Context(object):
         :param trcbak:
         :return:
         """
+        self._nfo("Exiting the context.")
         self._ctx_exit.close()
         return False
 
