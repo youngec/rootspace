@@ -3,6 +3,7 @@
 
 """The engine core holds the entry point into the game execution."""
 
+import math
 import abc
 import collections
 import contextlib
@@ -21,11 +22,10 @@ import glfw
 import numpy
 import OpenGL.GL as gl
 from attr.validators import instance_of
-from OpenGL.GL.shaders import compileShader, compileProgram
 
-from .exceptions import GLFWError, FixmeWarning, TodoWarning
+from .exceptions import GLFWError, TodoWarning, FixmeWarning
 from .utilities import subclass_of, camelcase_to_underscore
-from .opengl_math import mat4x4_ortho, mat4x4_identity, mat4x4_rotation_z
+from .opengl_math import identity, rotaiton_z, perspective
 from .wrappers import Shader, Program
 
 
@@ -313,12 +313,19 @@ class RenderData(object):
             ctx_exit = ctx.pop_all()
 
             return cls(vao, vbo, num_vertices, program, ctx_exit)
-    
+
     def __del__(self):
         self._ctx_exit.close()
 
     def update_uniforms(self):
         pass
+
+
+@attr.s
+class CameraData(object):
+    view = attr.ib(validator=instance_of(numpy.ndarray))
+    projection = attr.ib(validator=instance_of(numpy.ndarray))
+    shape = attr.ib(validator=instance_of(tuple))
 
 
 @attr.s
@@ -346,13 +353,41 @@ class TestEntity(Entity):
         with fragment_path.open(mode="r") as f:
             fragment_shader = f.read()
 
-        trf = Transform(mat4x4_identity())
+        trf = Transform(identity())
         dat = RenderData.create(vertices, num_vertices, vertex_shader, fragment_shader)
 
         inst = super().create(world=world, transform=trf, render_data=dat, **kwargs)
-        
+
         world.add_component(inst, inst.transform)
         world.add_component(inst, inst.render_data)
+
+        return inst
+
+
+@attr.s
+class Camera(Entity):
+    camera_data = attr.ib(validator=instance_of(CameraData), hash=False)
+
+    @property
+    def matrix(self):
+        return self.camera_data.projection @ self.camera_data.view
+
+    @property
+    def shape(self):
+        return self.camera_data.shape
+
+    @classmethod
+    def create(cls, world, **kwargs):
+        fov = kwargs.pop("field_of_view")
+        shape = kwargs.pop("shape")
+        aspect = shape[0] / shape[1]
+        near = kwargs.pop("near_plane")
+        far = kwargs.pop("far_plane")
+        camera_data = CameraData(identity(), perspective(fov, aspect, near, far), shape)
+
+        inst = super().create(world=world, camera_data=camera_data, **kwargs)
+
+        world.add_component(inst, inst.camera_data)
 
         return inst
 
@@ -369,7 +404,7 @@ class ObjectRotationSystem(UpdateSystem):
 
     def update(self, time, delta_time, world, components):
         for transform in components:
-            transform.model = mat4x4_rotation_z(time)
+            transform.model = rotaiton_z(time)
 
 
 @attr.s
@@ -383,20 +418,22 @@ class OpenGLRenderer(RenderSystem):
         )
 
     def render(self, world, components):
-        # Determine the Window size and set the OpenGL viewport accordingly
-        shape = glfw.get_framebuffer_size(world.ctx.window)
-        gl.glViewport(0, 0, *shape)
+        # Get a reference to the camera
+        warnings.warn("Have to be smarter about getting the camera entity.", FixmeWarning)
+        camera = world.get_entities(Camera)[0]
+        pv = camera.matrix
 
-        # Clear the viewport
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        # Update the viewport size
+        gl.glViewport(0, 0, *camera.shape)
 
-        # Calculate the projection matrix
-        ratio = shape[0] / shape[1]
-        view = mat4x4_identity()
-        proj = mat4x4_ortho(-ratio, ratio, -1, 1, 1, -1)
-        pv = proj @ view
+        # Clear the render buffers
+        gl.glClear(world.ctx.data.clear_bits)
 
-        for transform, data in components:
+        # Sort and enumerate the components
+        warnings.warn("Optimize rendering with multiple Entities.", FixmeWarning)
+        sorted_components = sorted(components, key=lambda c: c[1].program.obj)
+
+        for i, (transform, data) in enumerate(sorted_components):
             # Bind the shader program and the VAO
             data.program.enable()
             gl.glBindVertexArray(data.vao)
@@ -550,7 +587,7 @@ class World(object):
         else:
             return []
 
-    def get_entities(self, component):
+    def get_entities_by_component(self, component):
         """
         Get all registered entities with a particular component.
 
@@ -559,6 +596,14 @@ class World(object):
         """
         comp_set = self._components.get(component.__class__, [])
         return [e for e in comp_set if comp_set[e] == component]
+
+    def get_entities(self, entity_type):
+        """
+        Get
+        :param entity_type:
+        :return:
+        """
+        return [e for e in self._entities if isinstance(e, entity_type)]
 
     def add_system(self, system):
         """
@@ -699,7 +744,8 @@ class Context(object):
     """
     Data = collections.namedtuple("Data", (
         "delta_time", "max_frame_duration", "epsilon", "window_title", "window_shape",
-        "window_hints", "swap_interval", "clear_color", "extra"
+        "window_hints", "swap_interval", "clear_color", "clear_bits", "field_of_view",
+        "near_plane", "far_plane", "extra"
     ))
 
     default_ctx = Data(
@@ -716,6 +762,10 @@ class Context(object):
         },
         swap_interval=1,
         clear_color=(0, 0, 0, 1),
+        clear_bits=(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT),
+        field_of_view=math.pi/2,
+        near_plane=0.1,
+        far_plane=10,
         extra=None
     )
     default_config_dir = ".config"
@@ -901,6 +951,13 @@ class Context(object):
             self._world.add_system(ObjectRotationSystem.create())
             ctx_mgr.callback(self._world.remove_systems)
 
+            self._world.add_entity(Camera.create(
+                self._world,
+                field_of_view=self._data.field_of_view,
+                shape=self._data.window_shape,
+                near_plane=self._data.near_plane,
+                far_plane=self._data.far_plane
+            ))
             self._world.add_entity(TestEntity.create(self._world))
             ctx_mgr.callback(self._world.remove_entities)
 
