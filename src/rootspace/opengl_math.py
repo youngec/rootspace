@@ -2,35 +2,23 @@
 
 import math
 import numpy
-import collections
-
-
-Vector3 = collections.namedtuple("Vector3", ("x", "y", "z"))
+import quaternion
 
 
 def identity():
     return numpy.eye(4)
 
 
-def translation(vector):
-    return numpy.array((
-        (1, 0, 0, vector.x),
-        (0, 1, 0, vector.y),
-        (0, 0, 1, vector.z),
-        (0, 0, 0, 1)
-    ))
+def orientation(quat):
+    ori = numpy.eye(4)
+    ori[:3, :3] = quaternion.as_rotation_matrix(quat)
+    return ori
 
 
-def rotation_z(angle):
-    s = math.sin(angle % (2 * math.pi))
-    c = math.cos(angle % (2 * math.pi))
-
-    return numpy.array((
-        (c, -s, 0, 0),
-        (s,  c, 0, 0),
-        (0,  0, 1, 0),
-        (0,  0, 0, 1)
-    ))
+def translation(vect):
+    tra = numpy.eye(4)
+    tra[:3, 3] = vect
+    return tra
 
 
 def orthographic(left, right, bottom, top, near, far):
