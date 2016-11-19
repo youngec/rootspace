@@ -86,6 +86,7 @@ if __name__ == "__main__":
             "colorlog",
             "attrs",
             "numpy",
+            "numpy-quaternion",
             "glfw",
             "pyopengl",
             "xxhash"
