@@ -20,12 +20,13 @@ import warnings
 import attr
 import glfw
 import numpy
+import quaternion
 import OpenGL.GL as gl
 from attr.validators import instance_of
 
 from .exceptions import GLFWError, TodoWarning, FixmeWarning
 from .utilities import subclass_of, camelcase_to_underscore
-from .opengl_math import identity, rotation_z, perspective, translation, Vector3
+from .opengl_math import orientation, perspective, translation
 from .wrappers import Shader, Program
 from .events import KeyEvent, CharEvent, CursorEvent, CursorEnterEvent, MouseButtonEvent, ScrollEvent, KeyMap
 
@@ -262,7 +263,52 @@ class EventSystem(object, metaclass=abc.ABCMeta):
 
 @attr.s(slots=True)
 class Transform(object):
-    model = attr.ib(validator=instance_of(numpy.ndarray))
+    _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray))
+    _quat = attr.ib(default=quaternion.quaternion(-1, 0, 0, 0), validator=instance_of(quaternion.quaternion))
+
+    @property
+    def position(self):
+        return self._pos
+
+    @position.setter
+    def position(self, value):
+        if isinstance(value, numpy.ndarray) and value.shape == (3,):
+            self._pos = value
+        else:
+            raise TypeError("Position must be a 3-component numpy array.")
+
+    @property
+    def orientation(self):
+        return self._quat
+
+    @orientation.setter
+    def orientation(self, value):
+        if isinstance(value, quaternion.quaternion):
+            self._quat = value
+        else:
+            raise TypeError("Orientation must be a quaternion.")
+
+    @property
+    def matrix(self):
+        return translation(self._pos) @ orientation(self._quat).T
+
+    def rotate(self, axis, angle):
+        """
+        Rotate the component around the given axis by the specified angle.
+
+        :param axis:
+        :param angle:
+        :return:
+        """
+        axis /= numpy.linalg.norm(axis)
+        angle %= 2 * math.pi
+
+        self._quat = quaternion.quaternion(
+            math.cos(angle / 2),
+            axis[0] * math.sin(angle / 2),
+            axis[1] * math.sin(angle / 2),
+            axis[2] * math.sin(angle / 2)
+        )
 
 
 @attr.s(slots=True)
@@ -326,10 +372,14 @@ class RenderData(object):
 
 @attr.s
 class CameraData(object):
-    view = attr.ib(validator=instance_of(numpy.ndarray))
-    projection = attr.ib(validator=instance_of(numpy.ndarray))
-    shape = attr.ib(validator=instance_of(tuple))
-    speed = attr.ib(validator=instance_of(Vector3))
+    _fov = attr.ib(default=numpy.pi/4, validator=instance_of(float))
+    _aspect = attr.ib(default=1, validator=instance_of(float))
+    _near = attr.ib(default=0.1, validator=instance_of(float))
+    _far = attr.ib(default=10.0, validator=instance_of(float))
+
+    @property
+    def matrix(self):
+        return perspective(self._fov, self._aspect, self._near, self._far)
 
 
 @attr.s
@@ -359,7 +409,7 @@ class TestEntity(Entity):
         with fragment_path.open(mode="r") as f:
             fragment_shader = f.read()
 
-        trf = Transform(identity())
+        trf = Transform()
         dat = RenderData.create(
             vertices, mode, start_index, num_vertices, vertex_shader, fragment_shader
         )
@@ -374,28 +424,27 @@ class TestEntity(Entity):
 
 @attr.s
 class Camera(Entity):
+    transform = attr.ib(validator=instance_of(Transform), hash=False)
     camera_data = attr.ib(validator=instance_of(CameraData), hash=False)
 
     @property
     def matrix(self):
-        return self.camera_data.projection @ self.camera_data.view
-
-    @property
-    def shape(self):
-        return self.camera_data.shape
+        mat = self.camera_data.matrix @ self.transform.matrix
+        return mat
 
     @classmethod
     def create(cls, world, **kwargs):
         fov = kwargs.pop("field_of_view")
-        shape = kwargs.pop("shape")
-        speed = kwargs.pop("speed")
-        aspect = shape[0] / shape[1]
+        aspect = kwargs.pop("aspect_ratio")
         near = kwargs.pop("near_plane")
         far = kwargs.pop("far_plane")
-        camera_data = CameraData(identity(), perspective(fov, aspect, near, far), shape, speed)
 
-        inst = super().create(world=world, camera_data=camera_data, **kwargs)
+        transform = Transform()
+        camera_data = CameraData(fov=fov, aspect=aspect, near=near, far=far)
 
+        inst = super().create(world=world, transform=transform, camera_data=camera_data, **kwargs)
+
+        world.add_component(inst, inst.transform)
         world.add_component(inst, inst.camera_data)
 
         return inst
@@ -406,51 +455,38 @@ class PlayerControlSystem(EventSystem):
     @classmethod
     def create(cls):
         return cls(
-            component_types=(CameraData,),
-            is_applicator=False,
-            event_types=(KeyEvent, ),
+            component_types=(Transform, CameraData),
+            is_applicator=True,
+            event_types=(KeyEvent, CursorEvent),
             log=cls.get_logger()
         )
 
     def dispatch(self, event, world, components):
-        if event.action in (glfw.PRESS, glfw.REPEAT) and event.mods == 0:
-            key_map = world.ctx.data.key_map
-            dt = world.ctx.data.delta_time
-            for data in components:
+        key_map = world.ctx.data.key_map
+        dt = world.ctx.data.delta_time
+
+        if isinstance(event, KeyEvent) and event.key in key_map and event.mods == 0:
+            speed = numpy.zeros(3)
+            if event.action in (glfw.PRESS, glfw.REPEAT):
                 if event.key == key_map.left:
-                    vec = Vector3(-data.speed.x * dt, 0, 0)
-                    data.view = translation(vec) @ data.view
+                    speed[0] = -10
                 elif event.key == key_map.right:
-                    vec = Vector3(data.speed.x * dt, 0, 0)
-                    data.view = translation(vec) @ data.view
+                    speed[0] = 10
                 elif event.key == key_map.up:
-                    vec = Vector3(0, data.speed.y * dt, 0)
-                    data.view = translation(vec) @ data.view
+                    speed[1] = 10
                 elif event.key == key_map.down:
-                    vec = Vector3(0, -data.speed.y * dt, 0)
-                    data.view = translation(vec) @ data.view
+                    speed[1] = -10
                 elif event.key == key_map.forward:
-                    vec = Vector3(0, 0, data.speed.z * dt)
-                    data.view = translation(vec) @ data.view
+                    speed[2] = 10
                 elif event.key == key_map.backward:
-                    vec = Vector3(0, 0, -data.speed.z * dt)
-                    data.view = translation(vec) @ data.view
+                    speed[2] = -10
 
+            for transform, data in components:
+                transform.position += speed * dt
 
-@attr.s
-class CameraViewSystem(EventSystem):
-    @classmethod
-    def create(cls):
-        return cls(
-            component_types=(CameraData,),
-            is_applicator=False,
-            event_types=(CursorEvent,),
-            log=cls.get_logger()
-        )
-
-    def dispatch(self, event, world, components):
-        for data in components:
-            data.shape = glfw.get_framebuffer_size(world.ctx.window)
+        elif isinstance(event, CursorEvent):
+            for transform, data in components:
+                pass
 
 
 @attr.s
@@ -458,14 +494,15 @@ class ObjectRotationSystem(UpdateSystem):
     @classmethod
     def create(cls):
         return cls(
-            component_types=(Transform,),
-            is_applicator=False,
+            component_types=(Transform, RenderData),
+            is_applicator=True,
             log=cls.get_logger()
         )
 
     def update(self, time, delta_time, world, components):
-        for transform in components:
-            transform.model = rotation_z(time)
+        for transform, data in components:
+            transform.rotate((0, 0, 1), time)
+            # pass
 
 
 @attr.s
@@ -485,7 +522,8 @@ class OpenGLRenderer(RenderSystem):
         pv = camera.matrix
 
         # Update the viewport size
-        gl.glViewport(0, 0, *camera.shape)
+        shape = glfw.get_framebuffer_size(world.ctx.window)
+        gl.glViewport(0, 0, *shape)
 
         # Clear the render buffers
         gl.glClear(world.ctx.data.clear_bits)
@@ -500,7 +538,7 @@ class OpenGLRenderer(RenderSystem):
             gl.glBindVertexArray(data.vao)
 
             mvp_location = data.program.uniform_location("mvp_matrix")
-            gl.glUniformMatrix4fv(mvp_location, 1, True, pv @ transform.model)
+            gl.glUniformMatrix4fv(mvp_location, 1, True, pv @ transform.matrix)
             # data.update_uniforms()
 
             gl.glDrawArrays(data.mode, data.start_index, data.num_vertices)
@@ -844,7 +882,7 @@ class Context(object):
     Data = collections.namedtuple("Data", (
         "delta_time", "max_frame_duration", "epsilon", "window_title", "window_shape",
         "window_hints", "swap_interval", "clear_color", "clear_bits", "field_of_view",
-        "speed", "near_plane", "far_plane", "key_map", "extra"
+        "near_plane", "far_plane", "key_map", "extra"
     ))
 
     default_ctx = Data(
@@ -863,9 +901,8 @@ class Context(object):
         clear_color=(0, 0, 0, 1),
         clear_bits=(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT),
         field_of_view=math.pi/2,
-        speed=Vector3(10, 10, 10),
         near_plane=0.1,
-        far_plane=10,
+        far_plane=10.0,
         key_map=KeyMap(glfw.KEY_A, glfw.KEY_D, glfw.KEY_W, glfw.KEY_S, glfw.KEY_Z, glfw.KEY_X),
         extra=None
     )
@@ -1085,6 +1122,10 @@ class Context(object):
             else:
                 ctx_mgr.callback(self._del_window)
 
+            # Set the cursor behavior
+            glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+            glfw.set_cursor_pos(self._window, 0, 0)
+
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
 
@@ -1103,15 +1144,13 @@ class Context(object):
             # Add the initial systems
             self._world.add_system(OpenGLRenderer.create())
             self._world.add_system(PlayerControlSystem.create())
-            self._world.add_system(CameraViewSystem.create())
             self._world.add_system(ObjectRotationSystem.create())
             ctx_mgr.callback(self._world.remove_systems)
 
             self._world.add_entity(Camera.create(
                 self._world,
                 field_of_view=self._data.field_of_view,
-                shape=self._data.window_shape,
-                speed=self._data.speed,
+                aspect_ratio=(self._data.window_shape[0] / self._data.window_shape[1]),
                 near_plane=self._data.near_plane,
                 far_plane=self._data.far_plane
             ))
