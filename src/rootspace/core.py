@@ -553,9 +553,7 @@ class OpenGLRenderer(RenderSystem):
             data.program.enable()
             gl.glBindVertexArray(data.vao)
 
-            mvp_location = data.program.uniform_location("mvp_matrix")
-            gl.glUniformMatrix4fv(mvp_location, 1, True, pv @ transform.matrix)
-            # data.update_uniforms()
+            data.program.uniform("mvp_matrix", pv @ transform.matrix)
 
             gl.glDrawArrays(data.mode, data.start_index, data.num_vertices)
 

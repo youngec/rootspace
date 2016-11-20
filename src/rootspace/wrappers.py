@@ -4,6 +4,7 @@ import logging
 import contextlib
 
 import attr
+import numpy
 import OpenGL.GL as gl
 from attr.validators import instance_of
 
@@ -128,5 +129,12 @@ class Program(object):
         else:
             return loc
 
-    def uniform(self, name, values, transpose=True):
+    def uniform(self, name, value):
         loc = self.uniform_location(name)
+        if isinstance(value, numpy.ndarray):
+            if value.shape == (4, 4):
+                gl.glUniformMatrix4fv(loc, 1, True, value)
+            else:
+                raise NotImplementedError("Cannot set any other matrix shapes yet.")
+        else:
+            raise NotImplementedError("Cannot set any other data types yet.")
