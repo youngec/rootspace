@@ -46,6 +46,6 @@ def perspective(field_of_view, viewport_ratio, near, far):
     return numpy.array((
         (1 / (a * t), 0, 0, 0),
         (0, 1 / t, 0, 0),
-        (0, 0, f / (n - f), -1),
-        (0, 0, -(f * n) / (f - n), 1)
+        (0, 0, (f + n) / (f - n), 1),
+        (0, 0, -2 * (f * n) / (f - n), 1)
     ))

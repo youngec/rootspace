@@ -308,13 +308,13 @@ class Transform(object):
         forward = target - self._pos
         forward /= numpy.linalg.norm(forward)
 
-        forward_dot = self.forward @ forward
+        forward_dot = self.forward[:3] @ forward
         if math.isclose(forward_dot, -1):
             self._quat = quaternion.quaternion(0, 0, 1, 0)
         elif math.isclose(forward_dot, 1):
             self._quat = quaternion.quaternion(1, 0, 0, 0)
         else:
-            self.rotate(numpy.cross(self.forward, forward), math.acos(forward_dot))
+            self.rotate(numpy.cross(self.forward[:3], forward), math.acos(forward_dot))
 
     def rotate(self, axis, angle):
         """
@@ -332,7 +332,7 @@ class Transform(object):
             axis[0] * math.sin(angle / 2),
             axis[1] * math.sin(angle / 2),
             axis[2] * math.sin(angle / 2)
-        )
+        ) * self._quat
 
 
 @attr.s(slots=True)
@@ -402,10 +402,22 @@ class CameraData(object):
     _aspect = attr.ib(default=1, validator=instance_of(float))
     _near = attr.ib(default=0.1, validator=instance_of(float))
     _far = attr.ib(default=10.0, validator=instance_of(float))
+    _cursor = attr.ib(default=numpy.zeros(2), validator=instance_of(numpy.ndarray), convert=numpy.array)
 
     @property
     def matrix(self):
         return perspective(self._fov, self._aspect, self._near, self._far)
+
+    @property
+    def cursor(self):
+        return self._cursor
+
+    @cursor.setter
+    def cursor(self, value):
+        if isinstance(value, numpy.ndarray) and value.shape == (2,):
+            self._cursor = value
+        else:
+            raise TypeError("Cursor must be a 2-component numpy array.")
 
 
 @attr.s
@@ -495,7 +507,7 @@ class Camera(Entity):
         near = kwargs.pop("near_plane")
         far = kwargs.pop("far_plane")
 
-        transform = Transform((0, 0, 1))
+        transform = Transform()
         camera_data = CameraData(fov=fov, aspect=aspect, near=near, far=far)
 
         inst = super().create(world=world, transform=transform, camera_data=camera_data, **kwargs)
@@ -541,8 +553,15 @@ class PlayerControlSystem(EventSystem):
                 transform.position += speed * dt
 
         elif isinstance(event, CursorEvent):
+            cursor = numpy.array((event.xpos, event.ypos))
             for transform, data in components:
-                pass
+                delta = data.cursor - cursor
+                data.cursor = cursor
+
+                target = transform.forward[:3]
+                target[:2] += 0.1 * delta
+
+                transform.look_at(target)
 
 
 @attr.s
@@ -563,6 +582,7 @@ class OpenGLRenderer(RenderSystem):
 
         # Update the viewport size
         shape = glfw.get_framebuffer_size(world.ctx.window)
+        camera.camera_data.aspect = shape[0] / shape[1]
         gl.glViewport(0, 0, *shape)
 
         # Clear the render buffers
@@ -945,7 +965,7 @@ class Context(object):
         swap_interval=1,
         clear_color=(0, 0, 0, 1),
         clear_bits=(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT),
-        field_of_view=math.pi/2,
+        field_of_view=math.pi,
         near_plane=0.1,
         far_plane=10.0,
         key_map=KeyMap(glfw.KEY_A, glfw.KEY_D, glfw.KEY_W, glfw.KEY_S, glfw.KEY_Z, glfw.KEY_X),
@@ -1169,7 +1189,7 @@ class Context(object):
 
             # Set the cursor behavior
             glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
-            # glfw.set_cursor_pos(self._window, 0, 0)
+            glfw.set_cursor_pos(self._window, 0, 0)
 
             # Make the OpenGL context current
             glfw.make_context_current(self._window)

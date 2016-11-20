@@ -17,6 +17,35 @@ from .exceptions import OpenGLError
 
 
 @attr.s
+class Texture(object):
+    _obj = attr.ib(validator=instance_of(int))
+    _shape = attr.ib(validator=instance_of(tuple))
+    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
+
+    @classmethod
+    def create(cls, image_data):
+        with contextlib.ExitStack() as ctx_mgr:
+            # Create the texture object
+            obj = -1
+            shape = image_data.shape
+
+            ctx_exit = ctx_mgr.pop_all()
+
+            return cls(obj, shape, ctx_exit)
+
+    def __del__(self):
+        self._ctx_exit.close()
+
+    @property
+    def obj(self):
+        return self._obj
+
+    @property
+    def shape(self):
+        return self._shape
+
+
+@attr.s
 class Shader(object):
     _obj = attr.ib(validator=instance_of(int))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
