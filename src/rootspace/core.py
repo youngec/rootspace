@@ -337,8 +337,8 @@ class RenderData(object):
             fragment_shader = Shader.create(gl.GL_FRAGMENT_SHADER, fragment_shader_src)
             program = Program.create((vertex_shader, fragment_shader))
 
-            position_location = program.attribute_location("vert_pos")
-            color_location = program.attribute_location("vert_col")
+            position_location = program.attribute_location("vert_xyz")
+            color_location = program.attribute_location("col_rg")
 
             # Initialise the vertex buffer
             vbo = int(gl.glGenBuffers(1))
@@ -349,11 +349,13 @@ class RenderData(object):
             # Set the appropriate pointers
             gl.glEnableVertexAttribArray(position_location)
             gl.glVertexAttribPointer(
-                position_location, 4, gl.GL_FLOAT, False, 0, None
+                position_location, 3, gl.GL_FLOAT, False,
+                5 * ctypes.sizeof(ctypes.c_float), None
             )
             gl.glEnableVertexAttribArray(color_location)
             gl.glVertexAttribPointer(
-                color_location, 4, gl.GL_FLOAT, False, 0, ctypes.c_void_p(vertices.nbytes // 2)
+                color_location, 2, gl.GL_FLOAT, False,
+                5 * ctypes.sizeof(ctypes.c_float), ctypes.c_void_p(3 * ctypes.sizeof(ctypes.c_float))
             )
 
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
@@ -390,16 +392,46 @@ class TestEntity(Entity):
     @classmethod
     def create(cls, world, **kwargs):
         vertices = numpy.array([
-            -0.6, -0.4, 0.0, 1.0,
-            0.6, -0.4, 0.0, 1.0,
-            0, 0.6, 0.0, 1.0,
-            1.0, 0.0, 0.0, 1.0,
-            0.0, 1.0, 0.0, 1.0,
-            0.0, 0.0, 1.0, 1.0,
+            -1, -1, -1, 0, 0,
+            1, -1, -1, 1, 0,
+            -1, -1, 1, 0, 1,
+            1, -1, -1, 1, 0,
+            1, -1, 1, 1, 1,
+            -1, -1, 1, 0, 1,
+            -1, 1, -1, 0, 0,
+            -1, 1, 1, 0, 1,
+            1, 1, -1, 1, 0,
+            1, 1, -1, 1, 0,
+            -1, 1, 1, 0, 1,
+            1, 1, 1, 1, 1,
+            -1, -1, 1, 1, 0,
+            1, -1, 1, 0, 0,
+            -1, 1, 1, 1, 1,
+            1, -1, 1, 0, 0,
+            1, 1, 1, 0, 1,
+            -1, 1, 1, 1, 1,
+            -1, -1, -1, 0, 0,
+            -1, 1, -1, 0, 1,
+            1, -1, -1, 1, 0,
+            1, -1, -1, 1, 0,
+            -1, 1, -1, 0, 1,
+            1, 1, -1, 1, 1,
+            -1, -1, 1, 0, 1,
+            -1, 1, -1, 1, 0,
+            -1, -1, -1, 0, 0,
+            -1, -1, 1, 0, 1,
+            -1, 1, 1, 1, 1,
+            -1, 1, -1, 1, 0,
+            1, -1, 1, 1, 1,
+            1, -1, -1, 1, 0,
+            1, 1, -1, 0, 0,
+            1, -1, 1, 1, 1,
+            1, 1, -1, 0, 0,
+            1, 1, 1, 0, 1
         ], dtype=numpy.float32)
         mode = gl.GL_TRIANGLES
         start_index = 0
-        num_vertices = 3
+        num_vertices = len(vertices) // 5
 
         vertex_path = world.ctx.resources / "shaders" / "simple_vertex.glsl"
         with vertex_path.open(mode="r") as f:
@@ -487,22 +519,6 @@ class PlayerControlSystem(EventSystem):
         elif isinstance(event, CursorEvent):
             for transform, data in components:
                 pass
-
-
-@attr.s
-class ObjectRotationSystem(UpdateSystem):
-    @classmethod
-    def create(cls):
-        return cls(
-            component_types=(Transform, RenderData),
-            is_applicator=True,
-            log=cls.get_logger()
-        )
-
-    def update(self, time, delta_time, world, components):
-        for transform, data in components:
-            transform.rotate((0, 0, 1), time)
-            # pass
 
 
 @attr.s
@@ -1143,6 +1159,11 @@ class Context(object):
             gl.glEnable(gl.GL_DEPTH_TEST)
             gl.glDepthFunc(gl.GL_LESS)
 
+            # Enable OpenGL face culling
+            gl.glEnable(gl.GL_CULL_FACE)
+            gl.glFrontFace(gl.GL_CW)
+            gl.glCullFace(gl.GL_BACK)
+
             # Create the World
             self._dbg("Creating the world.")
             self._world = World.create(self)
@@ -1155,7 +1176,6 @@ class Context(object):
             # Add the initial systems
             self._world.add_system(OpenGLRenderer.create())
             self._world.add_system(PlayerControlSystem.create())
-            self._world.add_system(ObjectRotationSystem.create())
             ctx_mgr.callback(self._world.remove_systems)
 
             self._world.add_entity(Camera.create(
