@@ -298,7 +298,7 @@ class Transform(object):
 
     @property
     def forward(self):
-        return orientation(self._quat) @ (0, 0, -1, 1)
+        return orientation(self._quat) @ (0, 0, 1, 1)
 
     @property
     def matrix(self):
@@ -314,7 +314,14 @@ class Transform(object):
         elif math.isclose(forward_dot, 1):
             self._quat = quaternion.quaternion(1, 0, 0, 0)
         else:
-            self.rotate(numpy.cross(self.forward[:3], forward), math.acos(forward_dot))
+            axis = numpy.cross(self.forward[:3], forward)
+            angle = math.acos(forward_dot)
+            self._quat = quaternion.quaternion(
+                math.cos(angle / 2),
+                axis[0] * math.sin(angle / 2),
+                axis[1] * math.sin(angle / 2),
+                axis[2] * math.sin(angle / 2)
+            )
 
     def rotate(self, axis, angle):
         """
@@ -477,7 +484,7 @@ class TestEntity(Entity):
         with fragment_path.open(mode="r") as f:
             fragment_shader = f.read()
 
-        trf = Transform()
+        trf = Transform((0.0, 0.0, -3.0))
         dat = RenderData.create(
             vertices, mode, start_index, num_vertices, vertex_shader, fragment_shader
         )
@@ -555,11 +562,13 @@ class PlayerControlSystem(EventSystem):
         elif isinstance(event, CursorEvent):
             cursor = numpy.array((event.xpos, event.ypos))
             for transform, data in components:
-                delta = data.cursor - cursor
+                delta = numpy.zeros(3)
+                delta[:2] = data.cursor - cursor
+                delta /= numpy.linalg.norm(delta)
                 data.cursor = cursor
 
-                target = transform.forward[:3]
-                target[:2] += 0.1 * delta
+                target = transform.forward[:3] + 0.1 * delta
+                target /= numpy.linalg.norm(target)
 
                 transform.look_at(target)
 
@@ -1203,7 +1212,7 @@ class Context(object):
 
             # Enable OpenGL face culling
             gl.glEnable(gl.GL_CULL_FACE)
-            gl.glFrontFace(gl.GL_CW)
+            gl.glFrontFace(gl.GL_CCW)
             gl.glCullFace(gl.GL_BACK)
 
             # Create the World
