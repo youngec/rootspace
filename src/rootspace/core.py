@@ -1124,13 +1124,17 @@ class Context(object):
 
             # Set the cursor behavior
             glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
-            glfw.set_cursor_pos(self._window, 0, 0)
+            # glfw.set_cursor_pos(self._window, 0, 0)
 
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
 
             # Set the buffer swap interval (i.e. VSync)
             glfw.swap_interval(self._data.swap_interval)
+
+            # Enable the OpenGL depth buffer
+            gl.glEnable(gl.GL_DEPTH_TEST)
+            gl.glDepthFunc(gl.GL_LESS)
 
             # Create the World
             self._dbg("Creating the world.")
