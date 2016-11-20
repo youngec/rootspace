@@ -673,8 +673,7 @@ class World(object):
 
     def remove_entities(self):
         self._log.debug("Removing all Entities from this World.")
-        for entity in self._entities.copy():
-            self.remove_entity(entity)
+        self._entities.clear()
 
     def get_components(self, comp_type):
         """
@@ -737,11 +736,19 @@ class World(object):
         :return:
         """
         self._systems.remove(system)
+        if system in self._update_systems:
+            self._update_systems.remove(system)
+        elif system in self._render_systems:
+            self._render_systems.remove(system)
+        elif system in self._event_systems:
+            self._event_systems.remove(system)
 
     def remove_systems(self):
         self._log.debug("Removing all Systems from this World.")
-        for system in self._systems.copy():
-            self.remove_system(system)
+        self._systems.clear()
+        self._update_systems.clear()
+        self._render_systems.clear()
+        self._event_systems.clear()
 
     def update(self, t, dt):
         """
