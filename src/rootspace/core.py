@@ -263,8 +263,8 @@ class EventSystem(object, metaclass=abc.ABCMeta):
 
 @attr.s(slots=True)
 class Transform(object):
-    _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray))
-    _quat = attr.ib(default=quaternion.quaternion(-1, 0, 0, 0), validator=instance_of(quaternion.quaternion))
+    _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    _quat = attr.ib(default=quaternion.quaternion(1, 0, 0, 0), validator=instance_of(quaternion.quaternion))
 
     @property
     def position(self):
@@ -289,8 +289,32 @@ class Transform(object):
             raise TypeError("Orientation must be a quaternion.")
 
     @property
+    def up(self):
+        return orientation(self._quat) @ (0, 1, 0, 1)
+
+    @property
+    def right(self):
+        return orientation(self._quat) @ (1, 0, 0, 1)
+
+    @property
+    def forward(self):
+        return orientation(self._quat) @ (0, 0, -1, 1)
+
+    @property
     def matrix(self):
         return translation(self._pos) @ orientation(self._quat).T
+
+    def look_at(self, target):
+        forward = target - self._pos
+        forward /= numpy.linalg.norm(forward)
+
+        forward_dot = self.forward @ forward
+        if math.isclose(forward_dot, -1):
+            self._quat = quaternion.quaternion(0, 0, 1, 0)
+        elif math.isclose(forward_dot, 1):
+            self._quat = quaternion.quaternion(1, 0, 0, 0)
+        else:
+            self.rotate(numpy.cross(self.forward, forward), math.acos(forward_dot))
 
     def rotate(self, axis, angle):
         """
@@ -471,7 +495,7 @@ class Camera(Entity):
         near = kwargs.pop("near_plane")
         far = kwargs.pop("far_plane")
 
-        transform = Transform()
+        transform = Transform((0, 0, 1))
         camera_data = CameraData(fov=fov, aspect=aspect, near=near, far=far)
 
         inst = super().create(world=world, transform=transform, camera_data=camera_data, **kwargs)
