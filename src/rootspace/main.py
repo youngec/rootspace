@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""This module starts the rootspace program. It provides a simple command line interface."""
+
 import logging
 
 import click
@@ -8,7 +10,6 @@ import click
 from ._version import get_versions
 from .core import Loop, Context
 from .utilities import get_log_level, configure_logger
-
 
 @click.command()
 @click.option("-v", "--verbose", count=True, help="Select the level of verbosity.")
