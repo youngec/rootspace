@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+"""Provides wrappers for OpenGL concepts."""
+
 import logging
 import contextlib
 
@@ -18,16 +20,48 @@ from .exceptions import OpenGLError
 
 @attr.s
 class Texture(object):
+    """Texture encapsulates an OpenGL texture."""
+
     _obj = attr.ib(validator=instance_of(int))
     _shape = attr.ib(validator=instance_of(tuple))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
-    def create(cls, image_data):
+    def texture_format(cls, image_data):
+        if len(image_data.shape) == 2:
+            return gl.GL_LUMINANCE
+        elif len(image_data.shape) == 3:
+            if image_data.shape[2] == 2:
+                return gl.GL_LUMINANCE_ALPHA
+            elif image_data.shape[2] == 3:
+                return gl.GL_RGB
+            elif image_data.shape[2] == 4:
+                return gl.GL_RGBA
+
+        raise ValueError("Cannot determine the texture format for the supplied image data.")
+
+    @classmethod
+    def create(cls, image_data, min_filter=gl.GL_LINEAR, mag_filter=gl.GL_LINEAR, wrap_mode=gl.GL_CLAMP_TO_EDGE):
         with contextlib.ExitStack() as ctx_mgr:
+            image_format = cls.texture_format(image_data)
+            shape = image_data.shape[:2]
+
             # Create the texture object
-            obj = -1
-            shape = image_data.shape
+            obj = gl.glGenTextures(1)
+            if obj == 0:
+                raise OpenGLError("Failed to create a texture object.")
+            ctx_mgr.callback(gl.glDeleteTextures, obj)
+
+            # Set texture parameters
+            gl.glBindTexture(gl.GL_TEXURE_2D, obj)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, min_filter)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, mag_filter)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, wrap_mode)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, wrap_mode)
+
+            # Set the texture data
+            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, gl.GL_UNSIGNED_BYTE, image_data)
+            gl.glBindTexture(gl.GL_TEXURE_2D, 0)
 
             ctx_exit = ctx_mgr.pop_all()
 
@@ -47,6 +81,8 @@ class Texture(object):
 
 @attr.s
 class Shader(object):
+    """Shader encapsulates an OpenGL shader."""
+
     _obj = attr.ib(validator=instance_of(int))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
@@ -85,6 +121,8 @@ class Shader(object):
 
 @attr.s
 class Program(object):
+    """Program encapsulates an OpenGL shader program."""
+
     _obj = attr.ib(validator=instance_of(int))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
