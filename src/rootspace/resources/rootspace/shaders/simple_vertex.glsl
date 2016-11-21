@@ -1,13 +1,13 @@
 #version 330 core
 
 layout(location = 0) in vec3 vert_xyz;
-layout(location = 1) in vec2 col_rg;
+layout(location = 1) in vec2 tex_uv
 
 uniform mat4 mvp_matrix;
 
-smooth out vec4 color;
+smooth out vec2 frag_tex_uv;
 
 void main() {
     gl_Position = mvp_matrix * vec4(vert_xyz, 1.0);
-    color = vec4(col_rg, 0.0, 1.0);
+    frag_tex_uv = tex_uv;
 }

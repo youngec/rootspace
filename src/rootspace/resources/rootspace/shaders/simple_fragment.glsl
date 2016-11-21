@@ -1,9 +1,11 @@
 #version 330 core
 
-smooth in vec4 color;
+uniform sampler2D tex;
+
+smooth in vec2 frag_tex_uv;
 
 out vec4 fragColor;
 
 void main() {
-    fragColor = color;
+    fragColor = texture(tex, frag_tex_uv);
 }

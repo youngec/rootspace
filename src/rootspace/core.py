@@ -27,7 +27,7 @@ from attr.validators import instance_of
 from .exceptions import GLFWError, TodoWarning, FixmeWarning
 from .utilities import subclass_of, camelcase_to_underscore
 from .opengl_math import orientation, perspective, translation
-from .wrappers import Shader, Program
+from .wrappers import Shader, Program, Texture
 from .events import KeyEvent, CharEvent, CursorEvent, CursorEnterEvent, MouseButtonEvent, ScrollEvent, KeyMap
 
 
@@ -351,11 +351,12 @@ class RenderData(object):
     mode = attr.ib(validator=instance_of(int))
     start_index = attr.ib(validator=instance_of(int))
     num_vertices = attr.ib(validator=instance_of(int))
+    texture = attr.ib(validator=instance_of(Texture))
     program = attr.ib(validator=instance_of(Program))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
-    def create(cls, vertices, mode, start_index, num_vertices, vertex_shader_src, fragment_shader_src):
+    def create(cls, vertices, mode, start_index, num_vertices, image_data, vertex_shader_src, fragment_shader_src):
         with contextlib.ExitStack() as ctx:
             warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
             # Create and bind the Vertex Array Object
@@ -369,7 +370,10 @@ class RenderData(object):
             program = Program.create((vertex_shader, fragment_shader))
 
             position_location = program.attribute_location("vert_xyz")
-            color_location = program.attribute_location("col_rg")
+            color_location = program.attribute_location("tex_uv")
+
+            # Create the texture
+            tex = Texture.create(image_data)
 
             # Initialise the vertex buffer
             vbo = int(gl.glGenBuffers(1))
@@ -394,7 +398,7 @@ class RenderData(object):
 
             ctx_exit = ctx.pop_all()
 
-            return cls(vao, vbo, mode, start_index, num_vertices, program, ctx_exit)
+            return cls(vao, vbo, mode, start_index, num_vertices, tex, program, ctx_exit)
 
     def __del__(self):
         self._ctx_exit.close()
@@ -476,6 +480,13 @@ class TestEntity(Entity):
         start_index = 0
         num_vertices = len(vertices) // 5
 
+        image_data = numpy.array((
+            (0, 255, 0, 255),
+            (255, 0, 255, 0),
+            (0, 255, 0, 255),
+            (255, 0, 255, 0)
+        ))
+
         vertex_path = world.ctx.resources / "shaders" / "simple_vertex.glsl"
         with vertex_path.open(mode="r") as f:
             vertex_shader = f.read()
@@ -486,7 +497,7 @@ class TestEntity(Entity):
 
         trf = Transform((0.0, 0.0, -3.0))
         dat = RenderData.create(
-            vertices, mode, start_index, num_vertices, vertex_shader, fragment_shader
+            vertices, mode, start_index, num_vertices, image_data, vertex_shader, fragment_shader
         )
 
         inst = super().create(world=world, transform=trf, render_data=dat, **kwargs)
@@ -604,14 +615,18 @@ class OpenGLRenderer(RenderSystem):
         for i, (transform, data) in enumerate(sorted_components):
             # Bind the shader program and the VAO
             data.program.enable()
+            gl.glActiveTexture(gl.GL_TEXTURE0)
+            data.texture.enable()
             gl.glBindVertexArray(data.vao)
 
             data.program.uniform("mvp_matrix", pv @ transform.matrix)
+            data.program.uniform("active_tex", 0)
 
             gl.glDrawArrays(data.mode, data.start_index, data.num_vertices)
 
             # Unbind the shader program and the VAO
             gl.glBindVertexArray(0)
+            data.texture.disable()
             data.program.disable()
 
         glfw.swap_buffers(world.ctx.window)
