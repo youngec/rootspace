@@ -99,28 +99,39 @@ def get_log_level(verbose, debug):
     return log_level
 
 
-def configure_logger(name, log_level, with_warnings=True):
+def configure_logger(name, log_level, log_path=None, with_warnings=True):
     """
     Configure the project logger of the specified name
     using colorlog.
 
     :param name:
     :param log_level:
+    :param log_path:
     :param with_warnings:
     :return:
     """
-    logging_default_handler = logging.StreamHandler()
-    logging_default_handler.setLevel(log_level)
-    logging_default_formatter = colorlog.ColoredFormatter(
-        "{log_color}{levelname:8s}{reset} @{white}{name}{reset}: {log_color}{message}{reset}",
-        style="{"
-    )
-    logging_default_handler.setFormatter(logging_default_formatter)
+    default_handler = None
+    if log_path is not None:
+        default_handler = logging.FileHandler(log_path)
+        default_handler.setLevel(log_level)
+        plain_formatter = logging.Formatter(
+            "{levelname:8s} @{name}: {message}",
+            style="{"
+        )
+        default_handler.setFormatter(plain_formatter)
+    else:
+        default_handler = logging.StreamHandler()
+        default_handler.setLevel(log_level)
+        colored_formatter = colorlog.ColoredFormatter(
+            "{log_color}{levelname:8s}{reset} @{white}{name}{reset}: {log_color}{message}{reset}",
+            style="{"
+        )
+        default_handler.setFormatter(colored_formatter)
 
     # Configure the rootspace logger
     project_logger = logging.getLogger(name)
-    project_logger.addHandler(logging_default_handler)
     project_logger.setLevel(log_level)
+    project_logger.addHandler(default_handler)
 
     py_warnings = None
     if with_warnings:
@@ -128,8 +139,8 @@ def configure_logger(name, log_level, with_warnings=True):
         warnings.simplefilter("default")
         logging.captureWarnings(True)
         py_warnings = logging.getLogger("py.warnings")
-        py_warnings.addHandler(logging_default_handler)
         py_warnings.setLevel(log_level)
+        py_warnings.addHandler(default_handler)
 
     loggers = collections.namedtuple("loggers", ("project", "py_warnings"))
     return loggers(project_logger, py_warnings)
