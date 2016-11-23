@@ -299,6 +299,14 @@ class Transform(object):
     @property
     def forward(self):
         return orientation(self._quat) @ (0, 0, 1, 1)
+    
+    @property
+    def orientation_matrix(self):
+        return orientation(self._quat).T
+
+    @property
+    def translation_matrix(self):
+        return translation(self._pos)
 
     @property
     def matrix(self):
@@ -408,22 +416,10 @@ class CameraData(object):
     _aspect = attr.ib(default=1, validator=instance_of(float))
     _near = attr.ib(default=0.1, validator=instance_of(float))
     _far = attr.ib(default=10.0, validator=instance_of(float))
-    _cursor = attr.ib(default=numpy.zeros(2), validator=instance_of(numpy.ndarray), convert=numpy.array)
 
     @property
     def matrix(self):
         return perspective(self._fov, self._aspect, self._near, self._far)
-
-    @property
-    def cursor(self):
-        return self._cursor
-
-    @cursor.setter
-    def cursor(self, value):
-        if isinstance(value, numpy.ndarray) and value.shape == (2,):
-            self._cursor = value
-        else:
-            raise TypeError("Cursor must be a 2-component numpy array.")
 
 
 @attr.s
@@ -506,7 +502,7 @@ class Camera(Entity):
 
     @property
     def matrix(self):
-        mat = self.camera_data.matrix @ self.transform.matrix
+        mat = self.camera_data.matrix @ self.transform.orientation_matrix @ self.transform.translation_matrix
         return mat
 
     @classmethod
@@ -528,13 +524,16 @@ class Camera(Entity):
 
 
 @attr.s
-class PlayerControlSystem(EventSystem):
+class CameraControlSystem(EventSystem):
+    _last_cursor = attr.ib(validator=instance_of(numpy.ndarray), convert=numpy.array)
+
     @classmethod
     def create(cls):
         return cls(
             component_types=(Transform, CameraData),
             is_applicator=True,
             event_types=(KeyEvent, CursorEvent),
+            last_cursor=(0, 0),
             log=cls.get_logger()
         )
 
@@ -543,34 +542,37 @@ class PlayerControlSystem(EventSystem):
         dt = world.ctx.data.delta_time
 
         if isinstance(event, KeyEvent) and event.key in key_map and event.mods == 0:
-            speed = numpy.zeros(3)
             if event.action in (glfw.PRESS, glfw.REPEAT):
-                if event.key == key_map.left:
-                    speed[0] = -10
-                elif event.key == key_map.right:
-                    speed[0] = 10
-                elif event.key == key_map.up:
-                    speed[1] = 10
-                elif event.key == key_map.down:
-                    speed[1] = -10
-                elif event.key == key_map.forward:
-                    speed[2] = 10
-                elif event.key == key_map.backward:
-                    speed[2] = -10
+                for transform, data in components:
+                    absolute_speed = 10
+                    speed = numpy.zeros(4)
+                    if event.key == key_map.right:
+                        speed = absolute_speed * transform.right
+                    elif event.key == key_map.left:
+                        speed = absolute_speed * -transform.right
+                    elif event.key == key_map.up:
+                        speed = absolute_speed * transform.up
+                    elif event.key == key_map.down:
+                        speed = absolute_speed * -transform.up
+                    elif event.key == key_map.forward:
+                        speed = absolute_speed * transform.forward
+                    elif event.key == key_map.backward:
+                        speed = absolute_speed * -transform.forward
 
-            for transform, data in components:
-                transform.position += speed * dt
+                    transform.position += speed[:3] * dt
 
         elif isinstance(event, CursorEvent):
             cursor = numpy.array((event.xpos, event.ypos))
             for transform, data in components:
                 delta = numpy.zeros(3)
-                delta[:2] = data.cursor - cursor
+                delta[:2] = self._last_cursor - cursor
                 delta /= numpy.linalg.norm(delta)
-                data.cursor = cursor
+                self._last_cursor = cursor
 
-                target = transform.forward[:3] + 0.1 * delta
+                target = transform.forward[:3] + 0.01 * delta
                 target /= numpy.linalg.norm(target)
+            
+                self._log.debug(target)
 
                 transform.look_at(target)
 
@@ -983,7 +985,7 @@ class Context(object):
         field_of_view=math.pi,
         near_plane=0.1,
         far_plane=10.0,
-        key_map=KeyMap(glfw.KEY_A, glfw.KEY_D, glfw.KEY_W, glfw.KEY_S, glfw.KEY_Z, glfw.KEY_X),
+        key_map=KeyMap(glfw.KEY_A, glfw.KEY_D, glfw.KEY_Z, glfw.KEY_X, glfw.KEY_W, glfw.KEY_S),
         extra=None
     )
     default_config_dir = ".config"
@@ -1203,7 +1205,7 @@ class Context(object):
                 ctx_mgr.callback(self._del_window)
 
             # Set the cursor behavior
-            glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+            #glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
             glfw.set_cursor_pos(self._window, 1, 1)
 
             # Make the OpenGL context current
@@ -1232,7 +1234,7 @@ class Context(object):
 
             # Add the initial systems
             self._world.add_system(OpenGLRenderer.create())
-            self._world.add_system(PlayerControlSystem.create())
+            self._world.add_system(CameraControlSystem.create())
             ctx_mgr.callback(self._world.remove_systems)
 
             self._world.add_entity(Camera.create(
