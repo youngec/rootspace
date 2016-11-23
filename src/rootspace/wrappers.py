@@ -41,9 +41,17 @@ class Texture(object):
         raise ValueError("Cannot determine the texture format for the supplied image data.")
 
     @classmethod
+    def texture_dtype(cls, image_data):
+        if image_data.dtype == numpy.uint8:
+            return gl.GL_UNSIGNED_BYTE
+        else:
+            raise NotImplementedError("Have not implemented all data type conversions yet.")
+
+    @classmethod
     def create(cls, image_data, min_filter=gl.GL_LINEAR, mag_filter=gl.GL_LINEAR, wrap_mode=gl.GL_CLAMP_TO_EDGE):
         with contextlib.ExitStack() as ctx_mgr:
             image_format = cls.texture_format(image_data)
+            image_dtype = cls.texture_dtype(image_data)
             shape = image_data.shape[:2]
 
             # Create the texture object
@@ -60,7 +68,7 @@ class Texture(object):
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, wrap_mode)
 
             # Set the texture data
-            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, gl.GL_UNSIGNED_BYTE, image_data)
+            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, shape[0], shape[1], 0, image_format, image_dtype, image_data)
             gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
             ctx_exit = ctx_mgr.pop_all()
@@ -77,6 +85,22 @@ class Texture(object):
     @property
     def shape(self):
         return self._shape
+
+    @property
+    def enabled(self):
+        return gl.glGetIntegerv(gl.GL_TEXTURE_BINDING_2D) == self._obj
+
+    def enable(self):
+        if not self.enabled:
+            gl.glBindTexture(gl.GL_TEXTURE_2D, self._obj)
+        else:
+            self._log.warning("Attempting to enable an active texture.")
+
+    def disable(self):
+        if self.enabled:
+            gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+        else:
+            self._log.warning("Attempting to disable an inactive texture.")
 
 
 @attr.s
@@ -201,5 +225,9 @@ class Program(object):
                 gl.glUniformMatrix4fv(loc, 1, True, value)
             else:
                 raise NotImplementedError("Cannot set any other matrix shapes yet.")
+        elif isinstance(value, int):
+            gl.glUniform1i(loc, value)
+        elif isinstance(value, float):
+            gl.glUniform1f(loc, value)
         else:
             raise NotImplementedError("Cannot set any other data types yet.")
