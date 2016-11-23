@@ -1205,7 +1205,7 @@ class Context(object):
                 ctx_mgr.callback(self._del_window)
 
             # Set the cursor behavior
-            #glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+            glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
             glfw.set_cursor_pos(self._window, 1, 1)
 
             # Make the OpenGL context current
