@@ -475,12 +475,8 @@ class TestEntity(Entity):
         start_index = 0
         num_vertices = len(vertices) // 5
 
-        image_data = numpy.array((
-            (0, 255, 0, 255),
-            (255, 0, 255, 0),
-            (0, 255, 0, 255),
-            (255, 0, 255, 0)
-        ))
+        image_data = numpy.zeros((1024, 1024), dtype=numpy.uint8)
+        image_data.flat[::2] = 0xff
 
         vertex_path = world.ctx.resources / "shaders" / "simple_vertex.glsl"
         with vertex_path.open(mode="r") as f:
@@ -1208,7 +1204,7 @@ class Context(object):
 
             # Set the cursor behavior
             glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
-            glfw.set_cursor_pos(self._window, 0, 0)
+            glfw.set_cursor_pos(self._window, 1, 1)
 
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
