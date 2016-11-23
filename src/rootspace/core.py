@@ -316,12 +316,7 @@ class Transform(object):
         else:
             axis = numpy.cross(self.forward[:3], forward)
             angle = math.acos(forward_dot)
-            self._quat = quaternion.quaternion(
-                math.cos(angle / 2),
-                axis[0] * math.sin(angle / 2),
-                axis[1] * math.sin(angle / 2),
-                axis[2] * math.sin(angle / 2)
-            )
+            self.rotate(axis, angle)
 
     def rotate(self, axis, angle):
         """
