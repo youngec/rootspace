@@ -1267,6 +1267,9 @@ class Context(object):
         :param trcbak:
         :return:
         """
+        if exc_val is not None:
+            self._log.error("Context exited prematurely!")
+
         self._nfo("Exiting the context.")
         self._ctx_exit.close()
         return False
