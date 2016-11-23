@@ -53,7 +53,7 @@ class Texture(object):
             ctx_mgr.callback(gl.glDeleteTextures, obj)
 
             # Set texture parameters
-            gl.glBindTexture(gl.GL_TEXURE_2D, obj)
+            gl.glBindTexture(gl.GL_TEXTURE_2D, obj)
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, min_filter)
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, mag_filter)
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, wrap_mode)
@@ -61,7 +61,7 @@ class Texture(object):
 
             # Set the texture data
             gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, gl.GL_UNSIGNED_BYTE, image_data)
-            gl.glBindTexture(gl.GL_TEXURE_2D, 0)
+            gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
             ctx_exit = ctx_mgr.pop_all()
 
@@ -103,8 +103,7 @@ class Shader(object):
 
             # Determine the compile status of the shader
             if not gl.glGetShaderiv(obj, gl.GL_COMPILE_STATUS):
-                log_length = gl.glGetShaderiv(obj, gl.GL_INFO_LOG_LENGTH)
-                log_string = gl.glGetShaderInfoLog(obj, log_length, None)
+                log_string = gl.glGetShaderInfoLog(obj)
                 raise OpenGLError(log_string.decode("utf-8"))
 
             ctx_exit = ctx_mgr.pop_all()
@@ -149,8 +148,7 @@ class Program(object):
 
             # Determine the link status
             if not gl.glGetProgramiv(obj, gl.GL_LINK_STATUS):
-                log_length = gl.glGetProgramiv(obj, gl.GL_INFO_LOG_LENGTH)
-                log_string = gl.glGetProgramInfoLog(obj, log_length, None)
+                log_string = gl.glGetProgramInfoLog(obj)
                 raise OpenGLError(log_string.decode("utf-8"))
 
             log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
