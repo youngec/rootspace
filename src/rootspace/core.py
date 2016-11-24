@@ -16,6 +16,7 @@ import shutil
 import uuid
 import weakref
 import warnings
+import random
 
 import attr
 import glfw
@@ -263,6 +264,7 @@ class EventSystem(object, metaclass=abc.ABCMeta):
 @attr.s(slots=True)
 class Transform(object):
     _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    _scale = attr.ib(default=numpy.eye(4), validator=instance_of(numpy.ndarray), convert=numpy.array)
     _quat = attr.ib(default=Quaternion(1, 0, 0, 0), validator=instance_of(Quaternion))
 
     @property
@@ -275,6 +277,19 @@ class Transform(object):
             self._pos = value
         else:
             raise TypeError("Position must be a 3-component numpy array.")
+
+    @property
+    def scale(self):
+        return self._scale
+    
+    @scale.setter
+    def scale(self, value):
+        if isinstance(value, numpy.ndarray) and value.shape == (4, 4):
+            self._scale = scale
+        elif isinstance(value, (int, float)):
+            self._scale = value * numpy.eye(4)
+        else:
+            raise TypeError("Scale must be a 4x4 numpy array or a scalar.")
 
     @property
     def orientation(self):
@@ -298,18 +313,10 @@ class Transform(object):
     @property
     def forward(self):
         return self._quat.T.matrix4 @ (0, 0, 1, 1)
-    
-    @property
-    def orientation_matrix(self):
-        return self._quat.matrix4
-
-    @property
-    def translation_matrix(self):
-        return translation(self._pos)
 
     @property
     def matrix(self):
-        return translation(self._pos) @ self._quat.matrix4
+        return translation(self._pos) @ self._scale @ self._quat.matrix4
 
     def look_at(self, target):
         forward = target - self._pos
@@ -490,6 +497,7 @@ class TestEntity(Entity):
 
         trf = Transform(position)
         trf.rotate((1, 1, 1), math.pi/2)
+        trf.scale = random.random()
         dat = RenderData.create(
             vertices, mode, start_index, num_vertices, image_data, vertex_shader, fragment_shader
         )
