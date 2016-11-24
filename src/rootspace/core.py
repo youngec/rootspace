@@ -1237,6 +1237,14 @@ class Context(object):
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
 
+            # Determine the actual context version information
+            context_major = gl.glGetIntegerv(gl.GL_MAJOR_VERSION)
+            context_minor = gl.glGetIntegerv(gl.GL_MINOR_VERSION)
+            num_extensions = gl.glGetIntegerv(gl.GL_NUM_EXTENSIONS)
+            extensions = (gl.glGetStringi(gl.GL_EXTENSIONS, i).decode("utf-8") for i in range(num_extensions))
+            self._dbg("Actual OpenGL Context {}.{}".format(context_major, context_minor))
+            self._dbg("Extensions: {}".format(", ".join(extensions)))
+
             # Set the buffer swap interval (i.e. VSync)
             glfw.swap_interval(self._data.swap_interval)
 
