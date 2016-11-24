@@ -290,19 +290,19 @@ class Transform(object):
 
     @property
     def up(self):
-        return orientation(self._quat) @ (0, 1, 0, 1)
+        return orientation(self._quat).T @ (0, 1, 0, 1)
 
     @property
     def right(self):
-        return orientation(self._quat) @ (1, 0, 0, 1)
+        return orientation(self._quat).T @ (1, 0, 0, 1)
 
     @property
     def forward(self):
-        return orientation(self._quat) @ (0, 0, 1, 1)
+        return orientation(self._quat).T @ (0, 0, 1, 1)
     
     @property
     def orientation_matrix(self):
-        return orientation(self._quat).T
+        return orientation(self._quat)
 
     @property
     def translation_matrix(self):
@@ -310,7 +310,7 @@ class Transform(object):
 
     @property
     def matrix(self):
-        return translation(self._pos) @ orientation(self._quat).T
+        return translation(self._pos) @ orientation(self._quat)
 
     def look_at(self, target):
         forward = target - self._pos
@@ -421,6 +421,14 @@ class CameraData(object):
     def matrix(self):
         return perspective(self._fov, self._aspect, self._near, self._far)
 
+    @property
+    def aspect(self):
+        return self._aspect
+
+    @aspect.setter
+    def aspect(self, value):
+        self._aspect = value
+
 
 @attr.s
 class TestEntity(Entity):
@@ -483,6 +491,7 @@ class TestEntity(Entity):
             fragment_shader = f.read()
 
         trf = Transform((0.0, 0.0, -3.0))
+        trf.rotate((1, 1, 1), math.pi/2)
         dat = RenderData.create(
             vertices, mode, start_index, num_vertices, image_data, vertex_shader, fragment_shader
         )
@@ -502,8 +511,16 @@ class Camera(Entity):
 
     @property
     def matrix(self):
-        mat = self.camera_data.matrix @ self.transform.orientation_matrix @ self.transform.translation_matrix
+        mat = self.camera_data.matrix @ self.transform.matrix
         return mat
+
+    @property
+    def aspect(self):
+        return self.camera_data.aspect
+
+    @aspect.setter
+    def aspect(self, value):
+        self.camera_data.aspect = value
 
     @classmethod
     def create(cls, world, **kwargs):
@@ -525,15 +542,15 @@ class Camera(Entity):
 
 @attr.s
 class CameraControlSystem(EventSystem):
-    _last_cursor = attr.ib(validator=instance_of(numpy.ndarray), convert=numpy.array)
+    _cursor_origin = attr.ib(validator=instance_of(numpy.ndarray), convert=numpy.array)
 
     @classmethod
-    def create(cls):
+    def create(cls, cursor_origin):
         return cls(
             component_types=(Transform, CameraData),
             is_applicator=True,
             event_types=(KeyEvent, CursorEvent),
-            last_cursor=(0, 0),
+            cursor_origin=cursor_origin,
             log=cls.get_logger()
         )
 
@@ -564,17 +581,16 @@ class CameraControlSystem(EventSystem):
         elif isinstance(event, CursorEvent):
             cursor = numpy.array((event.xpos, event.ypos))
             for transform, data in components:
-                delta = numpy.zeros(3)
-                delta[:2] = self._last_cursor - cursor
-                delta /= numpy.linalg.norm(delta)
-                self._last_cursor = cursor
+                # Determine the position differential of the cursor
+                delta_cursor = numpy.zeros(3)
+                delta_cursor[:2] = cursor - self._cursor_origin
+                delta_cursor /= numpy.linalg.norm(delta_cursor)
 
-                target = transform.forward[:3] + 0.01 * delta
+                target = transform.forward[:3] + 0.01 * delta_cursor
                 target /= numpy.linalg.norm(target)
-            
                 self._log.debug(target)
 
-                transform.look_at(target)
+                #transform.look_at(target)
 
 
 @attr.s
@@ -592,11 +608,6 @@ class OpenGLRenderer(RenderSystem):
         warnings.warn("Have to be smarter about getting the camera entity.", FixmeWarning)
         camera = world.get_entities(Camera)[0]
         pv = camera.matrix
-
-        # Update the viewport size
-        shape = glfw.get_framebuffer_size(world.ctx.window)
-        camera.camera_data.aspect = shape[0] / shape[1]
-        gl.glViewport(0, 0, *shape)
 
         # Clear the render buffers
         gl.glClear(world.ctx.data.clear_bits)
@@ -855,6 +866,12 @@ class World(object):
                 for comp_type in system.component_types:
                     system.render(self, self._components[comp_type].values())
 
+    def dispatch_resize(self, window, width, height):
+        for camera in self.get_entities(Camera):
+            camera.aspect = width / height
+
+        gl.glViewport(0, 0, width, height)
+
     def dispatch_key(self, window, key, scancode, action, mode):
         """
         Dispatch a Key press event, as sent by GLFW.
@@ -984,7 +1001,7 @@ class Context(object):
         clear_bits=(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT),
         field_of_view=math.pi,
         near_plane=0.1,
-        far_plane=10.0,
+        far_plane=100.0,
         key_map=KeyMap(glfw.KEY_A, glfw.KEY_D, glfw.KEY_Z, glfw.KEY_X, glfw.KEY_W, glfw.KEY_S),
         extra=None
     )
@@ -1131,6 +1148,7 @@ class Context(object):
         :return:
         """
         self._dbg("Registering GLFW event callbacks with World.")
+        glfw.set_window_size_callback(self._window, self._world.dispatch_resize)
         glfw.set_key_callback(self._window, self._world.dispatch_key)
         glfw.set_cursor_pos_callback(self._window, self._world.dispatch_cursor)
 
@@ -1141,6 +1159,7 @@ class Context(object):
         :return:
         """
         self._dbg("Clearing GLFW event callbacks.")
+        glfw.set_window_size_callback(self._window, None)
         glfw.set_key_callback(self._window, None)
         glfw.set_cursor_pos_callback(self._window, None)
 
@@ -1206,7 +1225,8 @@ class Context(object):
 
             # Set the cursor behavior
             #glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
-            glfw.set_cursor_pos(self._window, 1, 1)
+            cursor_origin = (self._data.window_shape[0] // 2, self._data.window_shape[1] // 2)
+            glfw.set_cursor_pos(self._window, *cursor_origin)
 
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
@@ -1234,7 +1254,7 @@ class Context(object):
 
             # Add the initial systems
             self._world.add_system(OpenGLRenderer.create())
-            self._world.add_system(CameraControlSystem.create())
+            self._world.add_system(CameraControlSystem.create(cursor_origin))
             ctx_mgr.callback(self._world.remove_systems)
 
             self._world.add_entity(Camera.create(
