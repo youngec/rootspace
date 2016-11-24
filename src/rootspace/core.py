@@ -433,6 +433,8 @@ class TestEntity(Entity):
 
     @classmethod
     def create(cls, world, **kwargs):
+        position = kwargs.pop("position")
+
         vertices = numpy.array([
             -1, -1, -1, 0, 0,
             1, -1, -1, 1, 0,
@@ -486,7 +488,7 @@ class TestEntity(Entity):
         with fragment_path.open(mode="r") as f:
             fragment_shader = f.read()
 
-        trf = Transform((0.0, 0.0, -3.0))
+        trf = Transform(position)
         trf.rotate((1, 1, 1), math.pi/2)
         dat = RenderData.create(
             vertices, mode, start_index, num_vertices, image_data, vertex_shader, fragment_shader
@@ -1260,7 +1262,8 @@ class Context(object):
                 near_plane=self._data.near_plane,
                 far_plane=self._data.far_plane
             ))
-            self._world.add_entity(TestEntity.create(self._world))
+            self._world.add_entity(TestEntity.create(self._world, position=(0, -1, -3)))
+            self._world.add_entity(TestEntity.create(self._world, position=(0, 1, -3)))
             ctx_mgr.callback(self._world.remove_entities)
 
             self._ctx_exit = ctx_mgr.pop_all()
