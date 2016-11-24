@@ -285,7 +285,7 @@ class Transform(object):
     @scale.setter
     def scale(self, value):
         if isinstance(value, numpy.ndarray) and value.shape == (4, 4):
-            self._scale = scale
+            self._scale = value
         elif isinstance(value, (int, float)):
             self._scale = value * numpy.eye(4)
         else:
