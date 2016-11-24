@@ -20,13 +20,12 @@ import warnings
 import attr
 import glfw
 import numpy
-import quaternion
 import OpenGL.GL as gl
 from attr.validators import instance_of
 
 from .exceptions import GLFWError, TodoWarning, FixmeWarning
 from .utilities import subclass_of, camelcase_to_underscore
-from .opengl_math import orientation, perspective, translation
+from .opengl_math import perspective, translation, Quaternion
 from .wrappers import Shader, Program, Texture
 from .events import KeyEvent, CharEvent, CursorEvent, CursorEnterEvent, MouseButtonEvent, ScrollEvent, KeyMap
 
@@ -264,7 +263,7 @@ class EventSystem(object, metaclass=abc.ABCMeta):
 @attr.s(slots=True)
 class Transform(object):
     _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    _quat = attr.ib(default=quaternion.quaternion(1, 0, 0, 0), validator=instance_of(quaternion.quaternion))
+    _quat = attr.ib(default=Quaternion(1, 0, 0, 0), validator=instance_of(Quaternion))
 
     @property
     def position(self):
@@ -283,26 +282,26 @@ class Transform(object):
 
     @orientation.setter
     def orientation(self, value):
-        if isinstance(value, quaternion.quaternion):
+        if isinstance(value, Quaternion):
             self._quat = value
         else:
-            raise TypeError("Orientation must be a quaternion.")
+            raise TypeError("Orientation must be a Quaternion.")
 
     @property
     def up(self):
-        return orientation(self._quat).T @ (0, 1, 0, 1)
+        return self._quat.T.matrix4 @ (0, 1, 0, 1)
 
     @property
     def right(self):
-        return orientation(self._quat).T @ (1, 0, 0, 1)
+        return self._quat.T.matrix4 @ (1, 0, 0, 1)
 
     @property
     def forward(self):
-        return orientation(self._quat).T @ (0, 0, 1, 1)
+        return self._quat.T.matrix4 @ (0, 0, 1, 1)
     
     @property
     def orientation_matrix(self):
-        return orientation(self._quat)
+        return self._quat.matrix4
 
     @property
     def translation_matrix(self):
@@ -310,7 +309,7 @@ class Transform(object):
 
     @property
     def matrix(self):
-        return translation(self._pos) @ orientation(self._quat)
+        return translation(self._pos) @ self._quat.matrix4
 
     def look_at(self, target):
         forward = target - self._pos
@@ -318,15 +317,15 @@ class Transform(object):
 
         forward_dot = self.forward[:3] @ forward
         if math.isclose(forward_dot, -1):
-            self._quat = quaternion.quaternion(0, 0, 1, 0)
+            self._quat = Quaternion(0, 0, 1, 0)
         elif math.isclose(forward_dot, 1):
-            self._quat = quaternion.quaternion(1, 0, 0, 0)
+            self._quat = Quaternion(1, 0, 0, 0)
         else:
             axis = numpy.cross(self.forward[:3], forward)
             angle = math.acos(forward_dot)
-            self.rotate(axis, angle)
+            self.rotate(axis, angle, chain=False)
 
-    def rotate(self, axis, angle):
+    def rotate(self, axis, angle, chain=True):
         """
         Rotate the component around the given axis by the specified angle.
 
@@ -334,15 +333,12 @@ class Transform(object):
         :param angle:
         :return:
         """
-        axis /= numpy.linalg.norm(axis)
-        angle %= 2 * math.pi
+        quat = Quaternion.from_axis(axis, angle)
 
-        self._quat = quaternion.quaternion(
-            math.cos(angle / 2),
-            axis[0] * math.sin(angle / 2),
-            axis[1] * math.sin(angle / 2),
-            axis[2] * math.sin(angle / 2)
-        ) * self._quat
+        if chain:
+            self._quat = quat @ self._quat
+        else:
+            self._quat = quat
 
 
 @attr.s(slots=True)
