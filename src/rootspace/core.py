@@ -57,7 +57,7 @@ class Entity(object):
         :return:
         """
         inst = cls(uuid.uuid4(), **kwargs)
-        world.add_entity(inst)
+        # world.add_entity(inst)
 
         return inst
 
@@ -594,7 +594,6 @@ class CameraControlSystem(EventSystem):
 
                 target = transform.forward[:3] + 0.01 * delta_cursor
                 target /= numpy.linalg.norm(target)
-                self._log.debug(target)
 
                 #transform.look_at(target)
 
