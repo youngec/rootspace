@@ -57,7 +57,6 @@ class Entity(object):
         :return:
         """
         inst = cls(uuid.uuid4(), **kwargs)
-        # world.add_entity(inst)
 
         return inst
 
@@ -747,7 +746,7 @@ class World(object):
         :param entity:
         :return:
         """
-        self._log.debug("Adding Entity '{}'.".format(entity))
+        # self._log.debug("Adding Entity '{}'.".format(entity))
         self._entities.add(entity)
 
     def remove_entity(self, entity):
@@ -1241,8 +1240,8 @@ class Context(object):
             context_minor = gl.glGetIntegerv(gl.GL_MINOR_VERSION)
             num_extensions = gl.glGetIntegerv(gl.GL_NUM_EXTENSIONS)
             extensions = (gl.glGetStringi(gl.GL_EXTENSIONS, i).decode("utf-8") for i in range(num_extensions))
-            self._dbg("Actual OpenGL Context {}.{}".format(context_major, context_minor))
-            self._dbg("Extensions: {}".format(", ".join(extensions)))
+            self._dbg("Actually received an OpenGL Context {}.{}".format(context_major, context_minor))
+            # self._dbg("Extensions: {}".format(", ".join(extensions)))
 
             # Set the buffer swap interval (i.e. VSync)
             glfw.swap_interval(self._data.swap_interval)
