@@ -263,7 +263,7 @@ class EventSystem(object, metaclass=abc.ABCMeta):
 @attr.s(slots=True)
 class Transform(object):
     _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    _scale = attr.ib(default=numpy.eye(4), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    _scale = attr.ib(default=numpy.ones(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
     _quat = attr.ib(default=Quaternion(1, 0, 0, 0), validator=instance_of(Quaternion))
 
     @property
@@ -283,12 +283,12 @@ class Transform(object):
     
     @scale.setter
     def scale(self, value):
-        if isinstance(value, numpy.ndarray) and value.shape == (4, 4):
+        if isinstance(value, numpy.ndarray) and value.shape == (3,):
             self._scale = value
         elif isinstance(value, (int, float)):
-            self._scale = value * numpy.eye(4)
+            self._scale = value * numpy.ones(3)
         else:
-            raise TypeError("Scale must be a 4x4 numpy array or a scalar.")
+            raise TypeError("Scale must be a 3-component numpy array or a scalar.")
 
     @property
     def orientation(self):
@@ -315,7 +315,9 @@ class Transform(object):
 
     @property
     def matrix(self):
-        return translation(self._pos) @ self._scale @ self._quat.matrix4
+        scale_matrix = numpy.eye(4)
+        scale_matrix[:3, :3] *= self._scale
+        return translation(self._pos) @ scale_matrix @ self._quat.matrix4
 
     def look_at(self, target):
         forward = target - self._pos
