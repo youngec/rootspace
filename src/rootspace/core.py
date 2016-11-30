@@ -490,11 +490,11 @@ class TestEntity(Entity):
         image_data = numpy.zeros((1024, 1024), dtype=numpy.uint8)
         image_data.flat[::2] = 0xff
 
-        vertex_path = world.ctx.resources / "shaders" / "simple_vertex.glsl"
+        vertex_path = world.ctx.resources / "shaders/simple_vertex.glsl"
         with vertex_path.open(mode="r") as f:
             vertex_shader = f.read()
 
-        fragment_path = world.ctx.resources / "shaders" / "simple_fragment.glsl"
+        fragment_path = world.ctx.resources / "shaders/simple_fragment.glsl"
         with fragment_path.open(mode="r") as f:
             fragment_shader = f.read()
 
