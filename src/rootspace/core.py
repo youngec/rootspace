@@ -442,6 +442,7 @@ class TestEntity(Entity):
     @classmethod
     def create(cls, world, **kwargs):
         position = kwargs.pop("position")
+        scale = kwargs.pop("scale")
 
         vertices = numpy.array([
             -1, -1, -1, 0, 0,
@@ -481,6 +482,7 @@ class TestEntity(Entity):
             1, 1, -1, 0, 0,
             1, 1, 1, 0, 1
         ], dtype=numpy.float32)
+
         mode = gl.GL_TRIANGLES
         start_index = 0
         num_vertices = len(vertices) // 5
@@ -497,8 +499,7 @@ class TestEntity(Entity):
             fragment_shader = f.read()
 
         trf = Transform(position)
-        trf.rotate((1, 1, 1), math.pi/2)
-        trf.scale = random.random()
+        trf.scale = scale
         dat = RenderData.create(
             vertices, mode, start_index, num_vertices, image_data, vertex_shader, fragment_shader
         )
@@ -1278,8 +1279,8 @@ class Context(object):
                 near_plane=self._data.near_plane,
                 far_plane=self._data.far_plane
             ))
-            self._world.add_entity(TestEntity.create(self._world, position=(0, -1, -3)))
-            self._world.add_entity(TestEntity.create(self._world, position=(0, 1, -3)))
+            self._world.add_entity(TestEntity.create(self._world, position=(0, -1, -3), scale=1))
+            self._world.add_entity(TestEntity.create(self._world, position=(0, 0, 0), scale=10))
             ctx_mgr.callback(self._world.remove_entities)
 
             self._ctx_exit = ctx_mgr.pop_all()
