@@ -351,8 +351,6 @@ class Transform(object):
 
 @attr.s(slots=True)
 class RenderData(object):
-    Uniform = collections.namedtuple("Uniform", ("type", "location", "value"))
-
     vao = attr.ib(validator=instance_of(int))
     vbo = attr.ib(validator=instance_of(int))
     mode = attr.ib(validator=instance_of(int))
@@ -435,7 +433,7 @@ class CameraData(object):
 
 
 @attr.s
-class TestEntity(Entity):
+class Cube(Entity):
     transform = attr.ib(validator=instance_of(Transform), hash=False)
     render_data = attr.ib(validator=instance_of(RenderData), hash=False)
 
@@ -498,8 +496,7 @@ class TestEntity(Entity):
         with fragment_path.open(mode="r") as f:
             fragment_shader = f.read()
 
-        trf = Transform(position)
-        trf.scale = scale
+        trf = Transform(position, scale)
         dat = RenderData.create(
             vertices, mode, start_index, num_vertices, image_data, vertex_shader, fragment_shader
         )
@@ -1279,8 +1276,9 @@ class Context(object):
                 near_plane=self._data.near_plane,
                 far_plane=self._data.far_plane
             ))
-            self._world.add_entity(TestEntity.create(self._world, position=(0, -1, -3), scale=1))
-            self._world.add_entity(TestEntity.create(self._world, position=(0, 0, 0), scale=10))
+            self._world.add_entity(Cube.create(self._world, position=(0, -1, -1), scale=(1, 1, 1)))
+            self._world.add_entity(Cube.create(self._world, position=(0, -2, -1), scale=(2, 0.1, 2)))
+            self._world.add_entity(Cube.create(self._world, position=(-2, 0, -1), scale=(0.1, 2, 2)))
             ctx_mgr.callback(self._world.remove_entities)
 
             self._ctx_exit = ctx_mgr.pop_all()
