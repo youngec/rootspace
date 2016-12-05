@@ -44,6 +44,8 @@ class Texture(object):
     def texture_dtype(cls, image_data):
         if image_data.dtype == numpy.uint8:
             return gl.GL_UNSIGNED_BYTE
+        if image_data.dtype == numpy.float:
+            return gl.GL_FLOAT
         else:
             raise NotImplementedError("Have not implemented all data type conversions yet.")
 
