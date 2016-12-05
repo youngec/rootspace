@@ -353,8 +353,12 @@ class Cube(Entity):
 
     @classmethod
     def create(cls, world, **kwargs):
-        position = kwargs.pop("position")
-        scale = kwargs.pop("scale")
+        position = kwargs.pop("position", (0, 0, 0))
+        scale = kwargs.pop("scale", (1, 1, 1))
+        orientation = kwargs.pop("orientation", Quaternion(1, 0, 0, 0))
+        texture = kwargs.pop("texture", numpy.random.random((512, 512)))
+        vertex_name = kwargs.pop("vertex_shader_name", "shaders/simple_vertex.glsl")
+        fragment_name = kwargs.pop("fragment_shader_name", "shaders/simple_fragment.glsl")
 
         vertices = numpy.array([
             -1, -1, -1, 0, 0,
@@ -399,20 +403,17 @@ class Cube(Entity):
         start_index = 0
         num_vertices = len(vertices) // 5
 
-        image_data = numpy.zeros((1024, 1024), dtype=numpy.uint8)
-        image_data.flat[::2] = 0xff
-
-        vertex_path = world.ctx.resources / "shaders/simple_vertex.glsl"
+        vertex_path = world.ctx.resources / vertex_name
         with vertex_path.open(mode="r") as f:
             vertex_shader = f.read()
 
-        fragment_path = world.ctx.resources / "shaders/simple_fragment.glsl"
+        fragment_path = world.ctx.resources / fragment_name
         with fragment_path.open(mode="r") as f:
             fragment_shader = f.read()
 
-        trf = Transform(position, scale)
+        trf = Transform(position, scale, orientation)
         dat = RenderData.create(
-            vertices, mode, start_index, num_vertices, image_data, vertex_shader, fragment_shader
+            vertices, mode, start_index, num_vertices, texture, vertex_shader, fragment_shader
         )
 
         inst = super().create(world=world, transform=trf, render_data=dat, **kwargs)
@@ -1152,10 +1153,12 @@ class Context(object):
             ctx_mgr.callback(self._clear_callbacks)
 
             # Add the initial systems
+            ctx_mgr.callback(self._world.remove_systems)
             self._world.add_system(OpenGLRenderer.create())
             self._world.add_system(CameraControlSystem.create(cursor_origin))
-            ctx_mgr.callback(self._world.remove_systems)
 
+            # Add the initial entities
+            ctx_mgr.callback(self._world.remove_entities)
             self._world.add_entity(Camera.create(
                 self._world,
                 field_of_view=self._data.field_of_view,
@@ -1166,7 +1169,6 @@ class Context(object):
             self._world.add_entity(Cube.create(self._world, position=(0, -1, -1), scale=(1, 1, 1)))
             self._world.add_entity(Cube.create(self._world, position=(0, -2, -1), scale=(2, 0.1, 2)))
             self._world.add_entity(Cube.create(self._world, position=(-2, 0, -1), scale=(0.1, 2, 2)))
-            ctx_mgr.callback(self._world.remove_entities)
 
             self._ctx_exit = ctx_mgr.pop_all()
 
