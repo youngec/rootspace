@@ -56,9 +56,7 @@ class Entity(object):
         :param kwargs:
         :return:
         """
-        inst = cls(uuid.uuid4(), **kwargs)
-
-        return inst
+        return cls(uuid.uuid4(), **kwargs)
 
 
 @attr.s
