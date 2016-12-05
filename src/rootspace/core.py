@@ -325,9 +325,6 @@ class RenderData(object):
     def __del__(self):
         self._ctx_exit.close()
 
-    def update_uniforms(self):
-        pass
-
 
 @attr.s
 class CameraData(object):
