@@ -98,33 +98,6 @@ class UpdateSystem(object, metaclass=abc.ABCMeta):
         """
         return logging.getLogger("{}.{}".format(__name__, cls.__name__))
 
-    def _dbg(self, message):
-        """
-        Send a debug message.
-
-        :param message:
-        :return:
-        """
-        self._log.debug(message)
-
-    def _nfo(self, message):
-        """
-        Send an info message.
-
-        :param message:
-        :return:
-        """
-        self._log.info(message)
-
-    def _wrn(self, message):
-        """
-        Send a warning message.
-
-        :param message:
-        :return:
-        """
-        self._log.warn(message)
-
 
 @attr.s
 class RenderSystem(object, metaclass=abc.ABCMeta):
@@ -162,33 +135,6 @@ class RenderSystem(object, metaclass=abc.ABCMeta):
         :return:
         """
         return logging.getLogger("{}.{}".format(__name__, cls.__name__))
-
-    def _dbg(self, message):
-        """
-        Send a debug message.
-
-        :param message:
-        :return:
-        """
-        self._log.debug(message)
-
-    def _nfo(self, message):
-        """
-        Send an info message.
-
-        :param message:
-        :return:
-        """
-        self._log.info(message)
-
-    def _wrn(self, message):
-        """
-        Send a warning message.
-
-        :param message:
-        :return:
-        """
-        self._log.warn(message)
 
 
 @attr.s
@@ -229,33 +175,6 @@ class EventSystem(object, metaclass=abc.ABCMeta):
         :return:
         """
         return logging.getLogger("{}.{}".format(__name__, cls.__name__))
-
-    def _dbg(self, message):
-        """
-        Send a debug message.
-
-        :param message:
-        :return:
-        """
-        self._log.debug(message)
-
-    def _nfo(self, message):
-        """
-        Send an info message.
-
-        :param message:
-        :return:
-        """
-        self._log.info(message)
-
-    def _wrn(self, message):
-        """
-        Send a warning message.
-
-        :param message:
-        :return:
-        """
-        self._log.warn(message)
 
 
 @attr.s(slots=True)
@@ -1116,40 +1035,13 @@ class Context(object):
         """
         return self._world
 
-    def _dbg(self, message):
-        """
-        Send a debug message.
-
-        :param message:
-        :return:
-        """
-        self._log.debug(message)
-
-    def _nfo(self, message):
-        """
-        Send an info message.
-
-        :param message:
-        :return:
-        """
-        self._log.info(message)
-
-    def _wrn(self, message):
-        """
-        Send a warning message.
-
-        :param message:
-        :return:
-        """
-        self._log.warn(message)
-
     def _register_events(self):
         """
         Register event callbacks of World with GLFW.
 
         :return:
         """
-        self._dbg("Registering GLFW event callbacks with World.")
+        self._log.debug("Registering GLFW event callbacks with World.")
         glfw.set_window_size_callback(self._window, self._world.dispatch_resize)
         glfw.set_key_callback(self._window, self._world.dispatch_key)
         glfw.set_cursor_pos_callback(self._window, self._world.dispatch_cursor)
@@ -1160,7 +1052,7 @@ class Context(object):
 
         :return:
         """
-        self._dbg("Clearing GLFW event callbacks.")
+        self._log.debug("Clearing GLFW event callbacks.")
         glfw.set_window_size_callback(self._window, None)
         glfw.set_key_callback(self._window, None)
         glfw.set_cursor_pos_callback(self._window, None)
@@ -1171,7 +1063,7 @@ class Context(object):
 
         :return:
         """
-        self._dbg("Closing down GLFW.")
+        self._log.debug("Closing down GLFW.")
         glfw.terminate()
 
     def _del_window(self):
@@ -1180,7 +1072,7 @@ class Context(object):
 
         :return:
         """
-        self._dbg("Destroying the Window and deleting its reference.")
+        self._log.debug("Destroying the Window and deleting its reference.")
         glfw.destroy_window(self._window)
         self._window = None
 
@@ -1190,7 +1082,7 @@ class Context(object):
 
         :return:
         """
-        self._dbg("Deleting the reference to World.")
+        self._log.debug("Deleting the reference to World.")
         self._world = None
 
     def __enter__(self):
@@ -1200,9 +1092,9 @@ class Context(object):
         :return:
         """
         with contextlib.ExitStack() as ctx_mgr:
-            self._nfo("Initializing the context.")
+            self._log.info("Initializing the context.")
 
-            self._dbg("Initializing GLFW.")
+            self._log.debug("Initializing GLFW.")
             if not glfw.init():
                 raise GLFWError("Cannot initialize GLFW.")
             ctx_mgr.callback(self._del_glfw)
@@ -1212,7 +1104,7 @@ class Context(object):
                 glfw.window_hint(k, v)
 
             # Create the Window
-            self._dbg("Creating the window.")
+            self._log.debug("Creating the window.")
             self._window = glfw.create_window(
                 self._data.window_shape[0],
                 self._data.window_shape[1],
@@ -1238,8 +1130,8 @@ class Context(object):
             context_minor = gl.glGetIntegerv(gl.GL_MINOR_VERSION)
             num_extensions = gl.glGetIntegerv(gl.GL_NUM_EXTENSIONS)
             extensions = (gl.glGetStringi(gl.GL_EXTENSIONS, i).decode("utf-8") for i in range(num_extensions))
-            self._dbg("Actually received an OpenGL Context {}.{}".format(context_major, context_minor))
-            # self._dbg("Extensions: {}".format(", ".join(extensions)))
+            self._log.debug("Actually received an OpenGL Context {}.{}".format(context_major, context_minor))
+            # self._log.debug("Extensions: {}".format(", ".join(extensions)))
 
             # Set the buffer swap interval (i.e. VSync)
             glfw.swap_interval(self._data.swap_interval)
@@ -1254,7 +1146,7 @@ class Context(object):
             gl.glCullFace(gl.GL_BACK)
 
             # Create the World
-            self._dbg("Creating the world.")
+            self._log.debug("Creating the world.")
             self._world = World.create(self)
             ctx_mgr.callback(self._del_world)
 
@@ -1295,7 +1187,7 @@ class Context(object):
         if exc_val is not None:
             self._log.error("Context exited prematurely!")
 
-        self._nfo("Exiting the context.")
+        self._log.info("Exiting the context.")
         self._ctx_exit.close()
         return False
 
@@ -1319,11 +1211,11 @@ class Loop(object):
         user_home = pathlib.Path.home()
         engine_location = pathlib.Path(__file__).parent
 
-        self._dbg("The user home is at '{}'.".format(user_home))
-        self._dbg("The engine is located at '{}'.".format(engine_location))
+        self._log.debug("The user home is at '{}'.".format(user_home))
+        self._log.debug("The engine is located at '{}'.".format(engine_location))
 
         with self._ctx.create(self._name, user_home, engine_location, self._debug) as ctx:
-            self._dbg("Entered context {}.".format(ctx))
+            self._log.debug("Entered context {}.".format(ctx))
             self._loop(ctx)
 
     def _loop(self, ctx):
@@ -1338,7 +1230,7 @@ class Loop(object):
         :param ctx:
         :return:
         """
-        self._nfo("Executing within the engine context.")
+        self._log.info("Executing within the engine context.")
 
         # Define the time for the event loop
         t = 0.0
@@ -1367,29 +1259,3 @@ class Loop(object):
             # Clear the screen and render the world.
             ctx.world.render()
 
-    def _dbg(self, message):
-        """
-        Send a debug message.
-
-        :param message:
-        :return:
-        """
-        self._log.debug(message)
-
-    def _nfo(self, message):
-        """
-        Send an info message.
-
-        :param message:
-        :return:
-        """
-        self._log.info(message)
-
-    def _wrn(self, message):
-        """
-        Send a warning message.
-
-        :param message:
-        :return:
-        """
-        self._log.warn(message)
