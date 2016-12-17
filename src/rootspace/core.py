@@ -1040,7 +1040,6 @@ class Context(object):
 
             cpu_cube = Model.create_cube(texture_data, vertex_shader, fragment_shader, "vert_xyz", "tex_uv")
             gpu_cube = OpenGlModel.create(cpu_cube)
-            print(gpu_cube)
 
             self._world.add_entity(TestEntity.create(self._world, gpu_cube, (0, -1, -1), (1, 1, 1)))
             self._world.add_entity(TestEntity.create(self._world, gpu_cube, (0, -2, -1), (2, 0.1, 2)))
