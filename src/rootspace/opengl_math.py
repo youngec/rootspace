@@ -101,3 +101,7 @@ class Quaternion(object):
             axis[1] * sin, 
             axis[2] * sin
         )
+
+    @classmethod
+    def from_tuple(cls, orientation):
+        return cls(*orientation)
