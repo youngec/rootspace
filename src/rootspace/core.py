@@ -987,9 +987,11 @@ class Context(object):
             # Determine the actual context version information
             context_major = gl.glGetIntegerv(gl.GL_MAJOR_VERSION)
             context_minor = gl.glGetIntegerv(gl.GL_MINOR_VERSION)
-            num_extensions = gl.glGetIntegerv(gl.GL_NUM_EXTENSIONS)
-            extensions = (gl.glGetStringi(gl.GL_EXTENSIONS, i).decode("utf-8") for i in range(num_extensions))
             self._log.debug("Actually received an OpenGL Context {}.{}".format(context_major, context_minor))
+
+            # Determine available OpenGL extensions
+            # num_extensions = gl.glGetIntegerv(gl.GL_NUM_EXTENSIONS)
+            # extensions = (gl.glGetStringi(gl.GL_EXTENSIONS, i).decode("utf-8") for i in range(num_extensions))
             # self._log.debug("Extensions: {}".format(", ".join(extensions)))
 
             # Set the buffer swap interval (i.e. VSync)
