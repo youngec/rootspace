@@ -1,0 +1,10 @@
+{
+  "systems": {
+    "OpenGlRenderer": {},
+    "CameraControlSystem": {}
+  },
+  "models": [],
+  "entities": {
+    "Camera": ["world", "field_of_view"]
+  }
+}

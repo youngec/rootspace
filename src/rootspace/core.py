@@ -40,6 +40,14 @@ class Entity(object):
     def ident(self):
         return self._ident
 
+    @property
+    def components(self):
+        return attr.astuple(self, recurse=False, filter=lambda a, c: not a.name.startswith("_"))
+
+    @classmethod
+    def make_ident(cls):
+        return uuid.uuid4()
+
     def __hash__(self):
         return self._ident.int
 
@@ -255,7 +263,7 @@ class Transform(object):
 @attr.s
 class CameraData(object):
     _fov = attr.ib(default=numpy.pi/4, validator=instance_of(float))
-    _aspect = attr.ib(default=1, validator=instance_of(float))
+    _aspect = attr.ib(default=1.0, validator=instance_of(float))
     _near = attr.ib(default=0.1, validator=instance_of(float))
     _far = attr.ib(default=10.0, validator=instance_of(float))
 
@@ -278,16 +286,12 @@ class TestEntity(Entity):
     open_gl_model = attr.ib(validator=instance_of(OpenGlModel))
 
     @classmethod
-    def create(cls, world, model, position=(0, 0, 0), scale=(1, 1, 1), orientation=(1, 0, 0, 0)):
+    def create(cls, model, position=(0, 0, 0), scale=(1, 1, 1), orientation=(1, 0, 0, 0)):
 
+        ident = cls.make_ident()
         trf = Transform(position, scale, orientation)
 
-        inst = cls(ident=uuid.uuid4(), transform=trf, open_gl_model=model)
-
-        world.add_component(inst, inst.transform)
-        world.add_component(inst, inst.open_gl_model)
-
-        return inst
+        return cls(ident, trf, model)
 
 
 @attr.s(hash=False)
@@ -309,16 +313,12 @@ class Camera(Entity):
         self.camera_data.aspect = value
 
     @classmethod
-    def create(cls, world, field_of_view, aspect_ratio, near_plane, far_plane):
+    def create(cls, field_of_view, aspect_ratio, near_plane, far_plane):
+        ident = cls.make_ident()
         transform = Transform()
         camera_data = CameraData(fov=field_of_view, aspect=aspect_ratio, near=near_plane, far=far_plane)
 
-        inst = cls(ident=uuid.uuid4(), transform=transform, camera_data=camera_data)
-
-        world.add_component(inst, inst.transform)
-        world.add_component(inst, inst.camera_data)
-
-        return inst
+        return cls(ident, transform, camera_data)
 
 
 @attr.s
@@ -374,7 +374,7 @@ class CameraControlSystem(EventSystem):
 
 
 @attr.s
-class OpenGLRenderer(RenderSystem):
+class OpenGlRenderer(RenderSystem):
     @classmethod
     def create(cls):
         return cls(
@@ -523,6 +523,9 @@ class World(object):
         :return:
         """
         # self._log.debug("Adding Entity '{}'.".format(entity))
+        for c in entity.components:
+            self.add_component(entity, c)
+
         self._entities.add(entity)
 
     def remove_entity(self, entity):
@@ -1017,13 +1020,12 @@ class Context(object):
 
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_systems)
-            self._world.add_system(OpenGLRenderer.create())
+            self._world.add_system(OpenGlRenderer.create())
             self._world.add_system(CameraControlSystem.create(cursor_origin))
 
             # Add the initial entities
             ctx_mgr.callback(self._world.remove_entities)
             self._world.add_entity(Camera.create(
-                self._world,
                 self._data.field_of_view,
                 (self._data.window_shape[0] / self._data.window_shape[1]),
                 self._data.near_plane,
@@ -1043,9 +1045,9 @@ class Context(object):
             cpu_cube = Model.create_cube(texture_data, vertex_shader, fragment_shader, "vert_xyz", "tex_uv")
             gpu_cube = OpenGlModel.create(cpu_cube)
 
-            self._world.add_entity(TestEntity.create(self._world, gpu_cube, (0, -1, -1), (1, 1, 1)))
-            self._world.add_entity(TestEntity.create(self._world, gpu_cube, (0, -2, -1), (2, 0.1, 2)))
-            self._world.add_entity(TestEntity.create(self._world, gpu_cube, (-2, 0, -1), (0.1, 2, 2)))
+            self._world.add_entity(TestEntity.create(gpu_cube, (0, -1, -1), (1, 1, 1)))
+            self._world.add_entity(TestEntity.create(gpu_cube, (0, -2, -1), (2, 0.1, 2)))
+            self._world.add_entity(TestEntity.create(gpu_cube, (-2, 0, -1), (0.1, 2, 2)))
 
             self._ctx_exit = ctx_mgr.pop_all()
 
