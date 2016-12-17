@@ -7,7 +7,6 @@ import math
 import abc
 import collections
 import contextlib
-import ctypes
 import inspect
 import json
 import logging
@@ -16,7 +15,6 @@ import shutil
 import uuid
 import weakref
 import warnings
-import random
 
 import attr
 import glfw
@@ -24,14 +22,14 @@ import numpy
 import OpenGL.GL as gl
 from attr.validators import instance_of
 
-from .exceptions import GLFWError, TodoWarning, FixmeWarning
+from .exceptions import GLFWError, FixmeWarning
 from .utilities import subclass_of, camelcase_to_underscore
-from .opengl_math import perspective, translation, Quaternion
-from .wrappers import Shader, Program, Texture
-from .events import KeyEvent, CharEvent, CursorEvent, CursorEnterEvent, MouseButtonEvent, ScrollEvent, KeyMap
+from .opengl_math import perspective, translation, Quaternion, to_quaternion
+from .wrappers import OpenGlModel, Model
+from .events import KeyEvent, CharEvent, CursorEvent, KeyMap
 
 
-@attr.s
+@attr.s(hash=False)
 class Entity(object):
     """
     An entity is a container with a unique identifier.
@@ -40,23 +38,10 @@ class Entity(object):
 
     @property
     def ident(self):
-        """
-        Return the unique identifier of this entity.
-
-        :return:
-        """
         return self._ident
 
-    @classmethod
-    def create(cls, world, **kwargs):
-        """
-        Create an entity.
-
-        :param world:
-        :param kwargs:
-        :return:
-        """
-        return cls(uuid.uuid4(), **kwargs)
+    def __hash__(self):
+        return self._ident.int
 
 
 @attr.s
@@ -181,7 +166,7 @@ class EventSystem(object, metaclass=abc.ABCMeta):
 class Transform(object):
     _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
     _scale = attr.ib(default=numpy.ones(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    _quat = attr.ib(default=Quaternion(1, 0, 0, 0), validator=instance_of(Quaternion))
+    _quat = attr.ib(default=Quaternion(1, 0, 0, 0), validator=instance_of(Quaternion), convert=to_quaternion)
 
     @property
     def position(self):
@@ -256,6 +241,7 @@ class Transform(object):
 
         :param axis:
         :param angle:
+        :param chain:
         :return:
         """
         quat = Quaternion.from_axis(axis, angle)
@@ -264,66 +250,6 @@ class Transform(object):
             self._quat = quat @ self._quat
         else:
             self._quat = quat
-
-
-@attr.s(slots=True)
-class RenderData(object):
-    vao = attr.ib(validator=instance_of(int))
-    vbo = attr.ib(validator=instance_of(int))
-    mode = attr.ib(validator=instance_of(int))
-    start_index = attr.ib(validator=instance_of(int))
-    num_vertices = attr.ib(validator=instance_of(int))
-    texture = attr.ib(validator=instance_of(Texture))
-    program = attr.ib(validator=instance_of(Program))
-    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
-
-    @classmethod
-    def create(cls, vertices, mode, start_index, num_vertices, image_data, vertex_shader_src, fragment_shader_src):
-        with contextlib.ExitStack() as ctx:
-            warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
-            # Create and bind the Vertex Array Object
-            vao = int(gl.glGenVertexArrays(1))
-            ctx.callback(gl.glDeleteVertexArrays, 1, vao)
-            gl.glBindVertexArray(vao)
-
-            # Compile the shader program
-            vertex_shader = Shader.create(gl.GL_VERTEX_SHADER, vertex_shader_src)
-            fragment_shader = Shader.create(gl.GL_FRAGMENT_SHADER, fragment_shader_src)
-            program = Program.create((vertex_shader, fragment_shader))
-
-            position_location = program.attribute_location("vert_xyz")
-            color_location = program.attribute_location("tex_uv")
-
-            # Create the texture
-            tex = Texture.create(image_data)
-
-            # Initialise the vertex buffer
-            vbo = int(gl.glGenBuffers(1))
-            ctx.callback(gl.glDeleteBuffers, 1, vbo)
-            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-            gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
-
-            # Set the appropriate pointers
-            gl.glEnableVertexAttribArray(position_location)
-            gl.glVertexAttribPointer(
-                position_location, 3, gl.GL_FLOAT, False,
-                5 * ctypes.sizeof(ctypes.c_float), None
-            )
-            gl.glEnableVertexAttribArray(color_location)
-            gl.glVertexAttribPointer(
-                color_location, 2, gl.GL_FLOAT, False,
-                5 * ctypes.sizeof(ctypes.c_float), ctypes.c_void_p(3 * ctypes.sizeof(ctypes.c_float))
-            )
-
-            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-            gl.glBindVertexArray(0)
-
-            ctx_exit = ctx.pop_all()
-
-            return cls(vao, vbo, mode, start_index, num_vertices, tex, program, ctx_exit)
-
-    def __del__(self):
-        self._ctx_exit.close()
 
 
 @attr.s
@@ -346,88 +272,28 @@ class CameraData(object):
         self._aspect = value
 
 
-@attr.s
-class Cube(Entity):
-    transform = attr.ib(validator=instance_of(Transform), hash=False)
-    render_data = attr.ib(validator=instance_of(RenderData), hash=False)
+@attr.s(hash=False)
+class TestEntity(Entity):
+    transform = attr.ib(validator=instance_of(Transform))
+    open_gl_model = attr.ib(validator=instance_of(OpenGlModel))
 
     @classmethod
-    def create(cls, world, **kwargs):
-        position = kwargs.pop("position", (0, 0, 0))
-        scale = kwargs.pop("scale", (1, 1, 1))
-        orientation = kwargs.pop("orientation", Quaternion(1, 0, 0, 0))
-        texture = kwargs.pop("texture", numpy.random.random((512, 512)))
-        vertex_name = kwargs.pop("vertex_shader_name", "shaders/simple_vertex.glsl")
-        fragment_name = kwargs.pop("fragment_shader_name", "shaders/simple_fragment.glsl")
-
-        vertices = numpy.array([
-            -1, -1, -1, 0, 0,
-            1, -1, -1, 1, 0,
-            -1, -1, 1, 0, 1,
-            1, -1, -1, 1, 0,
-            1, -1, 1, 1, 1,
-            -1, -1, 1, 0, 1,
-            -1, 1, -1, 0, 0,
-            -1, 1, 1, 0, 1,
-            1, 1, -1, 1, 0,
-            1, 1, -1, 1, 0,
-            -1, 1, 1, 0, 1,
-            1, 1, 1, 1, 1,
-            -1, -1, 1, 1, 0,
-            1, -1, 1, 0, 0,
-            -1, 1, 1, 1, 1,
-            1, -1, 1, 0, 0,
-            1, 1, 1, 0, 1,
-            -1, 1, 1, 1, 1,
-            -1, -1, -1, 0, 0,
-            -1, 1, -1, 0, 1,
-            1, -1, -1, 1, 0,
-            1, -1, -1, 1, 0,
-            -1, 1, -1, 0, 1,
-            1, 1, -1, 1, 1,
-            -1, -1, 1, 0, 1,
-            -1, 1, -1, 1, 0,
-            -1, -1, -1, 0, 0,
-            -1, -1, 1, 0, 1,
-            -1, 1, 1, 1, 1,
-            -1, 1, -1, 1, 0,
-            1, -1, 1, 1, 1,
-            1, -1, -1, 1, 0,
-            1, 1, -1, 0, 0,
-            1, -1, 1, 1, 1,
-            1, 1, -1, 0, 0,
-            1, 1, 1, 0, 1
-        ], dtype=numpy.float32)
-
-        mode = gl.GL_TRIANGLES
-        start_index = 0
-        num_vertices = len(vertices) // 5
-
-        vertex_path = world.ctx.resources / vertex_name
-        with vertex_path.open(mode="r") as f:
-            vertex_shader = f.read()
-
-        fragment_path = world.ctx.resources / fragment_name
-        with fragment_path.open(mode="r") as f:
-            fragment_shader = f.read()
+    def create(cls, world, model, position=(0, 0, 0), scale=(1, 1, 1), orientation=(1, 0, 0, 0)):
 
         trf = Transform(position, scale, orientation)
-        dat = RenderData.create(
-            vertices, mode, start_index, num_vertices, texture, vertex_shader, fragment_shader
-        )
 
-        inst = super().create(world=world, transform=trf, render_data=dat, **kwargs)
+        inst = cls(ident=uuid.uuid4(), transform=trf, open_gl_model=model)
 
         world.add_component(inst, inst.transform)
-        world.add_component(inst, inst.render_data)
+        world.add_component(inst, inst.open_gl_model)
 
         return inst
 
 
-@attr.s
+@attr.s(hash=False)
 class Camera(Entity):
-    transform = attr.ib(validator=instance_of(Transform), hash=False)
-    camera_data = attr.ib(validator=instance_of(CameraData), hash=False)
+    transform = attr.ib(validator=instance_of(Transform))
+    camera_data = attr.ib(validator=instance_of(CameraData))
 
     @property
     def matrix(self):
@@ -443,16 +309,11 @@ class Camera(Entity):
         self.camera_data.aspect = value
 
     @classmethod
-    def create(cls, world, **kwargs):
-        fov = kwargs.pop("field_of_view")
-        aspect = kwargs.pop("aspect_ratio")
-        near = kwargs.pop("near_plane")
-        far = kwargs.pop("far_plane")
-
+    def create(cls, world, field_of_view, aspect_ratio, near_plane, far_plane):
         transform = Transform()
-        camera_data = CameraData(fov=fov, aspect=aspect, near=near, far=far)
+        camera_data = CameraData(fov=field_of_view, aspect=aspect_ratio, near=near_plane, far=far_plane)
 
-        inst = super().create(world=world, transform=transform, camera_data=camera_data, **kwargs)
+        inst = cls(ident=uuid.uuid4(), transform=transform, camera_data=camera_data)
 
         world.add_component(inst, inst.transform)
         world.add_component(inst, inst.camera_data)
@@ -517,7 +378,7 @@ class OpenGLRenderer(RenderSystem):
     @classmethod
     def create(cls):
         return cls(
-            component_types=(Transform, RenderData),
+            component_types=(Transform, OpenGlModel),
             is_applicator=True,
             log=cls.get_logger()
         )
@@ -525,7 +386,7 @@ class OpenGLRenderer(RenderSystem):
     def render(self, world, components):
         # Get a reference to the camera
         warnings.warn("Have to be smarter about getting the camera entity.", FixmeWarning)
-        camera = world.get_entities(Camera)[0]
+        camera = tuple(world.get_entities(Camera))[0]
         pv = camera.matrix
 
         # Clear the render buffers
@@ -700,7 +561,7 @@ class World(object):
         :return:
         """
         comp_set = self._components.get(component.__class__, [])
-        return [e for e in comp_set if comp_set[e] == component]
+        return (e for e in comp_set if comp_set[e] == component)
 
     def get_entities(self, entity_type):
         """
@@ -708,7 +569,7 @@ class World(object):
         :param entity_type:
         :return:
         """
-        return [e for e in self._entities if isinstance(e, entity_type)]
+        return (e for e in self._entities if isinstance(e, entity_type))
 
     def add_system(self, system):
         """
@@ -1161,14 +1022,29 @@ class Context(object):
             ctx_mgr.callback(self._world.remove_entities)
             self._world.add_entity(Camera.create(
                 self._world,
-                field_of_view=self._data.field_of_view,
-                aspect_ratio=(self._data.window_shape[0] / self._data.window_shape[1]),
-                near_plane=self._data.near_plane,
-                far_plane=self._data.far_plane
+                self._data.field_of_view,
+                (self._data.window_shape[0] / self._data.window_shape[1]),
+                self._data.near_plane,
+                self._data.far_plane
             ))
-            self._world.add_entity(Cube.create(self._world, position=(0, -1, -1), scale=(1, 1, 1)))
-            self._world.add_entity(Cube.create(self._world, position=(0, -2, -1), scale=(2, 0.1, 2)))
-            self._world.add_entity(Cube.create(self._world, position=(-2, 0, -1), scale=(0.1, 2, 2)))
+
+            texture_data = numpy.random.random((512, 512))
+
+            vertex_path = self.resources / "shaders/simple_vertex.glsl"
+            with vertex_path.open(mode="r") as f:
+                vertex_shader = f.read()
+
+            fragment_path = self.resources / "shaders/simple_fragment.glsl"
+            with fragment_path.open(mode="r") as f:
+                fragment_shader = f.read()
+
+            cpu_cube = Model.create_cube(texture_data, vertex_shader, fragment_shader, "vert_xyz", "tex_uv")
+            gpu_cube = OpenGlModel.create(cpu_cube)
+            print(gpu_cube)
+
+            self._world.add_entity(TestEntity.create(self._world, gpu_cube, (0, -1, -1), (1, 1, 1)))
+            self._world.add_entity(TestEntity.create(self._world, gpu_cube, (0, -2, -1), (2, 0.1, 2)))
+            self._world.add_entity(TestEntity.create(self._world, gpu_cube, (-2, 0, -1), (0.1, 2, 2)))
 
             self._ctx_exit = ctx_mgr.pop_all()
 

@@ -4,22 +4,117 @@
 
 import logging
 import contextlib
+import warnings
+import ctypes
 
 import attr
 import numpy
 import OpenGL.GL as gl
 from attr.validators import instance_of
 
-from .exceptions import OpenGLError
-
-
-# TODO: Possibly introduce a Lexer that can parse Wavefront OBJ files.
-# Reference to PLY lexer: http://www.dabeaz.com/ply/ply.html
-# Reference to OBJ file format: https://people.cs.clemson.edu/~dhouse/courses/405/docs/brief-obj-file-format.html
+from .exceptions import OpenGLError, TodoWarning
 
 
 @attr.s
-class Texture(object):
+class Model(object):
+    """
+    Abstract away the concept of a model: vertices, material, shaders.
+    """
+    # TODO: Possibly introduce a Lexer that can parse Wavefront OBJ files.
+    # Reference to PLY lexer: http://www.dabeaz.com/ply/ply.html
+    # Reference to OBJ file format: https://people.cs.clemson.edu/~dhouse/courses/405/docs/brief-obj-file-format.html
+    vertices = attr.ib(validator=instance_of(numpy.ndarray))
+    texture = attr.ib(validator=instance_of(numpy.ndarray))
+    num_vert_components = attr.ib(validator=instance_of(int))
+    num_tex_components = attr.ib(validator=instance_of(int))
+    vert_stride = attr.ib(validator=instance_of(int))
+    tex_stride = attr.ib(validator=instance_of(int))
+    vert_start_idx = attr.ib(validator=instance_of(int))
+    tex_start_idx = attr.ib(validator=instance_of(int))
+    vertex_shader = attr.ib(validator=instance_of(str))
+    fragment_shader = attr.ib(validator=instance_of(str))
+    vertex_coord_name = attr.ib(validator=instance_of(str))
+    texture_coord_name = attr.ib(validator=instance_of(str))
+    draw_mode = attr.ib()
+    draw_start_index = attr.ib(validator=instance_of(int))
+
+    @property
+    def num_vertices(self):
+        return len(self.vertices) // (self.num_vert_components + self.num_tex_components)
+
+    @property
+    def vert_stride_bytes(self):
+        return self.vert_stride * ctypes.sizeof(ctypes.c_float)
+
+    @property
+    def tex_stride_bytes(self):
+        return self.tex_stride * ctypes.sizeof(ctypes.c_float)
+
+    @property
+    def vert_start_ptr(self):
+        return ctypes.c_void_p(self.vert_start_idx * ctypes.sizeof(ctypes.c_float))
+
+    @property
+    def tex_start_ptr(self):
+        return ctypes.c_void_p(self.tex_start_idx * ctypes.sizeof(ctypes.c_float))
+
+    @classmethod
+    def create_cube(cls, texture_data, vertex_shader, fragment_shader, vertex_coord_name, texture_coord_name):
+        vertices = numpy.array([
+            -1, -1, -1, 0, 0,
+            1, -1, -1, 1, 0,
+            -1, -1, 1, 0, 1,
+            1, -1, -1, 1, 0,
+            1, -1, 1, 1, 1,
+            -1, -1, 1, 0, 1,
+            -1, 1, -1, 0, 0,
+            -1, 1, 1, 0, 1,
+            1, 1, -1, 1, 0,
+            1, 1, -1, 1, 0,
+            -1, 1, 1, 0, 1,
+            1, 1, 1, 1, 1,
+            -1, -1, 1, 1, 0,
+            1, -1, 1, 0, 0,
+            -1, 1, 1, 1, 1,
+            1, -1, 1, 0, 0,
+            1, 1, 1, 0, 1,
+            -1, 1, 1, 1, 1,
+            -1, -1, -1, 0, 0,
+            -1, 1, -1, 0, 1,
+            1, -1, -1, 1, 0,
+            1, -1, -1, 1, 0,
+            -1, 1, -1, 0, 1,
+            1, 1, -1, 1, 1,
+            -1, -1, 1, 0, 1,
+            -1, 1, -1, 1, 0,
+            -1, -1, -1, 0, 0,
+            -1, -1, 1, 0, 1,
+            -1, 1, 1, 1, 1,
+            -1, 1, -1, 1, 0,
+            1, -1, 1, 1, 1,
+            1, -1, -1, 1, 0,
+            1, 1, -1, 0, 0,
+            1, -1, 1, 1, 1,
+            0, 1, -1, 0, 0,
+            1, 1, 1, 0, 1
+        ], dtype=numpy.float32)
+        num_vert_components = 3
+        num_tex_components = 2
+        vert_stride = 5
+        tex_stride = 5
+        vert_start_idx = 0
+        tex_start_idx = num_vert_components
+        draw_mode = gl.GL_TRIANGLES
+        draw_start_index = 0
+
+        return cls(vertices, texture_data, num_vert_components, num_tex_components,
+                   vert_stride, tex_stride, vert_start_idx, tex_start_idx,
+                   vertex_shader, fragment_shader, vertex_coord_name, texture_coord_name,
+                   draw_mode, draw_start_index)
+
+
+@attr.s
+class OpenGlTexture(object):
     """Texture encapsulates an OpenGL texture."""
 
     _obj = attr.ib(validator=instance_of(int))
@@ -27,34 +122,34 @@ class Texture(object):
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
-    def texture_format(cls, image_data):
-        if len(image_data.shape) == 2:
+    def texture_format(cls, data: numpy.ndarray):
+        if len(data.shape) == 2:
             return gl.GL_LUMINANCE
-        elif len(image_data.shape) == 3:
-            if image_data.shape[2] == 2:
+        elif len(data.shape) == 3:
+            if data.shape[2] == 2:
                 return gl.GL_LUMINANCE_ALPHA
-            elif image_data.shape[2] == 3:
+            elif data.shape[2] == 3:
                 return gl.GL_RGB
-            elif image_data.shape[2] == 4:
+            elif data.shape[2] == 4:
                 return gl.GL_RGBA
 
         raise ValueError("Cannot determine the texture format for the supplied image data.")
 
     @classmethod
-    def texture_dtype(cls, image_data):
-        if image_data.dtype == numpy.uint8:
+    def texture_dtype(cls, data: numpy.ndarray):
+        if data.dtype == numpy.uint8:
             return gl.GL_UNSIGNED_BYTE
-        if image_data.dtype == numpy.float:
+        if data.dtype == numpy.float:
             return gl.GL_FLOAT
         else:
             raise NotImplementedError("Have not implemented all data type conversions yet.")
 
     @classmethod
-    def create(cls, image_data, min_filter=gl.GL_LINEAR, mag_filter=gl.GL_LINEAR, wrap_mode=gl.GL_CLAMP_TO_EDGE):
+    def create(cls, data, min_filter=gl.GL_LINEAR, mag_filter=gl.GL_LINEAR, wrap_mode=gl.GL_CLAMP_TO_EDGE):
         with contextlib.ExitStack() as ctx_mgr:
-            image_format = cls.texture_format(image_data)
-            image_dtype = cls.texture_dtype(image_data)
-            shape = image_data.shape[:2]
+            image_format = cls.texture_format(data)
+            image_dtype = cls.texture_dtype(data)
+            shape = data.shape[:2]
 
             # Create the texture object
             obj = gl.glGenTextures(1)
@@ -70,7 +165,7 @@ class Texture(object):
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, wrap_mode)
 
             # Set the texture data
-            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, shape[0], shape[1], 0, image_format, image_dtype, image_data)
+            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, shape[0], shape[1], 0, image_format, image_dtype, data)
             gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
             ctx_exit = ctx_mgr.pop_all()
@@ -106,7 +201,7 @@ class Texture(object):
 
 
 @attr.s
-class Shader(object):
+class OpenGlShader(object):
     """Shader encapsulates an OpenGL shader."""
 
     _obj = attr.ib(validator=instance_of(int))
@@ -145,7 +240,7 @@ class Shader(object):
 
 
 @attr.s
-class Program(object):
+class OpenGlProgram(object):
     """Program encapsulates an OpenGL shader program."""
 
     _obj = attr.ib(validator=instance_of(int))
@@ -233,3 +328,63 @@ class Program(object):
             gl.glUniform1f(loc, value)
         else:
             raise NotImplementedError("Cannot set any other data types yet.")
+
+
+@attr.s(slots=True)
+class OpenGlModel(object):
+    vao = attr.ib(validator=instance_of(int))
+    vbo = attr.ib(validator=instance_of(int))
+    mode = attr.ib(validator=instance_of(int))
+    start_index = attr.ib(validator=instance_of(int))
+    num_vertices = attr.ib(validator=instance_of(int))
+    texture = attr.ib(validator=instance_of(OpenGlTexture))
+    program = attr.ib(validator=instance_of(OpenGlProgram))
+    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
+
+    @classmethod
+    def create(cls, model: Model):
+        with contextlib.ExitStack() as ctx:
+            warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
+            # Create and bind the Vertex Array Object
+            vao = int(gl.glGenVertexArrays(1))
+            ctx.callback(gl.glDeleteVertexArrays, 1, vao)
+            gl.glBindVertexArray(vao)
+
+            # Compile the shader program
+            vertex_shader = OpenGlShader.create(gl.GL_VERTEX_SHADER, model.vertex_shader)
+            fragment_shader = OpenGlShader.create(gl.GL_FRAGMENT_SHADER, model.fragment_shader)
+            program = OpenGlProgram.create((vertex_shader, fragment_shader))
+
+            position_location = program.attribute_location(model.vertex_coord_name)
+            tex_coord_location = program.attribute_location(model.texture_coord_name)
+
+            # Create the texture
+            tex = OpenGlTexture.create(model.texture)
+
+            # Initialise the vertex buffer
+            vbo = int(gl.glGenBuffers(1))
+            ctx.callback(gl.glDeleteBuffers, 1, vbo)
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, model.vertices.nbytes, model.vertices, gl.GL_STATIC_DRAW)
+
+            # Set the appropriate pointers
+            gl.glEnableVertexAttribArray(position_location)
+            gl.glVertexAttribPointer(
+                position_location, model.num_vert_components, gl.GL_FLOAT, False,
+                model.vert_stride_bytes, model.vert_start_ptr
+            )
+            gl.glEnableVertexAttribArray(tex_coord_location)
+            gl.glVertexAttribPointer(
+                tex_coord_location, model.num_tex_components, gl.GL_FLOAT, False,
+                model.tex_stride_bytes, model.tex_start_ptr
+            )
+
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+            gl.glBindVertexArray(0)
+
+            ctx_exit = ctx.pop_all()
+
+            return cls(vao, vbo, model.draw_mode, model.draw_start_index, model.num_vertices, tex, program, ctx_exit)
+
+    def __del__(self):
+        self._ctx_exit.close()

@@ -48,6 +48,17 @@ def perspective(field_of_view, viewport_ratio, near, far):
     ))
 
 
+def to_quaternion(value):
+    if value is None:
+        return None
+    elif isinstance(value, collections.Iterable):
+        return Quaternion.from_iterable(value)
+    elif isinstance(value, Quaternion):
+        return value
+    else:
+        raise TypeError("Expected 'value' to be either an iterable, a Quaternion or None.")
+
+
 @attr.s
 class Quaternion(object):
     r = attr.ib(default=1.0, validator=instance_of(float), convert=float)
@@ -103,5 +114,5 @@ class Quaternion(object):
         )
 
     @classmethod
-    def from_tuple(cls, orientation):
+    def from_iterable(cls, orientation):
         return cls(*orientation)
