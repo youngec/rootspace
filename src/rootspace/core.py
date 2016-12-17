@@ -300,8 +300,7 @@ class Camera(Entity):
 
     @property
     def matrix(self):
-        mat = self.camera_data.matrix @ self.transform.matrix
-        return mat
+        return self.camera_data.matrix @ self.transform.matrix
 
     @property
     def aspect(self):
