@@ -287,7 +287,6 @@ class TestEntity(Entity):
 
     @classmethod
     def create(cls, model, position=(0, 0, 0), scale=(1, 1, 1), orientation=(1, 0, 0, 0)):
-
         ident = cls.make_ident()
         trf = Transform(position, scale, orientation)
 
