@@ -120,6 +120,7 @@ class UpdateSystem(System):
     """
     A processing system for component data. Business logic variant.
     """
+
     @abc.abstractmethod
     def update(self, time, delta_time, world, components):
         """
@@ -139,6 +140,7 @@ class RenderSystem(System):
     """
     A processing system for component data. Rendering variant.
     """
+
     @abc.abstractmethod
     def render(self, world, components):
         """
@@ -191,7 +193,7 @@ class Transform(object):
     @property
     def scale(self):
         return self._scale
-    
+
     @scale.setter
     def scale(self, value):
         if isinstance(value, numpy.ndarray) and value.shape == (3,):
@@ -263,7 +265,7 @@ class Transform(object):
 
 @attr.s
 class CameraData(object):
-    _fov = attr.ib(default=numpy.pi/4, validator=instance_of(float))
+    _fov = attr.ib(default=numpy.pi / 4, validator=instance_of(float))
     _aspect = attr.ib(default=1.0, validator=instance_of(float))
     _near = attr.ib(default=0.1, validator=instance_of(float))
     _far = attr.ib(default=10.0, validator=instance_of(float))
@@ -348,7 +350,7 @@ class CameraControlSystem(EventSystem):
                 target = transform.forward[:3] + 0.01 * delta_cursor
                 target /= numpy.linalg.norm(target)
 
-                #transform.look_at(target)
+                # transform.look_at(target)
 
 
 @attr.s
@@ -1012,6 +1014,7 @@ class Context(object):
             ctx_mgr.callback(self._clear_callbacks)
 
             # Initialize System and Entity data
+            # TODO: Rethink the following section.
             camera_data = CameraData(
                 self._data.field_of_view,
                 (self._data.window_shape[0] / self._data.window_shape[1]),
@@ -1086,7 +1089,7 @@ class Loop(object):
         self._log.debug("The user home is at '{}'.".format(user_home))
         self._log.debug("The engine is located at '{}'.".format(engine_location))
 
-        with self._ctx.from_model(self._name, user_home, engine_location, self._debug) as ctx:
+        with self._ctx.create(self._name, user_home, engine_location, self._debug) as ctx:
             self._log.debug("Entered context {}.".format(ctx))
             self._loop(ctx)
 
@@ -1094,10 +1097,10 @@ class Loop(object):
         """
         Enter the fixed time-step loop of the game.
 
-        The loop makes sure that the physics update is called at regular intervals based on DELTA_TIME
-        from generic.py. The renderer is called when enough simulation intervals have accumulated
+        The loop makes sure that the physics update is called at regular intervals based on DELTA_TIME.
+        The renderer is called when enough simulation intervals have accumulated
         to let it take its time even on slow computers without jeopardizing the physics simulation.
-        The maximum duration of a frame is set to FRAME_TIME_MAX in generic.py.
+        The maximum duration of a frame is set to FRAME_TIME_MAX.
 
         :param ctx:
         :return:
@@ -1130,4 +1133,3 @@ class Loop(object):
 
             # Clear the screen and render the world.
             ctx.world.render()
-
