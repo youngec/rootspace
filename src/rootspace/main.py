@@ -11,6 +11,7 @@ from ._version import get_versions
 from .core import Loop, Context
 from .utilities import get_log_level, configure_logger
 
+
 @click.command()
 @click.option("-v", "--verbose", count=True, help="Select the level of verbosity.")
 @click.option("--debug", is_flag=True, help="Enable debug mode.")
