@@ -442,7 +442,6 @@ class World(object):
     _ctx = attr.ib(validator=instance_of(weakref.ReferenceType), repr=False)
     _entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
     _components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict), repr=False)
-    _systems = attr.ib(default=attr.Factory(list), validator=instance_of(list), repr=False)
     _update_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
@@ -589,7 +588,6 @@ class World(object):
         """
         if self._is_valid_system(system):
             self._log.debug("Adding System '{}'.".format(system))
-            self._systems.append(system)
             if self._is_update_system(system):
                 self._update_systems.append(system)
             elif self._is_render_system(system):
@@ -606,7 +604,6 @@ class World(object):
         :param system:
         :return:
         """
-        self._systems.remove(system)
         if system in self._update_systems:
             self._update_systems.remove(system)
         elif system in self._render_systems:
@@ -616,7 +613,6 @@ class World(object):
 
     def remove_all_systems(self):
         self._log.debug("Removing all Systems from this World.")
-        self._systems.clear()
         self._update_systems.clear()
         self._render_systems.clear()
         self._event_systems.clear()
