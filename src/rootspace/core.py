@@ -7,7 +7,6 @@ import math
 import abc
 import collections
 import contextlib
-import inspect
 import json
 import logging
 import pathlib
@@ -23,7 +22,7 @@ import OpenGL.GL as gl
 from attr.validators import instance_of
 
 from .exceptions import GLFWError, FixmeWarning
-from .utilities import subclass_of, camelcase_to_underscore
+from .utilities import subclass_of
 from .opengl_math import perspective, translation, Quaternion, to_quaternion
 from .wrappers import OpenGlModel, Model
 from .events import KeyEvent, CharEvent, CursorEvent, KeyMap
