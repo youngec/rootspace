@@ -466,7 +466,7 @@ class World(object):
 
         return cls(ctx, log=log)
 
-    def combined_components(self, comp_types):
+    def _combined_components(self, comp_types):
         """
         Combine the sets of components.
 
@@ -481,9 +481,9 @@ class World(object):
         for ent_key in entities:
             yield tuple(component[ent_key] for component in value_sets)
 
-    def add_component_type(self, component_type):
+    def _register_component_type(self, component_type):
         """
-        Add a supported component type to the world.
+        Register the class of the component.
 
         :param component_type:
         :return:
@@ -492,7 +492,17 @@ class World(object):
             self._components[component_type] = dict()
             self._component_types[camelcase_to_underscore(component_type.__name__)] = component_type
 
-    def add_component(self, entity, component):
+    def _unregister_component_type(self, component_type):
+        """
+        Unregister the a component class.
+
+        :param component_type:
+        :return:
+        """
+        if len(self._components[component_type]) == 0:
+            self._component_types.pop(camelcase_to_underscore(component_type.__name__))
+
+    def _add_component(self, entity, component):
         """
         Add a supported component instance to the world.
 
@@ -500,18 +510,41 @@ class World(object):
         :param component:
         :return:
         """
-        # If the value is a compound component (e.g. a Button
-        # inheriting from a Sprite), it needs to be added to all
-        # supported component type instances.
-        mro = inspect.getmro(component.__class__)
-        if type in mro:
-            stop = mro.index(type)
-        else:
-            stop = mro.index(object)
+        comp_type = type(component)
+        self._register_component_type(comp_type)
+        self._components[comp_type][entity] = component
 
-        for comp_type in mro[0:stop]:
-            self.add_component_type(comp_type)
-            self._components[comp_type][entity] = component
+    def _add_components(self, entity):
+        """
+        Register all components of an entity.
+
+        :param entity:
+        :return:
+        """
+        for c in entity.components:
+            self._add_component(entity, c)
+
+    def _remove_component(self, entity, component):
+        """
+        Remove the component instance from the world.
+
+        :param entity:
+        :param component:
+        :return:
+        """
+        comp_type = type(component)
+        self._components[comp_type].pop(entity)
+        self._unregister_component_type(comp_type)
+
+    def _remove_components(self, entity):
+        """
+        Remove the registered components of an entity.
+
+        :param entity:
+        :return:
+        """
+        for c in entity.components:
+            self._remove_component(entity, c)
 
     def add_entity(self, entity):
         """
@@ -520,10 +553,7 @@ class World(object):
         :param entity:
         :return:
         """
-        # self._log.debug("Adding Entity '{}'.".format(entity))
-        for c in entity.components:
-            self.add_component(entity, c)
-
+        self._add_components(entity)
         self._entities.add(entity)
 
     def remove_entity(self, entity):
@@ -533,12 +563,10 @@ class World(object):
         :param entity:
         :return:
         """
-        for comp_set in self._components.values():
-            comp_set.pop(entity, None)
-
+        self._remove_components(entity)
         self._entities.discard(entity)
 
-    def remove_entities(self):
+    def remove_all_entities(self):
         self._log.debug("Removing all Entities from this World.")
         self._entities.clear()
 
@@ -583,7 +611,7 @@ class World(object):
             self._log.debug("Adding System '{}'.".format(system))
             for component_type in system.component_types:
                 if component_type not in self._components:
-                    self.add_component_type(component_type)
+                    self._register_component_type(component_type)
 
             self._systems.append(system)
             if self._is_update_system(system):
@@ -610,7 +638,7 @@ class World(object):
         elif system in self._event_systems:
             self._event_systems.remove(system)
 
-    def remove_systems(self):
+    def remove_all_systems(self):
         self._log.debug("Removing all Systems from this World.")
         self._systems.clear()
         self._update_systems.clear()
@@ -627,7 +655,7 @@ class World(object):
         """
         for system in self._update_systems:
             if system.is_applicator:
-                comps = self.combined_components(system.component_types)
+                comps = self._combined_components(system.component_types)
                 system.update(t, dt, self, comps)
             else:
                 for comp_type in system.component_types:
@@ -641,7 +669,7 @@ class World(object):
         """
         for system in self._render_systems:
             if system.is_applicator:
-                comps = self.combined_components(system.component_types)
+                comps = self._combined_components(system.component_types)
                 system.render(self, comps)
             else:
                 for comp_type in system.component_types:
@@ -697,7 +725,7 @@ class World(object):
         for system in self._event_systems:
             if isinstance(event, system.event_types):
                 if system.is_applicator:
-                    comps = self.combined_components(system.component_types)
+                    comps = self._combined_components(system.component_types)
                     system.dispatch(event, self, comps)
                 else:
                     for comp_type in system.component_types:
@@ -1017,12 +1045,12 @@ class Context(object):
             ctx_mgr.callback(self._clear_callbacks)
 
             # Add the initial systems
-            ctx_mgr.callback(self._world.remove_systems)
+            ctx_mgr.callback(self._world.remove_all_systems)
             self._world.add_system(OpenGlRenderer.create())
             self._world.add_system(CameraControlSystem.create(cursor_origin))
 
             # Add the initial entities
-            ctx_mgr.callback(self._world.remove_entities)
+            ctx_mgr.callback(self._world.remove_all_entities)
             self._world.add_entity(Camera.create(
                 self._data.field_of_view,
                 (self._data.window_shape[0] / self._data.window_shape[1]),
