@@ -47,6 +47,13 @@ class Entity(object):
     def make_ident(cls):
         return uuid.uuid4()
 
+    @classmethod
+    def from_dict(cls, config):
+        return cls(ident=cls.make_ident(), **config)
+
+    def to_dict(self):
+        return attr.asdict(self, recurse=False, filter=lambda a, c: not a.name.startswith("_"))
+
     def __hash__(self):
         return self._ident.int
 
