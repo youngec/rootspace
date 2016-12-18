@@ -49,9 +49,20 @@ class Entity(object):
 
     @classmethod
     def from_dict(cls, config):
+        """
+        Create an instance from a config dictionary. Non-recursive, single level.
+
+        :param config:
+        :return:
+        """
         return cls(ident=cls.make_ident(), **config)
 
     def to_dict(self):
+        """
+        Serialize the instance to a dictionary. Non-recursive, single level.
+
+        :return:
+        """
         return attr.asdict(self, recurse=False, filter=lambda a, c: not a.name.startswith("_"))
 
     def __hash__(self):
@@ -59,9 +70,9 @@ class Entity(object):
 
 
 @attr.s
-class UpdateSystem(object, metaclass=abc.ABCMeta):
+class System(object, metaclass=abc.ABCMeta):
     """
-    A processing system for component data. Business logic variant.
+    A processing system for component data. Base class of all systems.
 
     A processing system within an application world consumes the
     components of all entities, for which it was set up. At time of
@@ -71,10 +82,44 @@ class UpdateSystem(object, metaclass=abc.ABCMeta):
     Also, the processing system does not know about any specific entity,
     but only is aware of the data carried by all entities.
     """
-    component_types = attr.ib(validator=instance_of(tuple))
-    is_applicator = attr.ib(validator=instance_of(bool))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
 
+    component_types = tuple()
+    is_applicator = True
+
+    @classmethod
+    def get_logger(cls):
+        """
+        Get the logger that best describes the specified class.
+
+        :return:
+        """
+        return logging.getLogger("{}.{}".format(__name__, cls.__name__))
+
+    @classmethod
+    def from_dict(cls, config):
+        """
+        Create an instance from a config dictionary. Non-recursive, single level.
+
+        :param config:
+        :return:
+        """
+        return cls(log=cls.get_logger(), **config)
+
+    def to_dict(self):
+        """
+        Serialize the instance to a dictionary. Non-recursive, single level.
+
+        :return:
+        """
+        return attr.asdict(self, recurse=False, filter=lambda a, c: not a.name.startswith("_"))
+
+
+@attr.s
+class UpdateSystem(System):
+    """
+    A processing system for component data. Business logic variant.
+    """
     @abc.abstractmethod
     def update(self, time, delta_time, world, components):
         """
@@ -88,33 +133,12 @@ class UpdateSystem(object, metaclass=abc.ABCMeta):
         """
         pass
 
-    @classmethod
-    def get_logger(cls):
-        """
-        Get the logger that best describes the specified class.
-
-        :return:
-        """
-        return logging.getLogger("{}.{}".format(__name__, cls.__name__))
-
 
 @attr.s
-class RenderSystem(object, metaclass=abc.ABCMeta):
+class RenderSystem(System):
     """
     A processing system for component data. Rendering variant.
-
-    A processing system within an application world consumes the
-    components of all entities, for which it was set up. At time of
-    processing, the system does not know about any other component type
-    that might be bound to any entity.
-
-    Also, the processing system does not know about any specific entity,
-    but only is aware of the data carried by all entities.
     """
-    component_types = attr.ib(validator=instance_of(tuple))
-    is_applicator = attr.ib(validator=instance_of(bool))
-    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
-
     @abc.abstractmethod
     def render(self, world, components):
         """
@@ -126,33 +150,13 @@ class RenderSystem(object, metaclass=abc.ABCMeta):
         """
         pass
 
-    @classmethod
-    def get_logger(cls):
-        """
-        Get the logger that best describes the specified class.
-
-        :return:
-        """
-        return logging.getLogger("{}.{}".format(__name__, cls.__name__))
-
 
 @attr.s
-class EventSystem(object, metaclass=abc.ABCMeta):
+class EventSystem(System):
     """
     A processing system for component data. Event variant.
-
-    A processing system within an application world consumes the
-    components of all entities, for which it was set up. At time of
-    processing, the system does not know about any other component type
-    that might be bound to any entity.
-
-    Also, the processing system does not know about any specific entity,
-    but only is aware of the data carried by all entities.
     """
-    component_types = attr.ib(validator=instance_of(tuple))
-    is_applicator = attr.ib(validator=instance_of(bool))
-    event_types = attr.ib(validator=instance_of(tuple))
-    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
+    event_types = tuple()
 
     @abc.abstractmethod
     def dispatch(self, event, world, components):
@@ -165,15 +169,6 @@ class EventSystem(object, metaclass=abc.ABCMeta):
         :return:
         """
         pass
-
-    @classmethod
-    def get_logger(cls):
-        """
-        Get the logger that best describes the specified class.
-
-        :return:
-        """
-        return logging.getLogger("{}.{}".format(__name__, cls.__name__))
 
 
 @attr.s(slots=True)
@@ -329,15 +324,9 @@ class Camera(Entity):
 class CameraControlSystem(EventSystem):
     _cursor_origin = attr.ib(validator=instance_of(numpy.ndarray), convert=numpy.array)
 
-    @classmethod
-    def create(cls, cursor_origin):
-        return cls(
-            component_types=(Transform, CameraData),
-            is_applicator=True,
-            event_types=(KeyEvent, CursorEvent),
-            cursor_origin=cursor_origin,
-            log=cls.get_logger()
-        )
+    component_types = (Transform, CameraData)
+    is_applicator = True
+    event_types = (KeyEvent, CursorEvent)
 
     def dispatch(self, event, world, components):
         key_map = world.ctx.data.key_map
@@ -379,13 +368,8 @@ class CameraControlSystem(EventSystem):
 
 @attr.s
 class OpenGlRenderer(RenderSystem):
-    @classmethod
-    def create(cls):
-        return cls(
-            component_types=(Transform, OpenGlModel),
-            is_applicator=True,
-            log=cls.get_logger()
-        )
+    component_types = (Transform, OpenGlModel)
+    is_applicator = True
 
     def render(self, world, components):
         # Get a reference to the camera
@@ -1044,8 +1028,9 @@ class Context(object):
 
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_all_systems)
-            self._world.add_system(OpenGlRenderer.create())
-            self._world.add_system(CameraControlSystem.create(cursor_origin))
+            self._world.add_systems(
+                (OpenGlRenderer.from_dict({}), CameraControlSystem.from_dict({"cursor_origin": cursor_origin}))
+            )
 
             # Add the initial entities
             ctx_mgr.callback(self._world.remove_all_entities)
