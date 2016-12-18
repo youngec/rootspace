@@ -286,13 +286,6 @@ class TestEntity(Entity):
     transform = attr.ib(validator=instance_of(Transform))
     open_gl_model = attr.ib(validator=instance_of(OpenGlModel))
 
-    @classmethod
-    def create(cls, model, position=(0, 0, 0), scale=(1, 1, 1), orientation=(1, 0, 0, 0)):
-        ident = cls.make_ident()
-        trf = Transform(position, scale, orientation)
-
-        return cls(ident, trf, model)
-
 
 @attr.s(hash=False)
 class Camera(Entity):
@@ -310,14 +303,6 @@ class Camera(Entity):
     @aspect.setter
     def aspect(self, value):
         self.camera_data.aspect = value
-
-    @classmethod
-    def create(cls, field_of_view, aspect_ratio, near_plane, far_plane):
-        ident = cls.make_ident()
-        transform = Transform()
-        camera_data = CameraData(fov=field_of_view, aspect=aspect_ratio, near=near_plane, far=far_plane)
-
-        return cls(ident, transform, camera_data)
 
 
 @attr.s
@@ -1026,23 +1011,13 @@ class Context(object):
             self._register_events()
             ctx_mgr.callback(self._clear_callbacks)
 
-            # Add the initial systems
-            ctx_mgr.callback(self._world.remove_all_systems)
-            self._world.add_systems(
-                OpenGlRenderer.from_dict({}),
-                CameraControlSystem.from_dict({"cursor_origin": cursor_origin})
-            )
-
-            # Add the initial entities
-            ctx_mgr.callback(self._world.remove_all_entities)
-
-            self._world.add_entity(Camera.create(
+            # Initialize System and Entity data
+            camera_data = CameraData(
                 self._data.field_of_view,
                 (self._data.window_shape[0] / self._data.window_shape[1]),
                 self._data.near_plane,
                 self._data.far_plane
-            ))
-
+            )
             texture_data = numpy.random.random((512, 512))
 
             vertex_path = self.resources / "shaders/simple_vertex.glsl"
@@ -1056,9 +1031,21 @@ class Context(object):
             cpu_cube = Model.create_cube(texture_data, vertex_shader, fragment_shader, "vert_xyz", "tex_uv")
             gpu_cube = OpenGlModel.create(cpu_cube)
 
-            self._world.add_entity(TestEntity.create(gpu_cube, (0, -1, -1), (1, 1, 1)))
-            self._world.add_entity(TestEntity.create(gpu_cube, (0, -2, -1), (2, 0.1, 2)))
-            self._world.add_entity(TestEntity.create(gpu_cube, (-2, 0, -1), (0.1, 2, 2)))
+            # Add the initial systems
+            ctx_mgr.callback(self._world.remove_all_systems)
+            self._world.add_systems(
+                OpenGlRenderer.from_dict({}),
+                CameraControlSystem.from_dict({"cursor_origin": cursor_origin})
+            )
+
+            # Add the initial entities
+            ctx_mgr.callback(self._world.remove_all_entities)
+            self._world.add_entities(
+                Camera.from_dict({"transform": Transform(), "camera_data": camera_data}),
+                TestEntity.from_dict({"transform": Transform((0, -1, -1), (1, 1, 1)), "open_gl_model": gpu_cube}),
+                TestEntity.from_dict({"transform": Transform((0, -2, -1), (2, 0.1, 2)), "open_gl_model": gpu_cube}),
+                TestEntity.from_dict({"transform": Transform((-2, 0, -1), (0.1, 2, 2)), "open_gl_model": gpu_cube})
+            )
 
             self._ctx_exit = ctx_mgr.pop_all()
 
