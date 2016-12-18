@@ -541,6 +541,16 @@ class World(object):
         self._add_components(entity)
         self._entities.add(entity)
 
+    def add_entities(self, entities):
+        """
+        Add multiple entities to the world.
+
+        :param entities:
+        :return:
+        """
+        for entity in entities:
+            self.add_entity(entity)
+
     def remove_entity(self, entity):
         """
         Remove an entity and all its data from the world.
@@ -602,6 +612,16 @@ class World(object):
                 self._event_systems.append(system)
         else:
             raise TypeError("The specified system cannot be used as such.")
+
+    def add_systems(self, systems):
+        """
+        Add multiple systems to the world.
+
+        :param systems:
+        :return:
+        """
+        for system in systems:
+            self.add_system(system)
 
     def remove_system(self, system):
         """
@@ -1029,6 +1049,7 @@ class Context(object):
 
             # Add the initial entities
             ctx_mgr.callback(self._world.remove_all_entities)
+
             self._world.add_entity(Camera.create(
                 self._data.field_of_view,
                 (self._data.window_shape[0] / self._data.window_shape[1]),
