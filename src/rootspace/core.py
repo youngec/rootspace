@@ -1019,14 +1019,8 @@ class Context(object):
                 self._data.far_plane
             )
             texture_data = numpy.random.random((512, 512))
-
-            vertex_path = self.resources / "shaders/simple_vertex.glsl"
-            with vertex_path.open(mode="r") as f:
-                vertex_shader = f.read()
-
-            fragment_path = self.resources / "shaders/simple_fragment.glsl"
-            with fragment_path.open(mode="r") as f:
-                fragment_shader = f.read()
+            vertex_shader = (self.resources / "shaders/simple_vertex.glsl").read_text()
+            fragment_shader = (self.resources / "shaders/simple_fragment.glsl").read_text()
 
             cpu_cube = Model.create_cube(texture_data, vertex_shader, fragment_shader, "vert_xyz", "tex_uv")
             gpu_cube = OpenGlModel.create(cpu_cube)
