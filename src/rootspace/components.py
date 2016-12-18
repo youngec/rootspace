@@ -1,145 +1,124 @@
 # -*- coding: utf-8 -*-
 
 import enum
+import math
 import xxhash
 
 import attr
 import numpy
-import sdl2.pixels
-import sdl2.render
-import sdl2.stdinc
-import sdl2.surface
-import sdl2.surface
 from attr.validators import instance_of
 
-from .exceptions import SDLError
+from .opengl_math import perspective, translation, Quaternion, to_quaternion
 
 
 @attr.s(slots=True)
-class Sprite(object):
-    x = attr.ib(validator=instance_of(int))
-    y = attr.ib(validator=instance_of(int))
-    _width = attr.ib(validator=instance_of(int))
-    _height = attr.ib(validator=instance_of(int))
-    _depth = attr.ib(validator=instance_of(int))
-    _renderer = attr.ib(default=None)
-    _surface = attr.ib(default=None)
-    _texture = attr.ib(default=None)
+class Transform(object):
+    _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    _scale = attr.ib(default=numpy.ones(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    _quat = attr.ib(default=Quaternion(1, 0, 0, 0), validator=instance_of(Quaternion), convert=to_quaternion)
 
     @property
     def position(self):
-        """
-        The position of the top-left corner of the Sprite
-
-        :return:
-        """
-        return self.x, self.y
+        return self._pos
 
     @position.setter
     def position(self, value):
-        """
-        Set position of the Sprite using its top-left corner.
-
-        :param value:
-        :return:
-        """
-        self.x, self.y = value
-
-    @property
-    def shape(self):
-        """
-        Return the size of the Sprite as tuple.
-
-        :return:
-        """
-        return self._width, self._height
-
-    @property
-    def depth(self):
-        """
-        Return the render depth of the Sprite.
-
-        :return:
-        """
-        return self._depth
-
-    @depth.setter
-    def depth(self, value):
-        """
-        Set the render depth.
-
-        :param value:
-        :return:
-        """
-        self._depth = value
-
-    @property
-    def surface(self):
-        return self._surface
-
-    @property
-    def texture(self):
-        return self._texture
-
-    @texture.setter
-    def texture(self, value):
-        if self._texture is not None:
-            sdl2.render.SDL_DestroyTexture(self._texture)
-
-        # FIXME: Utilise sdl2.render.SDL_QueryTexture()
-        self._texture = value
-
-    @classmethod
-    def create(cls, position, shape, depth=0,
-               renderer=None, pixel_format=sdl2.pixels.SDL_PIXELFORMAT_RGBA8888,
-               access=sdl2.render.SDL_TEXTUREACCESS_STATIC, bpp=32, masks=(0, 0, 0, 0)):
-        if renderer is not None:
-            tex = sdl2.render.SDL_CreateTexture(
-                renderer, pixel_format, access, shape[0], shape[1]
-            )
-
-            if not tex:
-                raise SDLError()
-
-            if sdl2.render.SDL_SetRenderTarget(renderer, tex) != 0:
-                raise SDLError()
-
-            if sdl2.render.SDL_RenderClear(renderer) != 0:
-                raise SDLError()
-
-            if sdl2.render.SDL_SetRenderTarget(renderer, None) != 0:
-                raise SDLError()
-
-            return cls(
-                position[0], position[1], shape[0], shape[1], depth,
-                texture=tex.contents
-            )
+        if isinstance(value, numpy.ndarray) and value.shape == (3,):
+            self._pos = value
         else:
-            surf = sdl2.surface.SDL_CreateRGBSurface(
-                0, shape[0], shape[1], bpp, *masks
-            )
+            raise TypeError("Position must be a 3-component numpy array.")
 
-            if not surf:
-                raise SDLError()
+    @property
+    def scale(self):
+        return self._scale
 
-            return cls(
-                position[0], position[1], shape[0], shape[1], depth,
-                surface=surf.contents
-            )
+    @scale.setter
+    def scale(self, value):
+        if isinstance(value, numpy.ndarray) and value.shape == (3,):
+            self._scale = value
+        elif isinstance(value, (int, float)):
+            self._scale = value * numpy.ones(3)
+        else:
+            raise TypeError("Scale must be a 3-component numpy array or a scalar.")
 
-    def __del__(self):
+    @property
+    def orientation(self):
+        return self._quat
+
+    @orientation.setter
+    def orientation(self, value):
+        if isinstance(value, Quaternion):
+            self._quat = value
+        else:
+            raise TypeError("Orientation must be a Quaternion.")
+
+    @property
+    def up(self):
+        return self._quat.T.matrix4 @ (0, 1, 0, 1)
+
+    @property
+    def right(self):
+        return self._quat.T.matrix4 @ (1, 0, 0, 1)
+
+    @property
+    def forward(self):
+        return self._quat.T.matrix4 @ (0, 0, 1, 1)
+
+    @property
+    def matrix(self):
+        scale_matrix = numpy.eye(4)
+        scale_matrix[:3, :3] *= self._scale
+        return translation(self._pos) @ scale_matrix @ self._quat.matrix4
+
+    def look_at(self, target):
+        forward = target - self._pos
+        forward /= numpy.linalg.norm(forward)
+
+        forward_dot = self.forward[:3] @ forward
+        if math.isclose(forward_dot, -1):
+            self._quat = Quaternion(0, 0, 1, 0)
+        elif math.isclose(forward_dot, 1):
+            self._quat = Quaternion(1, 0, 0, 0)
+        else:
+            axis = numpy.cross(self.forward[:3], forward)
+            angle = math.acos(forward_dot)
+            self.rotate(axis, angle, chain=False)
+
+    def rotate(self, axis, angle, chain=True):
         """
-        Frees the resources bound to the sprite.
+        Rotate the component around the given axis by the specified angle.
 
+        :param axis:
+        :param angle:
+        :param chain:
         :return:
         """
-        if self._surface is not None:
-            sdl2.surface.SDL_FreeSurface(self._surface)
-            self._surface = None
+        quat = Quaternion.from_axis(axis, angle)
 
-        if self._texture is not None:
-            sdl2.render.SDL_DestroyTexture(self._texture)
-            self._texture = None
+        if chain:
+            self._quat = quat @ self._quat
+        else:
+            self._quat = quat
+
+
+@attr.s(slots=True)
+class CameraData(object):
+    _fov = attr.ib(default=numpy.pi / 4, validator=instance_of(float))
+    _aspect = attr.ib(default=1.0, validator=instance_of(float))
+    _near = attr.ib(default=0.1, validator=instance_of(float))
+    _far = attr.ib(default=10.0, validator=instance_of(float))
+
+    @property
+    def matrix(self):
+        return perspective(self._fov, self._aspect, self._near, self._far)
+
+    @property
+    def aspect(self):
+        return self._aspect
+
+    @aspect.setter
+    def aspect(self, value):
+        self._aspect = value
 
 
 @attr.s(slots=True)
