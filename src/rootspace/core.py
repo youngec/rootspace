@@ -446,7 +446,6 @@ class World(object):
     _update_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-    _component_types = attr.ib(default=attr.Factory(dict), validator=instance_of(dict), repr=False)
     _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
 
     @property
@@ -481,27 +480,6 @@ class World(object):
         for ent_key in entities:
             yield tuple(component[ent_key] for component in value_sets)
 
-    def _register_component_type(self, component_type):
-        """
-        Register the class of the component.
-
-        :param component_type:
-        :return:
-        """
-        if component_type not in self._component_types.values():
-            self._components[component_type] = dict()
-            self._component_types[camelcase_to_underscore(component_type.__name__)] = component_type
-
-    def _unregister_component_type(self, component_type):
-        """
-        Unregister the a component class.
-
-        :param component_type:
-        :return:
-        """
-        if len(self._components[component_type]) == 0:
-            self._component_types.pop(camelcase_to_underscore(component_type.__name__))
-
     def _add_component(self, entity, component):
         """
         Add a supported component instance to the world.
@@ -511,8 +489,9 @@ class World(object):
         :return:
         """
         comp_type = type(component)
-        self._register_component_type(comp_type)
-        self._components[comp_type][entity] = component
+        if comp_type not in self._components:
+            self._components[comp_type] = dict()
+        self._components[type(component)][entity] = component
 
     def _add_components(self, entity):
         """
@@ -534,7 +513,8 @@ class World(object):
         """
         comp_type = type(component)
         self._components[comp_type].pop(entity)
-        self._unregister_component_type(comp_type)
+        if len(self._components[comp_type]) == 0:
+            self._components.pop(comp_type)
 
     def _remove_components(self, entity):
         """
@@ -609,10 +589,6 @@ class World(object):
         """
         if self._is_valid_system(system):
             self._log.debug("Adding System '{}'.".format(system))
-            for component_type in system.component_types:
-                if component_type not in self._components:
-                    self._register_component_type(component_type)
-
             self._systems.append(system)
             if self._is_update_system(system):
                 self._update_systems.append(system)
