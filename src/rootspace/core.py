@@ -525,7 +525,7 @@ class World(object):
         self._add_components(entity)
         self._entities.add(entity)
 
-    def add_entities(self, entities):
+    def add_entities(self, *entities):
         """
         Add multiple entities to the world.
 
@@ -597,7 +597,7 @@ class World(object):
         else:
             raise TypeError("The specified system cannot be used as such.")
 
-    def add_systems(self, systems):
+    def add_systems(self, *systems):
         """
         Add multiple systems to the world.
 
@@ -1029,7 +1029,8 @@ class Context(object):
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_all_systems)
             self._world.add_systems(
-                (OpenGlRenderer.from_dict({}), CameraControlSystem.from_dict({"cursor_origin": cursor_origin}))
+                OpenGlRenderer.from_dict({}),
+                CameraControlSystem.from_dict({"cursor_origin": cursor_origin})
             )
 
             # Add the initial entities
