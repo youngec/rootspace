@@ -3,29 +3,29 @@
 
 """The engine core holds the entry point into the game execution."""
 
-import math
 import abc
 import collections
 import contextlib
 import json
 import logging
+import math
 import pathlib
 import shutil
 import uuid
-import weakref
 import warnings
+import weakref
 
+import OpenGL.GL as gl
 import attr
 import glfw
 import numpy
-import OpenGL.GL as gl
 from attr.validators import instance_of
 
-from .exceptions import GLFWError, FixmeWarning
-from .utilities import subclass_of
-from .opengl_math import perspective, translation, Quaternion, to_quaternion
-from .wrappers import OpenGlModel, Model
 from .events import KeyEvent, CharEvent, CursorEvent, KeyMap
+from .exceptions import GLFWError, FixmeWarning
+from .opengl_math import perspective, translation, Quaternion, to_quaternion
+from .utilities import subclass_of
+from .wrappers import OpenGlModel, Model
 
 
 @attr.s(hash=False)

@@ -2,15 +2,15 @@
 
 """Provides wrappers for OpenGL concepts."""
 
-import logging
-import contextlib
-import warnings
-import ctypes
 import collections
+import contextlib
+import ctypes
+import logging
+import warnings
 
+import OpenGL.GL as gl
 import attr
 import numpy
-import OpenGL.GL as gl
 from attr.validators import instance_of
 
 from .exceptions import OpenGLError, TodoWarning
