@@ -1018,12 +1018,14 @@ class Context(object):
                 self._data.near_plane,
                 self._data.far_plane
             )
+            cube = Model.cube()
             texture_data = numpy.random.random((512, 512))
-            vertex_shader = (self.resources / "shaders/simple_vertex.glsl").read_text()
-            fragment_shader = (self.resources / "shaders/simple_fragment.glsl").read_text()
-
-            cpu_cube = Model.create_cube(texture_data, vertex_shader, fragment_shader, "vert_xyz", "tex_uv")
-            gpu_cube = OpenGlModel.create(cpu_cube)
+            simple_shader = Model.Shader(
+                (self.resources / "shaders/simple_vertex.glsl").read_text(),
+                (self.resources / "shaders/simple_fragment.glsl").read_text(),
+                "vert_xyz", "tex_uv"
+            )
+            gpu_cube = OpenGlModel.from_model(Model.create(cube, texture_data, simple_shader))
 
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_all_systems)
@@ -1084,7 +1086,7 @@ class Loop(object):
         self._log.debug("The user home is at '{}'.".format(user_home))
         self._log.debug("The engine is located at '{}'.".format(engine_location))
 
-        with self._ctx.create(self._name, user_home, engine_location, self._debug) as ctx:
+        with self._ctx.from_model(self._name, user_home, engine_location, self._debug) as ctx:
             self._log.debug("Entered context {}.".format(ctx))
             self._loop(ctx)
 

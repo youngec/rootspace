@@ -6,6 +6,7 @@ import logging
 import contextlib
 import warnings
 import ctypes
+import collections
 
 import attr
 import numpy
@@ -23,6 +24,12 @@ class Model(object):
     # TODO: Possibly introduce a Lexer that can parse Wavefront OBJ files.
     # Reference to PLY lexer: http://www.dabeaz.com/ply/ply.html
     # Reference to OBJ file format: https://people.cs.clemson.edu/~dhouse/courses/405/docs/brief-obj-file-format.html
+    Mesh = collections.namedtuple("Mesh", (
+        "vertices", "vertex_components", "texture_components", "vertex_stride", "texture_stride",
+        "vertex_start_idx", "texture_start_idx", "draw_mode", "draw_start_index"
+    ))
+    Shader = collections.namedtuple("Shader", ("vertex_source", "fragment_source", "vertex_coord", "texture_coord"))
+
     vertices = attr.ib(validator=instance_of(numpy.ndarray))
     texture = attr.ib(validator=instance_of(numpy.ndarray))
     num_vert_components = attr.ib(validator=instance_of(int))
@@ -59,63 +66,38 @@ class Model(object):
         return ctypes.c_void_p(self.tex_start_idx * ctypes.sizeof(ctypes.c_float))
 
     @classmethod
-    def create_cube(cls, texture_data, vertex_shader, fragment_shader, vertex_coord_name, texture_coord_name):
-        vertices = numpy.array([
-            -1, -1, -1, 0, 0,
-            1, -1, -1, 1, 0,
-            -1, -1, 1, 0, 1,
-            1, -1, -1, 1, 0,
-            1, -1, 1, 1, 1,
-            -1, -1, 1, 0, 1,
-            -1, 1, -1, 0, 0,
-            -1, 1, 1, 0, 1,
-            1, 1, -1, 1, 0,
-            1, 1, -1, 1, 0,
-            -1, 1, 1, 0, 1,
-            1, 1, 1, 1, 1,
-            -1, -1, 1, 1, 0,
-            1, -1, 1, 0, 0,
-            -1, 1, 1, 1, 1,
-            1, -1, 1, 0, 0,
-            1, 1, 1, 0, 1,
-            -1, 1, 1, 1, 1,
-            -1, -1, -1, 0, 0,
-            -1, 1, -1, 0, 1,
-            1, -1, -1, 1, 0,
-            1, -1, -1, 1, 0,
-            -1, 1, -1, 0, 1,
-            1, 1, -1, 1, 1,
-            -1, -1, 1, 0, 1,
-            -1, 1, -1, 1, 0,
-            -1, -1, -1, 0, 0,
-            -1, -1, 1, 0, 1,
-            -1, 1, 1, 1, 1,
-            -1, 1, -1, 1, 0,
-            1, -1, 1, 1, 1,
-            1, -1, -1, 1, 0,
-            1, 1, -1, 0, 0,
-            1, -1, 1, 1, 1,
-            0, 1, -1, 0, 0,
-            1, 1, 1, 0, 1
-        ], dtype=numpy.float32)
-        num_vert_components = 3
-        num_tex_components = 2
-        vert_stride = 5
-        tex_stride = 5
-        vert_start_idx = 0
-        tex_start_idx = num_vert_components
-        draw_mode = gl.GL_TRIANGLES
-        draw_start_index = 0
+    def cube(cls):
+        return Model.Mesh(
+            numpy.array([
+                -1, -1, -1, 0, 0, 1, -1, -1, 1, 0, -1, -1, 1, 0, 1,
+                1, -1, -1, 1, 0, 1, -1, 1, 1, 1, -1, -1, 1, 0, 1,
+                -1, 1, -1, 0, 0, -1, 1, 1, 0, 1, 1, 1, -1, 1, 0,
+                1, 1, -1, 1, 0, -1, 1, 1, 0, 1, 1, 1, 1, 1, 1,
+                -1, -1, 1, 1, 0, 1, -1, 1, 0, 0, -1, 1, 1, 1, 1,
+                1, -1, 1, 0, 0, 1, 1, 1, 0, 1, -1, 1, 1, 1, 1,
+                -1, -1, -1, 0, 0, -1, 1, -1, 0, 1, 1, -1, -1, 1, 0,
+                1, -1, -1, 1, 0, -1, 1, -1, 0, 1, 1, 1, -1, 1, 1,
+                -1, -1, 1, 0, 1, -1, 1, -1, 1, 0, -1, -1, -1, 0, 0,
+                -1, -1, 1, 0, 1, -1, 1, 1, 1, 1, -1, 1, -1, 1, 0,
+                1, -1, 1, 1, 1, 1, -1, -1, 1, 0, 1, 1, -1, 0, 0,
+                1, -1, 1, 1, 1, 0, 1, -1, 0, 0, 1, 1, 1, 0, 1
+            ], dtype=numpy.float32),
+            3, 2, 5, 5, 0, 3, gl.GL_TRIANGLES, 0
+        )
 
-        return cls(vertices, texture_data, num_vert_components, num_tex_components,
-                   vert_stride, tex_stride, vert_start_idx, tex_start_idx,
-                   vertex_shader, fragment_shader, vertex_coord_name, texture_coord_name,
-                   draw_mode, draw_start_index)
+    @classmethod
+    def create(cls, mesh: Mesh, texture_data: numpy.ndarray, shader: Shader):
+        return cls(mesh.vertices, texture_data, mesh.vertex_components, mesh.texture_components,
+                   mesh.vertex_stride, mesh.texture_stride, mesh.vertex_start_idx, mesh.texture_start_idx,
+                   shader.vertex_source, shader.fragment_source, shader.vertex_coord, shader.texture_coord,
+                   mesh.draw_mode, mesh.draw_start_index)
 
 
 @attr.s
 class OpenGlTexture(object):
-    """Texture encapsulates an OpenGL texture."""
+    """
+    OpenGlTexture encapsulates an OpenGL texture.
+    """
 
     _obj = attr.ib(validator=instance_of(int))
     _shape = attr.ib(validator=instance_of(tuple))
@@ -202,7 +184,7 @@ class OpenGlTexture(object):
 
 @attr.s
 class OpenGlShader(object):
-    """Shader encapsulates an OpenGL shader."""
+    """OpenGlShader encapsulates an OpenGL shader."""
 
     _obj = attr.ib(validator=instance_of(int))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
@@ -241,8 +223,9 @@ class OpenGlShader(object):
 
 @attr.s
 class OpenGlProgram(object):
-    """Program encapsulates an OpenGL shader program."""
-
+    """
+    OpenGlProgram encapsulates an OpenGL shader program.
+    """
     _obj = attr.ib(validator=instance_of(int))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
@@ -332,6 +315,9 @@ class OpenGlProgram(object):
 
 @attr.s(slots=True)
 class OpenGlModel(object):
+    """
+    OpenGlModel encapsulates all that belongs to a graphical representation of an object, stored on the GPU.
+    """
     vao = attr.ib(validator=instance_of(int))
     vbo = attr.ib(validator=instance_of(int))
     mode = attr.ib(validator=instance_of(int))
@@ -342,7 +328,7 @@ class OpenGlModel(object):
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
-    def create(cls, model: Model):
+    def from_model(cls, model: Model):
         with contextlib.ExitStack() as ctx:
             warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
             # Create and bind the Vertex Array Object
