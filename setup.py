@@ -88,7 +88,10 @@ if __name__ == "__main__":
             "numpy",
             "glfw",
             "pyopengl",
-            "xxhash"
+            "xxhash",
+            "pillow",
+            "pyparsing",
+            "regex"
         ],
         tests_require=[
             "pytest",
