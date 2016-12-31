@@ -25,7 +25,7 @@ from .events import KeyEvent, CharEvent, CursorEvent, KeyMap
 from .exceptions import GLFWError, FixmeWarning
 from .components import Transform, CameraData
 from .utilities import subclass_of
-from .wrappers import OpenGlModel, Model
+from .wrappers import OpenGlModel, Mesh, Shader
 
 
 @attr.s(hash=False)
@@ -914,14 +914,13 @@ class Context(object):
                 self._data.near_plane,
                 self._data.far_plane
             )
-            cube = Model.cube()
             texture_data = numpy.random.random((512, 512))
-            simple_shader = Model.Shader(
-                (self.resources / "shaders/simple_vertex.glsl").read_text(),
-                (self.resources / "shaders/simple_fragment.glsl").read_text(),
+            simple_shader = Shader.create(
+                self.resources / "shaders/simple_vertex.glsl",
+                self.resources / "shaders/simple_fragment.glsl",
                 "vert_xyz", "tex_uv"
             )
-            gpu_cube = OpenGlModel.from_model(Model.create(cube, texture_data, simple_shader))
+            gpu_cube = OpenGlModel.create(Mesh.create_cube(), texture_data, simple_shader)
 
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_all_systems)

@@ -2,13 +2,13 @@
 
 """Provides wrappers for OpenGL concepts."""
 
-import collections
 import contextlib
 import ctypes
 import logging
 import warnings
 
 import OpenGL.GL as gl
+from OpenGL.constant import Constant
 import attr
 import numpy
 from attr.validators import instance_of
@@ -17,57 +17,42 @@ from .exceptions import OpenGLError, TodoWarning
 
 
 @attr.s
-class Model(object):
-    """
-    Abstract away the concept of a model: vertices, material, shaders.
-    """
-    # TODO: Possibly introduce a Lexer that can parse Wavefront OBJ files.
-    # Reference to PLY lexer: http://www.dabeaz.com/ply/ply.html
-    # Reference to OBJ file format: https://people.cs.clemson.edu/~dhouse/courses/405/docs/brief-obj-file-format.html
-    Mesh = collections.namedtuple("Mesh", (
-        "vertices", "vertex_components", "texture_components", "vertex_stride", "texture_stride",
-        "vertex_start_idx", "texture_start_idx", "draw_mode", "draw_start_index"
-    ))
-    Shader = collections.namedtuple("Shader", ("vertex_source", "fragment_source", "vertex_coord", "texture_coord"))
-
-    vertices = attr.ib(validator=instance_of(numpy.ndarray))
-    texture = attr.ib(validator=instance_of(numpy.ndarray))
-    num_vert_components = attr.ib(validator=instance_of(int))
-    num_tex_components = attr.ib(validator=instance_of(int))
-    vert_stride = attr.ib(validator=instance_of(int))
-    tex_stride = attr.ib(validator=instance_of(int))
-    vert_start_idx = attr.ib(validator=instance_of(int))
-    tex_start_idx = attr.ib(validator=instance_of(int))
-    vertex_shader = attr.ib(validator=instance_of(str))
-    fragment_shader = attr.ib(validator=instance_of(str))
-    vertex_coord_name = attr.ib(validator=instance_of(str))
-    texture_coord_name = attr.ib(validator=instance_of(str))
-    draw_mode = attr.ib()
+class Mesh(object):
+    vertices = attr.ib()
+    vertex_components = attr.ib(validator=instance_of(int))
+    color_components = attr.ib(validator=instance_of(int))
+    texture_components = attr.ib(validator=instance_of(int))
+    vertex_stride = attr.ib(validator=instance_of(int))
+    color_stride = attr.ib
+    texture_stride = attr.ib(validator=instance_of(int))
+    vertex_start_idx = attr.ib(validator=instance_of(int))
+    texture_start_idx = attr.ib(validator=instance_of(int))
+    draw_mode = attr.ib(validator=instance_of(Constant))
     draw_start_index = attr.ib(validator=instance_of(int))
 
     @property
     def num_vertices(self):
-        return len(self.vertices) // (self.num_vert_components + self.num_tex_components)
+        return len(self.vertices) // (self.vertex_components + self.texture_components)
 
     @property
-    def vert_stride_bytes(self):
-        return self.vert_stride * ctypes.sizeof(ctypes.c_float)
+    def vertex_stride_bytes(self):
+        return self.vertex_stride * ctypes.sizeof(ctypes.c_float)
 
     @property
-    def tex_stride_bytes(self):
-        return self.tex_stride * ctypes.sizeof(ctypes.c_float)
+    def texture_stride_bytes(self):
+        return self.texture_stride * ctypes.sizeof(ctypes.c_float)
 
     @property
-    def vert_start_ptr(self):
-        return ctypes.c_void_p(self.vert_start_idx * ctypes.sizeof(ctypes.c_float))
+    def vertex_start_ptr(self):
+        return ctypes.c_void_p(self.vertex_start_idx * ctypes.sizeof(ctypes.c_float))
 
     @property
-    def tex_start_ptr(self):
-        return ctypes.c_void_p(self.tex_start_idx * ctypes.sizeof(ctypes.c_float))
+    def texture_start_ptr(self):
+        return ctypes.c_void_p(self.texture_start_idx * ctypes.sizeof(ctypes.c_float))
 
     @classmethod
-    def cube(cls):
-        return Model.Mesh(
+    def create_cube(cls):
+        return cls(
             numpy.array([
                 -1, -1, -1, 0, 0, 1, -1, -1, 1, 0, -1, -1, 1, 0, 1,
                 1, -1, -1, 1, 0, 1, -1, 1, 1, 1, -1, -1, 1, 0, 1,
@@ -85,12 +70,28 @@ class Model(object):
             3, 2, 5, 5, 0, 3, gl.GL_TRIANGLES, 0
         )
 
+
+@attr.s
+class Shader(object):
+    vertex_source = attr.ib(validator=instance_of(str))
+    fragment_source = attr.ib(validator=instance_of(str))
+    vertex_coord = attr.ib(validator=instance_of(str))
+    texture_coord = attr.ib(validator=instance_of(str))
+
     @classmethod
-    def create(cls, mesh: Mesh, texture_data: numpy.ndarray, shader: Shader):
-        return cls(mesh.vertices, texture_data, mesh.vertex_components, mesh.texture_components,
-                   mesh.vertex_stride, mesh.texture_stride, mesh.vertex_start_idx, mesh.texture_start_idx,
-                   shader.vertex_source, shader.fragment_source, shader.vertex_coord, shader.texture_coord,
-                   mesh.draw_mode, mesh.draw_start_index)
+    def create(cls, vertex_shader_path, fragment_shader_path, vertex_coord, texture_coord):
+        """
+        Create an on-CPU representation of a shader.
+
+        :param vertex_shader_path:
+        :param fragment_shader_path:
+        :param vertex_coord:
+        :param texture_coord:
+        :return:
+        """
+        vertex_source = vertex_shader_path.read_text()
+        fragment_source = fragment_shader_path.read_text()
+        return cls(vertex_source, fragment_source, vertex_coord, texture_coord)
 
 
 @attr.s
@@ -328,7 +329,7 @@ class OpenGlModel(object):
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
-    def from_model(cls, model: Model):
+    def create(cls, mesh, texture, shader):
         with contextlib.ExitStack() as ctx:
             warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
             # Create and bind the Vertex Array Object
@@ -337,32 +338,32 @@ class OpenGlModel(object):
             gl.glBindVertexArray(vao)
 
             # Compile the shader program
-            vertex_shader = OpenGlShader.create(gl.GL_VERTEX_SHADER, model.vertex_shader)
-            fragment_shader = OpenGlShader.create(gl.GL_FRAGMENT_SHADER, model.fragment_shader)
+            vertex_shader = OpenGlShader.create(gl.GL_VERTEX_SHADER, shader.vertex_source)
+            fragment_shader = OpenGlShader.create(gl.GL_FRAGMENT_SHADER, shader.fragment_source)
             program = OpenGlProgram.create((vertex_shader, fragment_shader))
 
-            position_location = program.attribute_location(model.vertex_coord_name)
-            tex_coord_location = program.attribute_location(model.texture_coord_name)
-
             # Create the texture
-            tex = OpenGlTexture.create(model.texture)
+            tex = OpenGlTexture.create(texture)
 
             # Initialise the vertex buffer
             vbo = int(gl.glGenBuffers(1))
             ctx.callback(gl.glDeleteBuffers, 1, vbo)
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-            gl.glBufferData(gl.GL_ARRAY_BUFFER, model.vertices.nbytes, model.vertices, gl.GL_STATIC_DRAW)
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, mesh.vertices.nbytes, mesh.vertices, gl.GL_STATIC_DRAW)
 
             # Set the appropriate pointers
+            # FIXME: Make pointer assignment more flexible
+            position_location = program.attribute_location(shader.vertex_coord)
             gl.glEnableVertexAttribArray(position_location)
             gl.glVertexAttribPointer(
-                position_location, model.num_vert_components, gl.GL_FLOAT, False,
-                model.vert_stride_bytes, model.vert_start_ptr
+                position_location, mesh.vertex_components, gl.GL_FLOAT, False,
+                mesh.vertex_stride_bytes, mesh.vertex_start_ptr
             )
+            tex_coord_location = program.attribute_location(shader.texture_coord)
             gl.glEnableVertexAttribArray(tex_coord_location)
             gl.glVertexAttribPointer(
-                tex_coord_location, model.num_tex_components, gl.GL_FLOAT, False,
-                model.tex_stride_bytes, model.tex_start_ptr
+                tex_coord_location, mesh.texture_components, gl.GL_FLOAT, False,
+                mesh.texture_stride_bytes, mesh.texture_start_ptr
             )
 
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
@@ -370,7 +371,7 @@ class OpenGlModel(object):
 
             ctx_exit = ctx.pop_all()
 
-            return cls(vao, vbo, model.draw_mode, model.draw_start_index, model.num_vertices, tex, program, ctx_exit)
+            return cls(vao, vbo, mesh.draw_mode, mesh.draw_start_index, mesh.num_vertices, tex, program, ctx_exit)
 
     def __del__(self):
         self._ctx_exit.close()
