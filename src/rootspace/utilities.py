@@ -7,6 +7,7 @@ import re
 import uuid
 import warnings
 import weakref
+import sys
 
 import attr
 import click
@@ -122,11 +123,18 @@ def configure_logger(name, log_level, log_path=None, with_warnings=True):
     else:
         default_handler = logging.StreamHandler()
         default_handler.setLevel(log_level)
-        colored_formatter = colorlog.ColoredFormatter(
-            "{log_color}{levelname:8s}{reset} @{white}{name}{reset}: {log_color}{message}{reset}",
-            style="{"
-        )
-        default_handler.setFormatter(colored_formatter)
+        if sys.platform != "win32":
+            colored_formatter = colorlog.ColoredFormatter(
+                "{log_color}{levelname:8s}{reset} @{white}{name}{reset}: {log_color}{message}{reset}",
+                style="{"
+            )
+            default_handler.setFormatter(colored_formatter)
+        else:
+            plain_formatter = logging.Formatter(
+                "{levelname:8s} @{name}: {message}",
+                style="{"
+            )
+            default_handler.setFormatter(plain_formatter)
 
     # Configure the rootspace logger
     project_logger = logging.getLogger(name)
