@@ -48,7 +48,7 @@ class Entity(object):
         return uuid.uuid4()
 
     @classmethod
-    def from_dict(cls, config):
+    def from_dict(cls, **config):
         """
         Create an instance from a config dictionary. Non-recursive, single level.
 
@@ -914,7 +914,7 @@ class Context(object):
                 self._data.near_plane,
                 self._data.far_plane
             )
-            texture_data = numpy.random.random((512, 512))
+            texture_data = numpy.random.random((1024, 1024))
             simple_shader = Shader.create(
                 self.resources / "shaders/simple_vertex.glsl",
                 self.resources / "shaders/simple_fragment.glsl",
@@ -932,10 +932,10 @@ class Context(object):
             # Add the initial entities
             ctx_mgr.callback(self._world.remove_all_entities)
             self._world.add_entities(
-                Camera.from_dict({"transform": Transform(), "camera_data": camera_data}),
-                TestEntity.from_dict({"transform": Transform((0, -1, -1), (1, 1, 1)), "open_gl_model": gpu_cube}),
-                TestEntity.from_dict({"transform": Transform((0, -2, -1), (2, 0.1, 2)), "open_gl_model": gpu_cube}),
-                TestEntity.from_dict({"transform": Transform((-2, 0, -1), (0.1, 2, 2)), "open_gl_model": gpu_cube})
+                Camera.from_dict(transform=Transform(), camera_data=camera_data),
+                TestEntity.from_dict(transform=Transform((0, -1, -1), (1, 1, 1)), open_gl_model=gpu_cube),
+                TestEntity.from_dict(transform=Transform((0, -2, -1), (2, 0.1, 2)), open_gl_model=gpu_cube),
+                TestEntity.from_dict(transform=Transform((-2, 0, -1), (0.1, 2, 2)), open_gl_model=gpu_cube)
             )
 
             self._ctx_exit = ctx_mgr.pop_all()
