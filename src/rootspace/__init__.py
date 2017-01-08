@@ -14,7 +14,12 @@ del get_versions
 
 # Add OpenGL to the library path, so that PyOpenGL can find it
 if sys.platform == "linux" and os.path.isdir("/run/opengl-driver"):
-    os.environ["LIBRARY_PATH"] = "/run/opengl-driver/lib:/run/opengl-driver-32/lib:{}".format(os.environ.get("LIBRARY_PATH", ""))
+    nixos_lib_path = "/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+    os.environ["LIBRARY_PATH"] += os.pathsep + nixos_lib_path
+elif sys.platform == "win32":
+    project_path = os.path.dirname(__file__)
+    win32_lib_path = os.path.join(project_path, "external")
+    os.environ["PATH"] += os.pathsep + win32_lib_path
 
 # Configure PyOpenGL
-#OpenGL.ERROR_ON_COPY = True
+# OpenGL.ERROR_ON_COPY = True
