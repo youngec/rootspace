@@ -20,10 +20,8 @@ from .exceptions import OpenGLError, TodoWarning
 class Mesh(object):
     vertices = attr.ib()
     vertex_components = attr.ib(validator=instance_of(int))
-    color_components = attr.ib(validator=instance_of(int))
     texture_components = attr.ib(validator=instance_of(int))
     vertex_stride = attr.ib(validator=instance_of(int))
-    color_stride = attr.ib
     texture_stride = attr.ib(validator=instance_of(int))
     vertex_start_idx = attr.ib(validator=instance_of(int))
     texture_start_idx = attr.ib(validator=instance_of(int))
@@ -105,6 +103,11 @@ class OpenGlTexture(object):
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
+    def _delete_textures(cls, obj):
+        if bool(gl.glDeleteTextures) and obj >= 0:
+            gl.glDeleteTextures(obj)
+
+    @classmethod
     def texture_format(cls, data: numpy.ndarray):
         if len(data.shape) == 2:
             return gl.GL_LUMINANCE
@@ -138,7 +141,7 @@ class OpenGlTexture(object):
             obj = gl.glGenTextures(1)
             if obj == 0:
                 raise OpenGLError("Failed to create a texture object.")
-            ctx_mgr.callback(gl.glDeleteTextures, obj)
+            ctx_mgr.callback(cls._delete_textures, obj)
 
             # Set texture parameters
             gl.glBindTexture(gl.GL_TEXTURE_2D, obj)
@@ -191,13 +194,18 @@ class OpenGlShader(object):
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
+    def _delete_shader(cls, obj):
+        if bool(gl.glDeleteShader) and obj > 0:
+            gl.glDeleteShader(obj)
+
+    @classmethod
     def create(cls, shader_type, shader_source):
         with contextlib.ExitStack() as ctx_mgr:
             # Create the shader object
             obj = int(gl.glCreateShader(shader_type))
             if obj == 0:
                 raise OpenGLError("Failed to create a shader object.")
-            ctx_mgr.callback(gl.glDeleteShader, obj)
+            ctx_mgr.callback(cls._delete_shader, obj)
 
             # Set the shader source code
             gl.glShaderSource(obj, shader_source)
@@ -232,13 +240,18 @@ class OpenGlProgram(object):
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
+    def _delete_program(cls, obj):
+        if bool(gl.glDeleteProgram) and obj > 0:
+            gl.glDeleteProgram(obj)
+
+    @classmethod
     def create(cls, shaders):
         with contextlib.ExitStack() as ctx_mgr:
             # Create the shader program
             obj = int(gl.glCreateProgram())
             if obj == 0:
                 raise OpenGLError("Failed to create a shader program.")
-            ctx_mgr.callback(gl.glDeleteProgram, obj)
+            ctx_mgr.callback(cls._delete_program, obj)
 
             # Attach the shaders
             for shader in shaders:
