@@ -6,6 +6,7 @@ import contextlib
 import ctypes
 import logging
 import warnings
+import array
 
 import OpenGL.GL as gl
 from OpenGL.constant import Constant
@@ -51,7 +52,7 @@ class Mesh(object):
     @classmethod
     def create_cube(cls):
         return cls(
-            numpy.array([
+            array.array("f", [
                 -1, -1, -1, 0, 0, 1, -1, -1, 1, 0, -1, -1, 1, 0, 1,
                 1, -1, -1, 1, 0, 1, -1, 1, 1, 1, -1, -1, 1, 0, 1,
                 -1, 1, -1, 0, 0, -1, 1, 1, 0, 1, 1, 1, -1, 1, 0,
@@ -64,7 +65,7 @@ class Mesh(object):
                 -1, -1, 1, 0, 1, -1, 1, 1, 1, 1, -1, 1, -1, 1, 0,
                 1, -1, 1, 1, 1, 1, -1, -1, 1, 0, 1, 1, -1, 0, 0,
                 1, -1, 1, 1, 1, 0, 1, -1, 0, 0, 1, 1, 1, 0, 1
-            ], dtype=numpy.float32),
+            ]).tobytes(),
             3, 2, 5, 5, 0, 3, gl.GL_TRIANGLES, 0
         )
 
@@ -376,7 +377,7 @@ class OpenGlModel(object):
             vbo = int(gl.glGenBuffers(1))
             ctx.callback(gl.glDeleteBuffers, 1, vbo)
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-            gl.glBufferData(gl.GL_ARRAY_BUFFER, mesh.vertices.nbytes, mesh.vertices, gl.GL_STATIC_DRAW)
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(mesh.vertices), mesh.vertices, gl.GL_STATIC_DRAW)
 
             # Set the appropriate pointers
             # FIXME: Make pointer assignment more flexible
