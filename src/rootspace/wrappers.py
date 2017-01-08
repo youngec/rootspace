@@ -123,12 +123,26 @@ class OpenGlTexture(object):
 
     @classmethod
     def texture_dtype(cls, data: numpy.ndarray):
-        if data.dtype == numpy.uint8:
-            return gl.GL_UNSIGNED_BYTE
-        if data.dtype == numpy.float:
-            return gl.GL_FLOAT
+        if data.dtype == numpy.int8:
+            dtype = gl.GL_BYTE
+        elif data.dtype == numpy.uint8:
+            dtype = gl.GL_UNSIGNED_BYTE
+        elif data.dtype == numpy.int16:
+            dtype = gl.GL_SHORT
+        elif data.dtype == numpy.uint16:
+            dtype = gl.GL_UNSIGNED_SHORT
+        elif data.dtype == numpy.int32:
+            dtype = gl.GL_INT
+        elif data.dtype == numpy.uint32:
+            dtype = gl.GL_UNSIGNED_INT
+        elif data.dtype == numpy.float:
+            dtype = gl.GL_FLOAT
+        elif data.dtype == numpy.double:
+            dtype = gl.GL_DOUBLE
         else:
-            raise NotImplementedError("Have not implemented all data type conversions yet.")
+            raise ValueError("Cannot determine the texture data type for the supplied image data.")
+
+        return dtype
 
     @classmethod
     def create(cls, data, min_filter=gl.GL_LINEAR, mag_filter=gl.GL_LINEAR, wrap_mode=gl.GL_CLAMP_TO_EDGE):
