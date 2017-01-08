@@ -110,10 +110,10 @@ class OpenGlTexture(object):
     @classmethod
     def texture_format(cls, data: numpy.ndarray):
         if len(data.shape) == 2:
-            return gl.GL_LUMINANCE
+            return gl.GL_RED
         elif len(data.shape) == 3:
             if data.shape[2] == 2:
-                return gl.GL_LUMINANCE_ALPHA
+                return gl.GL_RG
             elif data.shape[2] == 3:
                 return gl.GL_RGB
             elif data.shape[2] == 4:
@@ -151,7 +151,7 @@ class OpenGlTexture(object):
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, wrap_mode)
 
             # Set the texture data
-            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, shape[0], shape[1], 0, image_format, image_dtype, data)
+            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, image_dtype, data)
             gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
             ctx_exit = ctx_mgr.pop_all()
