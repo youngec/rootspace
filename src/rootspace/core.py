@@ -20,6 +20,7 @@ import attr
 import glfw
 import numpy
 from attr.validators import instance_of
+from PIL import Image
 
 from .events import KeyEvent, CharEvent, CursorEvent, KeyMap
 from .exceptions import GLFWError, FixmeWarning
@@ -914,7 +915,9 @@ class Context(object):
                 self._data.near_plane,
                 self._data.far_plane
             )
-            texture_data = numpy.random.random((1024, 1024))
+            texture_data = Image.open(
+                self.resources / "textures/test-texture.png"
+            )
             simple_shader = Shader.create(
                 self.resources / "shaders/simple_vertex.glsl",
                 self.resources / "shaders/simple_fragment.glsl",

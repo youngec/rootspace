@@ -109,37 +109,28 @@ class OpenGlTexture(object):
             gl.glDeleteTextures(obj)
 
     @classmethod
-    def texture_format(cls, data: numpy.ndarray):
-        if len(data.shape) == 2:
-            return gl.GL_RED
-        elif len(data.shape) == 3:
-            if data.shape[2] == 2:
-                return gl.GL_RG
-            elif data.shape[2] == 3:
-                return gl.GL_RGB
-            elif data.shape[2] == 4:
-                return gl.GL_RGBA
+    def texture_format(cls, data):
+        if data.mode == "L":
+            tformat = gl.GL_RED
+        elif data.mode == "LA":
+            tformat = gl.GL_RG
+        elif data.mode == "RGB":
+            tformat = gl.GL_RGB
+        elif data.mode == "RGBA":
+            tformat = gl.GL_RGBA
+        else:
+            raise ValueError("Cannot determine the texture format for the supplied image data.")
 
-        raise ValueError("Cannot determine the texture format for the supplied image data.")
+        return tformat
 
     @classmethod
-    def texture_dtype(cls, data: numpy.ndarray):
-        if data.dtype == numpy.int8:
-            dtype = gl.GL_BYTE
-        elif data.dtype == numpy.uint8:
+    def texture_dtype(cls, data):
+        if data.mode in ("L", "RGB", "RGBA"):
             dtype = gl.GL_UNSIGNED_BYTE
-        elif data.dtype == numpy.int16:
-            dtype = gl.GL_SHORT
-        elif data.dtype == numpy.uint16:
-            dtype = gl.GL_UNSIGNED_SHORT
-        elif data.dtype == numpy.int32:
+        elif data.mode == "I":
             dtype = gl.GL_INT
-        elif data.dtype == numpy.uint32:
-            dtype = gl.GL_UNSIGNED_INT
-        elif data.dtype == numpy.float:
+        elif data.mode == "F":
             dtype = gl.GL_FLOAT
-        elif data.dtype == numpy.double:
-            dtype = gl.GL_DOUBLE
         else:
             raise ValueError("Cannot determine the texture data type for the supplied image data.")
 
@@ -150,7 +141,7 @@ class OpenGlTexture(object):
         with contextlib.ExitStack() as ctx_mgr:
             image_format = cls.texture_format(data)
             image_dtype = cls.texture_dtype(data)
-            shape = data.shape[:2]
+            shape = data.size
 
             # Create the texture object
             obj = gl.glGenTextures(1)
@@ -166,7 +157,9 @@ class OpenGlTexture(object):
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, wrap_mode)
 
             # Set the texture data
-            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, image_dtype, data)
+            gl.glTexImage2D(
+                gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, image_dtype, data.tobytes()
+            )
             gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
             ctx_exit = ctx_mgr.pop_all()
