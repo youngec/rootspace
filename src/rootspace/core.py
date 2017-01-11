@@ -920,8 +920,7 @@ class Context(object):
             )
             simple_shader = Shader.create(
                 self.resources / "shaders/simple_vertex.glsl",
-                self.resources / "shaders/simple_fragment.glsl",
-                "vert_xyz", "tex_uv"
+                self.resources / "shaders/simple_fragment.glsl"
             )
             gpu_cube = OpenGlModel.create(Mesh.create_cube(), texture_data, simple_shader)
 

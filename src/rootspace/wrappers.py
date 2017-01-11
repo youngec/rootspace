@@ -22,13 +22,15 @@ from .exceptions import OpenGLError, TodoWarning
 class Mesh(object):
     vertices = attr.ib()
     vertex_components = attr.ib(validator=instance_of(int))
-    texture_components = attr.ib(validator=instance_of(int))
     vertex_stride = attr.ib(validator=instance_of(int))
-    texture_stride = attr.ib(validator=instance_of(int))
     vertex_start_idx = attr.ib(validator=instance_of(int))
+    vertex_location = attr.ib(validator=instance_of(int))
+    texture_components = attr.ib(validator=instance_of(int))
+    texture_stride = attr.ib(validator=instance_of(int))
     texture_start_idx = attr.ib(validator=instance_of(int))
+    texture_location = attr.ib(validator=instance_of(int))
     draw_mode = attr.ib(validator=instance_of(Constant))
-    draw_start_index = attr.ib(validator=instance_of(int))
+    draw_start_idx = attr.ib(validator=instance_of(int))
 
     @property
     def num_vertices(self):
@@ -53,7 +55,7 @@ class Mesh(object):
     @classmethod
     def create_cube(cls):
         return cls(
-            array.array("f", [
+            vertices=array.array("f", [
                 -1, -1, -1, 0, 0, 1, -1, -1, 1, 0, -1, -1, 1, 0, 1,
                 1, -1, -1, 1, 0, 1, -1, 1, 1, 1, -1, -1, 1, 0, 1,
                 -1, 1, -1, 0, 0, -1, 1, 1, 0, 1, 1, 1, -1, 1, 0,
@@ -67,7 +69,9 @@ class Mesh(object):
                 1, -1, 1, 1, 1, 1, -1, -1, 1, 0, 1, 1, -1, 0, 0,
                 1, -1, 1, 1, 1, 0, 1, -1, 0, 0, 1, 1, 1, 0, 1
             ]).tobytes(),
-            3, 2, 5, 5, 0, 3, gl.GL_TRIANGLES, 0
+            vertex_components=3, vertex_stride=5, vertex_start_idx=0, vertex_location=0,
+            texture_components=2, texture_stride=5, texture_start_idx=3, texture_location=1,
+            draw_mode=gl.GL_TRIANGLES, draw_start_idx=0
         )
 
 
@@ -75,23 +79,19 @@ class Mesh(object):
 class Shader(object):
     vertex_source = attr.ib(validator=instance_of(str))
     fragment_source = attr.ib(validator=instance_of(str))
-    vertex_coord = attr.ib(validator=instance_of(str))
-    texture_coord = attr.ib(validator=instance_of(str))
 
     @classmethod
-    def create(cls, vertex_shader_path, fragment_shader_path, vertex_coord, texture_coord):
+    def create(cls, vertex_shader_path, fragment_shader_path):
         """
         Create an on-CPU representation of a shader.
 
         :param vertex_shader_path:
         :param fragment_shader_path:
-        :param vertex_coord:
-        :param texture_coord:
         :return:
         """
         vertex_source = vertex_shader_path.read_text()
         fragment_source = fragment_shader_path.read_text()
-        return cls(vertex_source, fragment_source, vertex_coord, texture_coord)
+        return cls(vertex_source, fragment_source)
 
 
 @attr.s
@@ -376,16 +376,14 @@ class OpenGlModel(object):
 
             # Set the appropriate pointers
             # FIXME: Make pointer assignment more flexible
-            position_location = program.attribute_location(shader.vertex_coord)
-            gl.glEnableVertexAttribArray(position_location)
+            gl.glEnableVertexAttribArray(mesh.vertex_location)
             gl.glVertexAttribPointer(
-                position_location, mesh.vertex_components, gl.GL_FLOAT, False,
+                mesh.vertex_location, mesh.vertex_components, gl.GL_FLOAT, False,
                 mesh.vertex_stride_bytes, mesh.vertex_start_ptr
             )
-            tex_coord_location = program.attribute_location(shader.texture_coord)
-            gl.glEnableVertexAttribArray(tex_coord_location)
+            gl.glEnableVertexAttribArray(mesh.texture_location)
             gl.glVertexAttribPointer(
-                tex_coord_location, mesh.texture_components, gl.GL_FLOAT, False,
+                mesh.texture_location, mesh.texture_components, gl.GL_FLOAT, False,
                 mesh.texture_stride_bytes, mesh.texture_start_ptr
             )
 
@@ -394,7 +392,7 @@ class OpenGlModel(object):
 
             ctx_exit = ctx.pop_all()
 
-            return cls(vao, vbo, mesh.draw_mode, mesh.draw_start_index, mesh.num_vertices, tex, program, ctx_exit)
+            return cls(vao, vbo, mesh.draw_mode, mesh.draw_start_idx, mesh.num_vertices, tex, program, ctx_exit)
 
     def __del__(self):
         self._ctx_exit.close()
