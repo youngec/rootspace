@@ -19,38 +19,32 @@ from .exceptions import OpenGLError, TodoWarning
 
 
 @attr.s
+class Attribute(object):
+    name = attr.ib(validator=instance_of(str))
+    components = attr.ib(validator=instance_of(int))
+    stride = attr.ib(validator=instance_of(int))
+    start_idx = attr.ib(validator=instance_of(int))
+    location = attr.ib(validator=instance_of(int))
+
+    @property
+    def stride_bytes(self):
+        return self.stride * ctypes.sizeof(ctypes.c_float)
+
+    @property
+    def start_ptr(self):
+        return ctypes.c_void_p(self.start_idx * ctypes.sizeof(ctypes.c_float))
+
+
+@attr.s
 class Mesh(object):
     data = attr.ib()
-    vertex_components = attr.ib(validator=instance_of(int))
-    vertex_stride = attr.ib(validator=instance_of(int))
-    vertex_start_idx = attr.ib(validator=instance_of(int))
-    vertex_location = attr.ib(validator=instance_of(int))
-    texture_components = attr.ib(validator=instance_of(int))
-    texture_stride = attr.ib(validator=instance_of(int))
-    texture_start_idx = attr.ib(validator=instance_of(int))
-    texture_location = attr.ib(validator=instance_of(int))
+    attributes = attr.ib(validator=instance_of(tuple))
     draw_mode = attr.ib(validator=instance_of(Constant))
     draw_start_idx = attr.ib(validator=instance_of(int))
 
     @property
     def num_vertices(self):
-        return len(self.data) // (self.vertex_components + self.texture_components)
-
-    @property
-    def vertex_stride_bytes(self):
-        return self.vertex_stride * ctypes.sizeof(ctypes.c_float)
-
-    @property
-    def texture_stride_bytes(self):
-        return self.texture_stride * ctypes.sizeof(ctypes.c_float)
-
-    @property
-    def vertex_start_ptr(self):
-        return ctypes.c_void_p(self.vertex_start_idx * ctypes.sizeof(ctypes.c_float))
-
-    @property
-    def texture_start_ptr(self):
-        return ctypes.c_void_p(self.texture_start_idx * ctypes.sizeof(ctypes.c_float))
+        return len(self.data) // sum(a.components for a in self.attributes)
 
     @classmethod
     def create_cube(cls):
@@ -69,8 +63,7 @@ class Mesh(object):
                 1, -1, 1, 1, 1, 1, -1, -1, 1, 0, 1, 1, -1, 0, 0,
                 1, -1, 1, 1, 1, 0, 1, -1, 0, 0, 1, 1, 1, 0, 1
             ]).tobytes(),
-            vertex_components=3, vertex_stride=5, vertex_start_idx=0, vertex_location=0,
-            texture_components=2, texture_stride=5, texture_start_idx=3, texture_location=1,
+            attributes=(Attribute("vertex_xyz", 3, 5, 0, 0), Attribute("texture_st", 2, 5, 3, 1)),
             draw_mode=gl.GL_TRIANGLES, draw_start_idx=0
         )
 
@@ -374,18 +367,12 @@ class OpenGlModel(object):
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
             gl.glBufferData(gl.GL_ARRAY_BUFFER, len(mesh.data), mesh.data, gl.GL_STATIC_DRAW)
 
-            # Set the appropriate pointers
-            # FIXME: Make pointer assignment more flexible
-            gl.glEnableVertexAttribArray(mesh.vertex_location)
-            gl.glVertexAttribPointer(
-                mesh.vertex_location, mesh.vertex_components, gl.GL_FLOAT, False,
-                mesh.vertex_stride_bytes, mesh.vertex_start_ptr
-            )
-            gl.glEnableVertexAttribArray(mesh.texture_location)
-            gl.glVertexAttribPointer(
-                mesh.texture_location, mesh.texture_components, gl.GL_FLOAT, False,
-                mesh.texture_stride_bytes, mesh.texture_start_ptr
-            )
+            # Set the attribute pointers
+            for a in mesh.attributes:
+                gl.glEnableVertexAttribArray(a.location)
+                gl.glVertexAttribPointer(
+                    a.location, a.components, gl.GL_FLOAT, False, a.stride_bytes, a.start_ptr
+                )
 
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
             gl.glBindVertexArray(0)
