@@ -8,6 +8,7 @@ import logging
 import warnings
 import array
 
+import PIL.Image
 import OpenGL.GL as gl
 from OpenGL.constant import Constant
 import attr
@@ -158,7 +159,8 @@ class OpenGlTexture(object):
 
             # Set the texture data
             gl.glTexImage2D(
-                gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, image_dtype, data.tobytes()
+                gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, image_dtype,
+                data.transpose(PIL.Image.FLIP_LEFT_RIGHT).transpose(PIL.Image.FLIP_TOP_BOTTOM).tobytes()
             )
             gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
