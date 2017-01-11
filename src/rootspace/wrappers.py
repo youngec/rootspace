@@ -20,7 +20,7 @@ from .exceptions import OpenGLError, TodoWarning
 
 @attr.s
 class Mesh(object):
-    vertices = attr.ib()
+    data = attr.ib()
     vertex_components = attr.ib(validator=instance_of(int))
     vertex_stride = attr.ib(validator=instance_of(int))
     vertex_start_idx = attr.ib(validator=instance_of(int))
@@ -34,7 +34,7 @@ class Mesh(object):
 
     @property
     def num_vertices(self):
-        return len(self.vertices) // (self.vertex_components + self.texture_components)
+        return len(self.data) // (self.vertex_components + self.texture_components)
 
     @property
     def vertex_stride_bytes(self):
@@ -55,7 +55,7 @@ class Mesh(object):
     @classmethod
     def create_cube(cls):
         return cls(
-            vertices=array.array("f", [
+            data=array.array("f", [
                 -1, -1, -1, 0, 0, 1, -1, -1, 1, 0, -1, -1, 1, 0, 1,
                 1, -1, -1, 1, 0, 1, -1, 1, 1, 1, -1, -1, 1, 0, 1,
                 -1, 1, -1, 0, 0, -1, 1, 1, 0, 1, 1, 1, -1, 1, 0,
@@ -372,7 +372,7 @@ class OpenGlModel(object):
             vbo = int(gl.glGenBuffers(1))
             ctx.callback(gl.glDeleteBuffers, 1, vbo)
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(mesh.vertices), mesh.vertices, gl.GL_STATIC_DRAW)
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(mesh.data), mesh.data, gl.GL_STATIC_DRAW)
 
             # Set the appropriate pointers
             # FIXME: Make pointer assignment more flexible
