@@ -409,8 +409,6 @@ class Model(object):
     mode = attr.ib(validator=instance_of(int))
     index = attr.ib(validator=instance_of(array.array))
     index_type = attr.ib(validator=instance_of(Constant))
-    start_index = attr.ib(validator=instance_of(int))
-    num_vertices = attr.ib(validator=instance_of(int))
     texture = attr.ib(validator=instance_of(Texture))
     program = attr.ib(validator=instance_of(OpenGlProgram))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
@@ -467,8 +465,7 @@ class Model(object):
 
             ctx_exit = ctx.pop_all()
 
-            return cls(vao, vbo, ibo, mesh.draw_mode, mesh.index, mesh.index_type, mesh.draw_start_idx,
-                       mesh.num_vertices, tex, program, ctx_exit)
+            return cls(vao, vbo, ibo, mesh.draw_mode, mesh.index, mesh.index_type, tex, program, ctx_exit)
 
     def __del__(self):
         self._ctx_exit.close()
