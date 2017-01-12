@@ -271,8 +271,7 @@ class OpenGlRenderer(RenderSystem):
                         model.program.uniform("mvp_matrix", pv @ transform.matrix)
                         gl.glActiveTexture(gl.GL_TEXTURE0)
                         model.program.uniform("active_tex", 0)
-
-                        gl.glDrawElements(model.draw_mode, len(model.index), model.index_type, None)
+                        model.draw()
 
         glfw.swap_buffers(world.ctx.window)
 

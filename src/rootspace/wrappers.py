@@ -403,12 +403,12 @@ class Model(object):
     """
     OpenGlModel encapsulates all that belongs to a graphical representation of an object, stored on the GPU.
     """
-    vao = attr.ib(validator=instance_of(int))
-    vbo = attr.ib(validator=instance_of(int))
-    ibo = attr.ib(validator=instance_of(int))
-    draw_mode = attr.ib(validator=instance_of(Constant))
-    index = attr.ib(validator=instance_of(array.array))
-    index_type = attr.ib(validator=instance_of(Constant))
+    _vao = attr.ib(validator=instance_of(int))
+    _vbo = attr.ib(validator=instance_of(int))
+    _ibo = attr.ib(validator=instance_of(int))
+    _draw_mode = attr.ib(validator=instance_of(Constant))
+    _index_len = attr.ib(validator=instance_of(int))
+    _index_type = attr.ib(validator=instance_of(Constant))
     texture = attr.ib(validator=instance_of(Texture))
     program = attr.ib(validator=instance_of(OpenGlProgram))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
@@ -465,7 +465,15 @@ class Model(object):
 
             ctx_exit = ctx.pop_all()
 
-            return cls(vao, vbo, ibo, mesh.draw_mode, mesh.index, mesh.index_type, tex, program, ctx_exit)
+            return cls(vao, vbo, ibo, mesh.draw_mode, len(mesh.index), mesh.index_type, tex, program, ctx_exit)
+
+    def draw(self):
+        """
+        Draw the current model.
+
+        :return:
+        """
+        gl.glDrawElements(self._draw_mode, self._index_len, self._index_type, None)
 
     def __del__(self):
         self._ctx_exit.close()
@@ -476,9 +484,9 @@ class Model(object):
 
         :return:
         """
-        gl.glBindVertexArray(self.vao)
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
-        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self.ibo)
+        gl.glBindVertexArray(self._vao)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self._vbo)
+        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self._ibo)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
