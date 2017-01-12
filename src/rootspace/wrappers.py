@@ -121,7 +121,7 @@ class Shader(object):
 
 
 @attr.s
-class OpenGlTexture(object):
+class Texture(object):
     """
     OpenGlTexture encapsulates an OpenGL texture.
     """
@@ -411,7 +411,7 @@ class Model(object):
     index_type = attr.ib(validator=instance_of(Constant))
     start_index = attr.ib(validator=instance_of(int))
     num_vertices = attr.ib(validator=instance_of(int))
-    texture = attr.ib(validator=instance_of(OpenGlTexture))
+    texture = attr.ib(validator=instance_of(Texture))
     program = attr.ib(validator=instance_of(OpenGlProgram))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
@@ -440,7 +440,7 @@ class Model(object):
             program = OpenGlProgram.create((vertex_shader, fragment_shader))
 
             # Create the texture
-            tex = OpenGlTexture.create(texture)
+            tex = Texture.create(texture)
 
             # Initialise the vertex buffer
             vbo = int(gl.glGenBuffers(1))
