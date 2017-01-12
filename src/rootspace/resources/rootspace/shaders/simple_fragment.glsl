@@ -9,5 +9,5 @@ out vec4 fragColor;
 
 void main() {
     // fragColor = texture(active_tex, frag_tex_uv);
-    fragColor = texture(active_tex, frag_tex_uv) * vec4(frag_color_rgb, 1.0);
+    fragColor = texture(active_tex, frag_tex_uv) + vec4(frag_color_rgb, 1.0);
 }
