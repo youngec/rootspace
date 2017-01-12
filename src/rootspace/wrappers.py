@@ -37,7 +37,8 @@ class Attribute(object):
 
 @attr.s
 class Mesh(object):
-    data = attr.ib()
+    data = attr.ib(validator=instance_of(array.array))
+    index = attr.ib(validator=instance_of(array.array))
     attributes = attr.ib(validator=instance_of(tuple))
     draw_mode = attr.ib(validator=instance_of(Constant))
     draw_start_idx = attr.ib(validator=instance_of(int))
@@ -46,24 +47,56 @@ class Mesh(object):
     def num_vertices(self):
         return len(self.data) // sum(a.components for a in self.attributes)
 
+    @property
+    def data_bytes(self):
+        return self.data.tobytes()
+
+    @property
+    def data_type(self):
+        # FIXME: Just a stub
+        return gl.GL_FLOAT
+
+    @property
+    def index_bytes(self):
+        return self.index.tobytes()
+
+    @property
+    def index_type(self):
+        # FIXME: Just a stub
+        return gl.GL_UNSIGNED_BYTE
+
     @classmethod
     def create_cube(cls):
         return cls(
-            data=array.array("f", [
-                -1, -1, -1, 0, 0, 1, -1, -1, 1, 0, -1, -1, 1, 0, 1,
-                1, -1, -1, 1, 0, 1, -1, 1, 1, 1, -1, -1, 1, 0, 1,
-                -1, 1, -1, 0, 0, -1, 1, 1, 0, 1, 1, 1, -1, 1, 0,
-                1, 1, -1, 1, 0, -1, 1, 1, 0, 1, 1, 1, 1, 1, 1,
-                -1, -1, 1, 1, 0, 1, -1, 1, 0, 0, -1, 1, 1, 1, 1,
-                1, -1, 1, 0, 0, 1, 1, 1, 0, 1, -1, 1, 1, 1, 1,
-                -1, -1, -1, 0, 0, -1, 1, -1, 0, 1, 1, -1, -1, 1, 0,
-                1, -1, -1, 1, 0, -1, 1, -1, 0, 1, 1, 1, -1, 1, 1,
-                -1, -1, 1, 0, 1, -1, 1, -1, 1, 0, -1, -1, -1, 0, 0,
-                -1, -1, 1, 0, 1, -1, 1, 1, 1, 1, -1, 1, -1, 1, 0,
-                1, -1, 1, 1, 1, 1, -1, -1, 1, 0, 1, 1, -1, 0, 0,
-                1, -1, 1, 1, 1, 0, 1, -1, 0, 0, 1, 1, 1, 0, 1
-            ]).tobytes(),
-            attributes=(Attribute("vertex_xyz", 3, 5, 0, 0), Attribute("texture_st", 2, 5, 3, 1)),
+            data=array.array("f", (
+                1, 0, 0, 0, 0, 1, 0, 0,
+                0, 1, 0, 0, 0, 0, 1, 0,
+                0, 0, 1, 0, 0, 0, 0, 1,
+                1, 1, 1, 0, 0, 1, 1, 1,
+                1, 0, 0, 0, 0, 1, 0, 0,
+                0, 1, 0, 0, 0, 0, 1, 0,
+                0, 0, 1, 0, 0, 0, 0, 1,
+                1, 1, 1, 0, 0, 1, 1, 1
+            )),
+            index=array.array("B", (
+                0, 1, 2,
+                2, 3, 0,
+                1, 5, 6,
+                6, 2, 1,
+                7, 6, 5,
+                5, 4, 7,
+                4, 0, 3,
+                3, 7, 4,
+                4, 5, 1,
+                1, 0, 4,
+                3, 2, 6,
+                6, 7, 3,
+            )),
+            attributes=(
+                Attribute("vertex_xyz", 3, 8, 0, 0),
+                Attribute("texture_st", 2, 8, 3, 1),
+                Attribute("color_rgb", 3, 8, 5, 2)
+            ),
             draw_mode=gl.GL_TRIANGLES, draw_start_idx=0
         )
 
@@ -99,7 +132,8 @@ class OpenGlTexture(object):
 
     @classmethod
     def _delete_textures(cls, obj):
-        if bool(gl.glDeleteTextures) and obj >= 0:
+        if bool(gl.glDeleteTextures) and obj > 0:
+            # FIXME: This throws an 'invalid operation (1282)' sometimes.
             gl.glDeleteTextures(obj)
 
     @classmethod
@@ -176,17 +210,34 @@ class OpenGlTexture(object):
     def enabled(self):
         return gl.glGetIntegerv(gl.GL_TEXTURE_BINDING_2D) == self._obj
 
-    def enable(self):
+    def __enter__(self):
+        """
+        Enable the texture.
+
+        :return:
+        """
         if not self.enabled:
             gl.glBindTexture(gl.GL_TEXTURE_2D, self._obj)
         else:
             self._log.warning("Attempting to enable an active texture.")
 
-    def disable(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Disable the texture.
+
+        :param exc_type:
+        :param exc_val:
+        :param exc_tb:
+        :return:
+        """
         if self.enabled:
             gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
         else:
             self._log.warning("Attempting to disable an inactive texture.")
+
+        return False
 
 
 @attr.s
@@ -289,18 +340,6 @@ class OpenGlProgram(object):
     def enabled(self):
         return gl.glGetIntegerv(gl.GL_CURRENT_PROGRAM) == self._obj
 
-    def enable(self):
-        if not self.enabled:
-            gl.glUseProgram(self._obj)
-        else:
-            self._log.warning("Attempting to enable an active shader program.")
-
-    def disable(self):
-        if self.enabled:
-            gl.glUseProgram(0)
-        else:
-            self._log.warning("Attempting to disable an inactive shader program.")
-
     def uniform_location(self, name):
         loc = gl.glGetUniformLocation(self._obj, name)
         if loc == -1:
@@ -329,6 +368,35 @@ class OpenGlProgram(object):
         else:
             raise NotImplementedError("Cannot set any other data types yet.")
 
+    def __enter__(self):
+        """
+        Enable the program.
+
+        :return:
+        """
+        if not self.enabled:
+            gl.glUseProgram(self._obj)
+        else:
+            self._log.warning("Attempting to enable an active shader program.")
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Disable the program.
+
+        :param exc_type:
+        :param exc_val:
+        :param exc_tb:
+        :return:
+        """
+        if self.enabled:
+            gl.glUseProgram(0)
+        else:
+            self._log.warning("Attempting to disable an inactive shader program.")
+
+        return False
+
 
 @attr.s(slots=True)
 class OpenGlModel(object):
@@ -337,7 +405,10 @@ class OpenGlModel(object):
     """
     vao = attr.ib(validator=instance_of(int))
     vbo = attr.ib(validator=instance_of(int))
+    ibo = attr.ib(validator=instance_of(int))
     mode = attr.ib(validator=instance_of(int))
+    index = attr.ib(validator=instance_of(array.array))
+    index_type = attr.ib(validator=instance_of(Constant))
     start_index = attr.ib(validator=instance_of(int))
     num_vertices = attr.ib(validator=instance_of(int))
     texture = attr.ib(validator=instance_of(OpenGlTexture))
@@ -345,12 +416,22 @@ class OpenGlModel(object):
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
     @classmethod
+    def delete_vertex_arrays(cls, num, obj):
+        if bool(gl.glDeleteVertexArrays) and obj >= 0:
+            gl.glDeleteVertexArrays(num, obj)
+
+    @classmethod
+    def delete_buffers(cls, num, obj):
+        if bool(gl.glDeleteBuffers) and obj >= 0:
+            gl.glDeleteBuffers(num, obj)
+
+    @classmethod
     def create(cls, mesh, texture, shader):
         with contextlib.ExitStack() as ctx:
             warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
             # Create and bind the Vertex Array Object
             vao = int(gl.glGenVertexArrays(1))
-            ctx.callback(gl.glDeleteVertexArrays, 1, vao)
+            ctx.callback(cls.delete_vertex_arrays, 1, vao)
             gl.glBindVertexArray(vao)
 
             # Compile the shader program
@@ -363,23 +444,56 @@ class OpenGlModel(object):
 
             # Initialise the vertex buffer
             vbo = int(gl.glGenBuffers(1))
-            ctx.callback(gl.glDeleteBuffers, 1, vbo)
+            ctx.callback(cls.delete_buffers, 1, vbo)
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(mesh.data), mesh.data, gl.GL_STATIC_DRAW)
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(mesh.data_bytes), mesh.data_bytes, gl.GL_STATIC_DRAW)
+
+            # Initialise the index buffer
+            ibo = int(gl.glGenBuffers(1))
+            ctx.callback(cls.delete_buffers, 1, ibo)
+            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, ibo)
+            gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, len(mesh.index_bytes), mesh.index_bytes, gl.GL_STATIC_DRAW)
 
             # Set the attribute pointers
             for a in mesh.attributes:
                 gl.glEnableVertexAttribArray(a.location)
                 gl.glVertexAttribPointer(
-                    a.location, a.components, gl.GL_FLOAT, False, a.stride_bytes, a.start_ptr
+                    a.location, a.components, mesh.data_type, False, a.stride_bytes, a.start_ptr
                 )
 
+            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
             gl.glBindVertexArray(0)
 
             ctx_exit = ctx.pop_all()
 
-            return cls(vao, vbo, mesh.draw_mode, mesh.draw_start_idx, mesh.num_vertices, tex, program, ctx_exit)
+            return cls(vao, vbo, ibo, mesh.draw_mode, mesh.index, mesh.index_type, mesh.draw_start_idx,
+                       mesh.num_vertices, tex, program, ctx_exit)
 
     def __del__(self):
         self._ctx_exit.close()
+
+    def __enter__(self):
+        """
+        Enable the model.
+
+        :return:
+        """
+        gl.glBindVertexArray(self.vao)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
+        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self.ibo)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Disable the model.
+
+        :param exc_type:
+        :param exc_val:
+        :param exc_tb:
+        :return:
+        """
+        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+        return False

@@ -14,6 +14,7 @@ import shutil
 import uuid
 import warnings
 import weakref
+import ctypes
 
 import OpenGL.GL as gl
 import attr
@@ -262,22 +263,20 @@ class OpenGlRenderer(RenderSystem):
         warnings.warn("Optimize rendering with multiple Entities.", FixmeWarning)
         sorted_components = sorted(components, key=lambda c: c[1].program.obj)
 
-        for i, (transform, data) in enumerate(sorted_components):
+        for i, (transform, model) in enumerate(sorted_components):
             # Bind the shader program and the VAO
-            data.program.enable()
-            gl.glActiveTexture(gl.GL_TEXTURE0)
-            data.texture.enable()
-            gl.glBindVertexArray(data.vao)
+            # FIXME: Resolve this series of nested contexts into one 'with model' statement.
+            with model.program:
+                with model.texture:
+                    with model:
+                        model.program.uniform("mvp_matrix", pv @ transform.matrix)
+                        gl.glActiveTexture(gl.GL_TEXTURE0)
+                        model.program.uniform("active_tex", 0)
 
-            data.program.uniform("mvp_matrix", pv @ transform.matrix)
-            data.program.uniform("active_tex", 0)
-
-            gl.glDrawArrays(data.mode, data.start_index, data.num_vertices)
-
-            # Unbind the shader program and the VAO
-            gl.glBindVertexArray(0)
-            data.texture.disable()
-            data.program.disable()
+                        buffer_size = gl.glGetBufferParameteriv(gl.GL_ELEMENT_ARRAY_BUFFER, gl.GL_BUFFER_SIZE)
+                        #gl.glDrawElements(model.mode, buffer_size // model.index_type, model.index_type, ctypes.c_void_p(0))
+                        gl.glDrawElements(model.mode, len(model.index), model.index_type, model.index.tolist())
+                        # gl.glDrawArrays(data.mode, data.start_index, data.num_vertices)
 
         glfw.swap_buffers(world.ctx.window)
 
@@ -935,9 +934,9 @@ class Context(object):
             ctx_mgr.callback(self._world.remove_all_entities)
             self._world.add_entities(
                 Camera.from_dict(transform=Transform(), camera_data=camera_data),
-                TestEntity.from_dict(transform=Transform((0, -1, -1), (1, 1, 1)), open_gl_model=gpu_cube),
-                TestEntity.from_dict(transform=Transform((0, -2, -1), (2, 0.1, 2)), open_gl_model=gpu_cube),
-                TestEntity.from_dict(transform=Transform((-2, 0, -1), (0.1, 2, 2)), open_gl_model=gpu_cube)
+                #TestEntity.from_dict(transform=Transform((0, -2, -1), (2, 0.1, 2)), open_gl_model=gpu_cube),
+                #TestEntity.from_dict(transform=Transform((-2, 0, -1), (0.1, 2, 2)), open_gl_model=gpu_cube),
+                TestEntity.from_dict(transform=Transform((0, -1, -1), (1, 1, 1)), open_gl_model=gpu_cube)
             )
 
             self._ctx_exit = ctx_mgr.pop_all()
