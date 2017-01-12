@@ -251,19 +251,15 @@ class OpenGlRenderer(RenderSystem):
 
     def render(self, world, components):
         # Get a reference to the camera
-        warnings.warn("Have to be smarter about getting the camera entity.", FixmeWarning)
-        camera = tuple(world.get_entities(Camera))[0]
+        camera = next(world.get_entities(Camera))
         pv = camera.matrix
 
         # Clear the render buffers
         gl.glClear(world.ctx.data.clear_bits)
 
-        # Sort and enumerate the components
-        warnings.warn("Optimize rendering with multiple Entities.", FixmeWarning)
-        sorted_components = sorted(components, key=lambda c: c[1].program.obj)
-
         # Render all models
-        for i, (transform, model) in enumerate(sorted_components):
+        warnings.warn("Optimize rendering with multiple Entities.", FixmeWarning)
+        for i, (transform, model) in enumerate(components):
             with model:
                 model.draw(pv @ transform.matrix)
 
