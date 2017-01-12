@@ -98,7 +98,7 @@ class System(object, metaclass=abc.ABCMeta):
         return logging.getLogger("{}.{}".format(__name__, cls.__name__))
 
     @classmethod
-    def from_dict(cls, config):
+    def from_dict(cls, **config):
         """
         Create an instance from a config dictionary. Non-recursive, single level.
 
@@ -922,8 +922,8 @@ class Context(object):
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_all_systems)
             self._world.add_systems(
-                OpenGlRenderer.from_dict({}),
-                CameraControlSystem.from_dict({"cursor_origin": cursor_origin})
+                OpenGlRenderer.from_dict(),
+                CameraControlSystem.from_dict(cursor_origin=cursor_origin)
             )
 
             # Add the initial entities
