@@ -406,7 +406,7 @@ class Model(object):
     vao = attr.ib(validator=instance_of(int))
     vbo = attr.ib(validator=instance_of(int))
     ibo = attr.ib(validator=instance_of(int))
-    mode = attr.ib(validator=instance_of(int))
+    draw_mode = attr.ib(validator=instance_of(Constant))
     index = attr.ib(validator=instance_of(array.array))
     index_type = attr.ib(validator=instance_of(Constant))
     texture = attr.ib(validator=instance_of(Texture))

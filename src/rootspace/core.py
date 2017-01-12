@@ -272,7 +272,7 @@ class OpenGlRenderer(RenderSystem):
                         gl.glActiveTexture(gl.GL_TEXTURE0)
                         model.program.uniform("active_tex", 0)
 
-                        gl.glDrawElements(model.mode, len(model.index), model.index_type, None)
+                        gl.glDrawElements(model.draw_mode, len(model.index), model.index_type, None)
 
         glfw.swap_buffers(world.ctx.window)
 
