@@ -14,7 +14,6 @@ import shutil
 import uuid
 import warnings
 import weakref
-import ctypes
 
 import OpenGL.GL as gl
 import attr
@@ -273,10 +272,7 @@ class OpenGlRenderer(RenderSystem):
                         gl.glActiveTexture(gl.GL_TEXTURE0)
                         model.program.uniform("active_tex", 0)
 
-                        buffer_size = gl.glGetBufferParameteriv(gl.GL_ELEMENT_ARRAY_BUFFER, gl.GL_BUFFER_SIZE)
-                        #gl.glDrawElements(model.mode, buffer_size // model.index_type, model.index_type, ctypes.c_void_p(0))
-                        gl.glDrawElements(model.mode, len(model.index), model.index_type, model.index.tolist())
-                        # gl.glDrawArrays(data.mode, data.start_index, data.num_vertices)
+                        gl.glDrawElements(model.mode, len(model.index), model.index_type, None)
 
         glfw.swap_buffers(world.ctx.window)
 
