@@ -653,7 +653,7 @@ class Context(object):
         max_frame_duration=0.25,
         epsilon=1e-5,
         window_title="Untitled",
-        window_shape=(800, 600),
+        window_shape=(1024, 768),
         window_hints={
             glfw.CONTEXT_VERSION_MAJOR: 3,
             glfw.CONTEXT_VERSION_MINOR: 3,
@@ -930,8 +930,8 @@ class Context(object):
             ctx_mgr.callback(self._world.remove_all_entities)
             self._world.add_entities(
                 Camera.from_dict(transform=Transform(), camera_data=camera_data),
-                #TestEntity.from_dict(transform=Transform((0, -2, -1), (2, 0.1, 2)), open_gl_model=gpu_cube),
-                #TestEntity.from_dict(transform=Transform((-2, 0, -1), (0.1, 2, 2)), open_gl_model=gpu_cube),
+                TestEntity.from_dict(transform=Transform((0, -2, -1), (2, 0.1, 2)), open_gl_model=gpu_cube),
+                TestEntity.from_dict(transform=Transform((-2, 0, -1), (0.1, 2, 2)), open_gl_model=gpu_cube),
                 TestEntity.from_dict(transform=Transform((0, -1, -1), (1, 1, 1)), open_gl_model=gpu_cube)
             )
 
