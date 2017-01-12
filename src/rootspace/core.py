@@ -262,16 +262,10 @@ class OpenGlRenderer(RenderSystem):
         warnings.warn("Optimize rendering with multiple Entities.", FixmeWarning)
         sorted_components = sorted(components, key=lambda c: c[1].program.obj)
 
+        # Render all models
         for i, (transform, model) in enumerate(sorted_components):
-            # Bind the shader program and the VAO
-            # FIXME: Resolve this series of nested contexts into one 'with model' statement.
-            with model.program:
-                with model.texture:
-                    with model:
-                        model.program.uniform("mvp_matrix", pv @ transform.matrix)
-                        gl.glActiveTexture(gl.GL_TEXTURE0)
-                        model.program.uniform("active_tex", 0)
-                        model.draw()
+            with model:
+                model.draw(pv @ transform.matrix)
 
         glfw.swap_buffers(world.ctx.window)
 

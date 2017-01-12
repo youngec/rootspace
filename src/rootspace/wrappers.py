@@ -412,6 +412,7 @@ class Model(object):
     texture = attr.ib(validator=instance_of(Texture))
     program = attr.ib(validator=instance_of(OpenGlProgram))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
+    _render_exit = attr.ib(default=None, validator=instance_of((type(None), contextlib.ExitStack)), repr=False)
 
     @classmethod
     def delete_vertex_arrays(cls, num, obj):
@@ -467,12 +468,16 @@ class Model(object):
 
             return cls(vao, vbo, ibo, mesh.draw_mode, len(mesh.index), mesh.index_type, tex, program, ctx_exit)
 
-    def draw(self):
+    def draw(self, matrix):
         """
         Draw the current model.
 
+        :param matrix:
         :return:
         """
+        self.program.uniform("mvp_matrix", matrix)
+        gl.glActiveTexture(gl.GL_TEXTURE0)
+        self.program.uniform("active_tex", 0)
         gl.glDrawElements(self._draw_mode, self._index_len, self._index_type, None)
 
     def __del__(self):
@@ -484,9 +489,21 @@ class Model(object):
 
         :return:
         """
-        gl.glBindVertexArray(self._vao)
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self._vbo)
-        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self._ibo)
+        with contextlib.ExitStack() as ctx_mgr:
+            ctx_mgr.enter_context(self.program)
+
+            ctx_mgr.enter_context(self.texture)
+
+            gl.glBindVertexArray(self._vao)
+            ctx_mgr.callback(gl.glBindVertexArray, 0)
+
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self._vbo)
+            ctx_mgr.callback(gl.glBindBuffer, gl.GL_ARRAY_BUFFER, 0)
+
+            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self._ibo)
+            ctx_mgr.callback(gl.glBindBuffer, gl.GL_ELEMENT_ARRAY_BUFFER, 0)
+
+            self._render_exit = ctx_mgr.pop_all()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -498,7 +515,5 @@ class Model(object):
         :param exc_tb:
         :return:
         """
-        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-        gl.glBindVertexArray(0)
+        self._render_exit.close()
         return False
