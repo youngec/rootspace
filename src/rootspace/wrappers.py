@@ -399,7 +399,7 @@ class OpenGlProgram(object):
 
 
 @attr.s(slots=True)
-class OpenGlModel(object):
+class Model(object):
     """
     OpenGlModel encapsulates all that belongs to a graphical representation of an object, stored on the GPU.
     """

@@ -26,7 +26,7 @@ from .events import KeyEvent, CharEvent, CursorEvent, KeyMap
 from .exceptions import GLFWError, FixmeWarning
 from .components import Transform, CameraData
 from .utilities import subclass_of
-from .wrappers import OpenGlModel, Mesh, Shader
+from .wrappers import Model, Mesh, Shader
 
 
 @attr.s(hash=False)
@@ -177,7 +177,7 @@ class EventSystem(System):
 @attr.s(hash=False)
 class TestEntity(Entity):
     transform = attr.ib(validator=instance_of(Transform))
-    open_gl_model = attr.ib(validator=instance_of(OpenGlModel))
+    open_gl_model = attr.ib(validator=instance_of(Model))
 
 
 @attr.s(hash=False)
@@ -246,7 +246,7 @@ class CameraControlSystem(EventSystem):
 
 @attr.s
 class OpenGlRenderer(RenderSystem):
-    component_types = (Transform, OpenGlModel)
+    component_types = (Transform, Model)
     is_applicator = True
 
     def render(self, world, components):
@@ -917,7 +917,7 @@ class Context(object):
                 self.resources / "shaders/simple_vertex.glsl",
                 self.resources / "shaders/simple_fragment.glsl"
             )
-            gpu_cube = OpenGlModel.create(Mesh.create_cube(), texture_data, simple_shader)
+            gpu_cube = Model.create(Mesh.create_cube(), texture_data, simple_shader)
 
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_all_systems)
