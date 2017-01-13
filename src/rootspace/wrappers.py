@@ -120,6 +120,9 @@ class Mesh(object):
 
 @attr.s
 class Shader(object):
+    """
+    Shader is an on-CPU representation of a shader program.
+    """
     vertex_source = attr.ib(validator=instance_of(str))
     fragment_source = attr.ib(validator=instance_of(str))
 
@@ -142,7 +145,6 @@ class Texture(object):
     """
     OpenGlTexture encapsulates an OpenGL texture.
     """
-
     _obj = attr.ib(validator=instance_of(int))
     _shape = attr.ib(validator=instance_of(tuple))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
