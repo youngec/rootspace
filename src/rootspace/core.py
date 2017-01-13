@@ -899,14 +899,12 @@ class Context(object):
                 self._data.near_plane,
                 self._data.far_plane
             )
-            texture_data = Image.open(
-                self.resources / "textures/test-texture.png"
-            )
-            simple_shader = Shader.create(
-                self.resources / "shaders/simple_vertex.glsl",
-                self.resources / "shaders/simple_fragment.glsl"
-            )
-            gpu_cube = Model.create(Mesh.create_cube(), texture_data, simple_shader)
+            with Image.open(self.resources / "textures/test-texture.png") as txdata:
+                simple_shader = Shader.create(
+                    self.resources / "shaders/simple_vertex.glsl",
+                    self.resources / "shaders/simple_fragment.glsl"
+                )
+                gpu_cube = Model.create(Mesh.create_cube(), simple_shader, txdata)
 
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_all_systems)

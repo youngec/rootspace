@@ -15,12 +15,11 @@ import attr
 import numpy
 from attr.validators import instance_of
 
-from .exceptions import OpenGLError, TodoWarning
+from .exceptions import OpenGLError, TodoWarning, FixmeWarning
 
 
 @attr.s
 class Attribute(object):
-    name = attr.ib(validator=instance_of(str))
     components = attr.ib(validator=instance_of(int))
     stride = attr.ib(validator=instance_of(int))
     start_idx = attr.ib(validator=instance_of(int))
@@ -36,16 +35,37 @@ class Attribute(object):
 
 
 @attr.s
+class VertexAttribute(Attribute):
+    pass
+
+
+@attr.s
+class TextureAttribute(Attribute):
+    pass
+
+
+@attr.s
+class ColorAttribute(Attribute):
+    pass
+
+
+@attr.s
 class Mesh(object):
     data = attr.ib(validator=instance_of(array.array))
     index = attr.ib(validator=instance_of(array.array))
     attributes = attr.ib(validator=instance_of(tuple))
     draw_mode = attr.ib(validator=instance_of(Constant))
-    draw_start_idx = attr.ib(validator=instance_of(int))
 
-    @property
-    def num_vertices(self):
-        return len(self.data) // sum(a.components for a in self.attributes)
+    data_types = {
+        "b": gl.GL_BYTE,
+        "B": gl.GL_UNSIGNED_BYTE,
+        "h": gl.GL_SHORT,
+        "H": gl.GL_UNSIGNED_SHORT,
+        "i": gl.GL_INT,
+        "I": gl.GL_UNSIGNED_INT,
+        "f": gl.GL_FLOAT,
+        "d": gl.GL_DOUBLE
+    }
 
     @property
     def data_bytes(self):
@@ -53,8 +73,7 @@ class Mesh(object):
 
     @property
     def data_type(self):
-        # FIXME: Just a stub
-        return gl.GL_FLOAT
+        return self.data_types[self.data.typecode]
 
     @property
     def index_bytes(self):
@@ -62,21 +81,20 @@ class Mesh(object):
 
     @property
     def index_type(self):
-        # FIXME: Just a stub
-        return gl.GL_UNSIGNED_BYTE
+        return self.data_types[self.index.typecode]
 
     @classmethod
     def create_cube(cls):
         return cls(
             data=array.array("f", (
-                -1, -1, -1, 0, 0, 0, 0, 0,
-                1, -1, -1, 0, 0, 1, 0, 0,
-                -1, 1, -1, 0, 0, 0, 1, 0,
-                1, 1, -1, 0, 0, 1, 1, 0,
-                -1, -1, 1, 0, 0, 0, 0, 1,
-                1, -1, 1, 0, 0, 1, 0, 1,
-                -1, 1, 1, 0, 0, 0, 1, 1,
-                1, 1, 1, 0, 0, 1, 1, 1
+                -1, -1, -1, 0, 0, 0,
+                1, -1, -1, 1, 0, 0,
+                -1, 1, -1, 0, 1, 0,
+                1, 1, -1, 1, 1, 0,
+                -1, -1, 1, 0, 0, 1,
+                1, -1, 1, 1, 0, 1,
+                -1, 1, 1, 0, 1, 1,
+                1, 1, 1, 1, 1, 1
             )),
             index=array.array("B", (
                 0, 2, 1,
@@ -93,11 +111,10 @@ class Mesh(object):
                 1, 5, 4
             )),
             attributes=(
-                Attribute("vertex_xyz", 3, 8, 0, 0),
-                Attribute("texture_st", 2, 8, 3, 1),
-                Attribute("color_rgb", 3, 8, 5, 2)
+                VertexAttribute(3, 6, 0, 0),
+                ColorAttribute(3, 6, 3, 2)
             ),
-            draw_mode=gl.GL_TRIANGLES, draw_start_idx=0
+            draw_mode=gl.GL_TRIANGLES
         )
 
 
@@ -130,6 +147,21 @@ class Texture(object):
     _shape = attr.ib(validator=instance_of(tuple))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
 
+    texture_formats = {
+        "L": gl.GL_RED,
+        "LA": gl.GL_RG,
+        "RGB": gl.GL_RGB,
+        "RGBA": gl.GL_RGBA
+    }
+
+    texture_data_types = {
+        "L": gl.GL_UNSIGNED_BYTE,
+        "RGB": gl.GL_UNSIGNED_BYTE,
+        "RGBA": gl.GL_UNSIGNED_BYTE,
+        "I": gl.GL_INT,
+        "F": gl.GL_FLOAT
+    }
+
     @classmethod
     def _delete_textures(cls, obj):
         if bool(gl.glDeleteTextures) and obj > 0:
@@ -138,31 +170,11 @@ class Texture(object):
 
     @classmethod
     def texture_format(cls, data):
-        if data.mode == "L":
-            tformat = gl.GL_RED
-        elif data.mode == "LA":
-            tformat = gl.GL_RG
-        elif data.mode == "RGB":
-            tformat = gl.GL_RGB
-        elif data.mode == "RGBA":
-            tformat = gl.GL_RGBA
-        else:
-            raise ValueError("Cannot determine the texture format for the supplied image data.")
-
-        return tformat
+        return cls.texture_formats[data.mode]
 
     @classmethod
     def texture_dtype(cls, data):
-        if data.mode in ("L", "RGB", "RGBA"):
-            dtype = gl.GL_UNSIGNED_BYTE
-        elif data.mode == "I":
-            dtype = gl.GL_INT
-        elif data.mode == "F":
-            dtype = gl.GL_FLOAT
-        else:
-            raise ValueError("Cannot determine the texture data type for the supplied image data.")
-
-        return dtype
+        return cls.texture_data_types[data.mode]
 
     @classmethod
     def create(cls, data, min_filter=gl.GL_LINEAR, mag_filter=gl.GL_LINEAR, wrap_mode=gl.GL_CLAMP_TO_EDGE):
@@ -409,8 +421,8 @@ class Model(object):
     _draw_mode = attr.ib(validator=instance_of(Constant))
     _index_len = attr.ib(validator=instance_of(int))
     _index_type = attr.ib(validator=instance_of(Constant))
-    texture = attr.ib(validator=instance_of(Texture))
-    program = attr.ib(validator=instance_of(OpenGlProgram))
+    _texture = attr.ib(validator=instance_of((type(None), Texture)))
+    _program = attr.ib(validator=instance_of(OpenGlProgram))
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
     _render_exit = attr.ib(default=None, validator=instance_of((type(None), contextlib.ExitStack)), repr=False)
 
@@ -425,7 +437,7 @@ class Model(object):
             gl.glDeleteBuffers(num, obj)
 
     @classmethod
-    def create(cls, mesh, texture, shader):
+    def create(cls, mesh, shader, texture=None):
         with contextlib.ExitStack() as ctx:
             warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
             # Create and bind the Vertex Array Object
@@ -438,8 +450,13 @@ class Model(object):
             fragment_shader = OpenGlShader.create(gl.GL_FRAGMENT_SHADER, shader.fragment_source)
             program = OpenGlProgram.create((vertex_shader, fragment_shader))
 
-            # Create the texture
-            tex = Texture.create(texture)
+            # Create the texture only if necessary
+            tex = None
+            if any(isinstance(a, TextureAttribute) for a in mesh.attributes):
+                if texture is not None:
+                    tex = Texture.create(texture)
+            elif texture is not None:
+                warnings.warn("Texture data was provided but the model data does not use any.", FixmeWarning)
 
             # Initialise the vertex buffer
             vbo = int(gl.glGenBuffers(1))
@@ -475,9 +492,12 @@ class Model(object):
         :param matrix:
         :return:
         """
-        self.program.uniform("mvp_matrix", matrix)
-        gl.glActiveTexture(gl.GL_TEXTURE0)
-        self.program.uniform("active_tex", 0)
+        # FIXME: I should probably not hard-code the uniform variable names.
+        self._program.uniform("mvp_matrix", matrix)
+        if self._texture is not None:
+            gl.glActiveTexture(gl.GL_TEXTURE0)
+            self._program.uniform("active_tex", 0)
+
         gl.glDrawElements(self._draw_mode, self._index_len, self._index_type, None)
 
     def __del__(self):
@@ -490,9 +510,10 @@ class Model(object):
         :return:
         """
         with contextlib.ExitStack() as ctx_mgr:
-            ctx_mgr.enter_context(self.program)
+            ctx_mgr.enter_context(self._program)
 
-            ctx_mgr.enter_context(self.texture)
+            if self._texture is not None:
+                ctx_mgr.enter_context(self._texture)
 
             gl.glBindVertexArray(self._vao)
             ctx_mgr.callback(gl.glBindVertexArray, 0)
