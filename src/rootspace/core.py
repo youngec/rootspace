@@ -889,10 +889,6 @@ class Context(object):
             ctx_mgr.callback(self._clear_callbacks)
 
             # Initialize System and Entity data
-            # TODO: Rethink the following section.
-            # with (self.resources / "scenes/main.json").open(mode="r") as f:
-            #     main_scene = json.load(f)
-
             camera_data = CameraData(
                 self._data.field_of_view,
                 (self._data.window_shape[0] / self._data.window_shape[1]),

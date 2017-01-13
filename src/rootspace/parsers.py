@@ -8,6 +8,9 @@ import array
 import pyparsing as pp
 import attr
 from attr.validators import instance_of
+import warnings
+
+from .exceptions import FixmeWarning
 
 
 @attr.s
@@ -89,7 +92,7 @@ class PlyParser(object):
             else:
                 return pp.Or(pp.CaselessKeyword(literal) for literal in keywords)
 
-        # TODO: Get binary PLY files to parse
+        warnings.warn("Currently does not parse binary PLY files!", FixmeWarning)
         # format_types = ("ascii", "binary_little_endian", "binary_big_endian")
         format_type = keyword_or("ascii")
         element_type = keyword_or("vertex", "face", "edge") | identifier

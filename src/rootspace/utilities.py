@@ -13,6 +13,8 @@ import attr
 import click
 import colorlog
 
+from .exceptions import FixmeWarning
+
 __docformat__ = "restructuredtext"
 FIRST_CAP_RE = re.compile(r"(.)([A-Z][a-z]+)")
 ALL_CAP_RE = re.compile(r"([a-z0-9])([A-Z])")
@@ -123,7 +125,7 @@ def configure_logger(name, log_level, log_path=None, with_warnings=True):
     else:
         default_handler = logging.StreamHandler()
         default_handler.setLevel(log_level)
-        # FIXME: Workaround for https://github.com/borntyping/python-colorlog/issues/36
+        warnings.warn("Workaround for https://github.com/borntyping/python-colorlog/issues/36", FixmeWarning)
         if sys.version_info.major == 3 and sys.version_info.minor == 6:
             plain_formatter = logging.Formatter(
                 "{levelname:8s} @{name}: {message}",

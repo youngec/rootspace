@@ -126,8 +126,6 @@ class MachineState(object):
     """
     Describe whether a particular entity is in working order or not.
     """
-
-    # TODO: This design does not account for different operating systems.
     class MSE(enum.Enum):
         """
         Enumeration of the machine states.
@@ -201,7 +199,6 @@ class DisplayBuffer(object):
     """
     Describe the state of the display buffer of the simulated display.
     """
-    # TODO: Use array.array instead of numpy.ndarray
     _buffer = attr.ib(validator=instance_of(numpy.ndarray))
     _cursor_x = attr.ib(default=0, validator=instance_of(int))
     _cursor_y = attr.ib(default=0, validator=instance_of(int))

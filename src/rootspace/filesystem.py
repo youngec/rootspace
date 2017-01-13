@@ -506,7 +506,7 @@ class FileSystem(object):
         :param path:
         :return:
         """
-        # FIXME: Sanitize the path string (multiple occurrences of self.sep, trailing self.sep, etc.)
+        warnings.warn("Sanitize the path string (multiple occurrences of self.sep, trailing self.sep, etc.)", FixmeWarning)
         if path.startswith(self.root):
             return tuple(filter(None, path.split(self.sep)))
         else:

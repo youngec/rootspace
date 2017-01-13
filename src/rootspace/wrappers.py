@@ -165,7 +165,7 @@ class Texture(object):
     @classmethod
     def _delete_textures(cls, obj):
         if bool(gl.glDeleteTextures) and obj > 0:
-            # FIXME: This throws an 'invalid operation (1282)' sometimes.
+            warnings.warn("glDeleteTextures throws an 'invalid operation (1282)' sometimes.", FixmeWarning)
             gl.glDeleteTextures(obj)
 
     @classmethod
@@ -492,7 +492,7 @@ class Model(object):
         :param matrix:
         :return:
         """
-        # FIXME: I should probably not hard-code the uniform variable names.
+        warnings.warn("I should probably not hard-code the uniform variable names.", FixmeWarning)
         self._program.uniform("mvp_matrix", matrix)
         if self._texture is not None:
             gl.glActiveTexture(gl.GL_TEXTURE0)
