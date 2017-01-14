@@ -3,10 +3,8 @@
 """Provides wrappers for OpenGL concepts."""
 
 import contextlib
-import ctypes
 import logging
 import warnings
-import array
 
 import PIL.Image
 import OpenGL.GL as gl
@@ -16,106 +14,7 @@ import numpy
 from attr.validators import instance_of
 
 from .exceptions import OpenGLError, TodoWarning, FixmeWarning
-
-
-@attr.s
-class Attribute(object):
-    components = attr.ib(validator=instance_of(int))
-    stride = attr.ib(validator=instance_of(int))
-    start_idx = attr.ib(validator=instance_of(int))
-    location = attr.ib(validator=instance_of(int))
-
-    @property
-    def stride_bytes(self):
-        return self.stride * ctypes.sizeof(ctypes.c_float)
-
-    @property
-    def start_ptr(self):
-        return ctypes.c_void_p(self.start_idx * ctypes.sizeof(ctypes.c_float))
-
-
-@attr.s
-class VertexAttribute(Attribute):
-    pass
-
-
-@attr.s
-class TextureAttribute(Attribute):
-    pass
-
-
-@attr.s
-class ColorAttribute(Attribute):
-    pass
-
-
-@attr.s
-class Mesh(object):
-    data = attr.ib(validator=instance_of(array.array))
-    index = attr.ib(validator=instance_of(array.array))
-    attributes = attr.ib(validator=instance_of(tuple))
-    draw_mode = attr.ib(validator=instance_of(Constant))
-
-    data_types = {
-        "b": gl.GL_BYTE,
-        "B": gl.GL_UNSIGNED_BYTE,
-        "h": gl.GL_SHORT,
-        "H": gl.GL_UNSIGNED_SHORT,
-        "i": gl.GL_INT,
-        "I": gl.GL_UNSIGNED_INT,
-        "f": gl.GL_FLOAT,
-        "d": gl.GL_DOUBLE
-    }
-
-    @property
-    def data_bytes(self):
-        return self.data.tobytes()
-
-    @property
-    def data_type(self):
-        return self.data_types[self.data.typecode]
-
-    @property
-    def index_bytes(self):
-        return self.index.tobytes()
-
-    @property
-    def index_type(self):
-        return self.data_types[self.index.typecode]
-
-    @classmethod
-    def create_cube(cls):
-        return cls(
-            data=array.array("f", (
-                -1, -1, -1, 0, 0, 0, 1,
-                1, -1, -1, 1, 0, 0, 1,
-                -1, 1, -1, 0, 1, 0, 1,
-                1, 1, -1, 1, 1, 0, 1,
-                -1, -1, 1, 0, 0, 1, 1,
-                1, -1, 1, 1, 0, 1, 1,
-                -1, 1, 1, 0, 1, 1, 1,
-                1, 1, 1, 1, 1, 1, 1
-            )),
-            index=array.array("B", (
-                0, 2, 1,
-                1, 2, 3,
-                4, 5, 6,
-                5, 7, 6,
-                0, 6, 2,
-                0, 4, 6,
-                1, 3, 7,
-                1, 7, 5,
-                2, 6, 3,
-                3, 6, 7,
-                0, 1, 4,
-                1, 5, 4
-            )),
-            attributes=(
-                VertexAttribute(3, 7, 0, 0),
-                ColorAttribute(4, 7, 3, 2)
-            ),
-            draw_mode=gl.GL_TRIANGLES
-        )
+from .parsers import Attribute, Mesh
 
 
 @attr.s
@@ -313,7 +212,7 @@ class OpenGlProgram(object):
             gl.glDeleteProgram(obj)
 
     @classmethod
-    def create(cls, shaders):
+    def create(cls, *shaders):
         with contextlib.ExitStack() as ctx_mgr:
             # Create the shader program
             obj = int(gl.glCreateProgram())
@@ -428,6 +327,32 @@ class Model(object):
     _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
     _render_exit = attr.ib(default=None, validator=instance_of((type(None), contextlib.ExitStack)), repr=False)
 
+    data_types = {
+        "b": gl.GL_BYTE,
+        "B": gl.GL_UNSIGNED_BYTE,
+        "h": gl.GL_SHORT,
+        "H": gl.GL_UNSIGNED_SHORT,
+        "i": gl.GL_INT,
+        "I": gl.GL_UNSIGNED_INT,
+        "f": gl.GL_FLOAT,
+        "d": gl.GL_DOUBLE
+    }
+
+    draw_modes = {
+        Mesh.DrawMode.Points: gl.GL_POINTS,
+        Mesh.DrawMode.LineStrip: gl.GL_LINE_STRIP,
+        Mesh.DrawMode.LineLoop: gl.GL_LINE_LOOP,
+        Mesh.DrawMode.Lines: gl.GL_LINES,
+        Mesh.DrawMode.LineStripAdjacency: gl.GL_LINE_STRIP_ADJACENCY,
+        Mesh.DrawMode.LinesAdjacency: gl.GL_LINES_ADJACENCY,
+        Mesh.DrawMode.TriangleStrip: gl.GL_TRIANGLE_STRIP,
+        Mesh.DrawMode.TriangleFan: gl.GL_TRIANGLE_FAN,
+        Mesh.DrawMode.Triangles: gl.GL_TRIANGLES,
+        Mesh.DrawMode.TriangleStripAdjacency: gl.GL_TRIANGLE_STRIP_ADJACENCY,
+        Mesh.DrawMode.TrianglesAdjacency: gl.GL_TRIANGLES_ADJACENCY,
+        Mesh.DrawMode.Patches: gl.GL_PATCHES
+    }
+
     @classmethod
     def delete_vertex_arrays(cls, num, obj):
         if bool(gl.glDeleteVertexArrays) and obj >= 0:
@@ -450,11 +375,11 @@ class Model(object):
             # Compile the shader program
             vertex_shader = OpenGlShader.create(gl.GL_VERTEX_SHADER, shader.vertex_source)
             fragment_shader = OpenGlShader.create(gl.GL_FRAGMENT_SHADER, shader.fragment_source)
-            program = OpenGlProgram.create((vertex_shader, fragment_shader))
+            program = OpenGlProgram.create(vertex_shader, fragment_shader)
 
             # Create the texture only if necessary
             tex = None
-            if any(isinstance(a, TextureAttribute) for a in mesh.attributes):
+            if any(a.type == Attribute.Type.Texture for a in mesh.attributes):
                 if texture is not None:
                     tex = Texture.create(texture)
             elif texture is not None:
@@ -476,7 +401,7 @@ class Model(object):
             for a in mesh.attributes:
                 gl.glEnableVertexAttribArray(a.location)
                 gl.glVertexAttribPointer(
-                    a.location, a.components, mesh.data_type, False, a.stride_bytes, a.start_ptr
+                    a.location, a.components, cls.data_types[mesh.data_type], False, a.stride_bytes, a.start_ptr
                 )
 
             gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
@@ -485,7 +410,10 @@ class Model(object):
 
             ctx_exit = ctx.pop_all()
 
-            return cls(vao, vbo, ibo, mesh.draw_mode, len(mesh.index), mesh.index_type, tex, program, ctx_exit)
+            return cls(
+                vao, vbo, ibo, cls.draw_modes[mesh.draw_mode], len(mesh.index), cls.data_types[mesh.index_type],
+                tex, program, ctx_exit
+            )
 
     def draw(self, matrix):
         """

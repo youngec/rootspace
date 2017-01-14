@@ -26,7 +26,8 @@ from .events import KeyEvent, CharEvent, CursorEvent, KeyMap
 from .exceptions import GLFWError, FixmeWarning
 from .components import Transform, CameraData
 from .utilities import subclass_of
-from .wrappers import Model, Mesh, Shader
+from .wrappers import Model, Shader
+from .parsers import PlyParser
 
 
 @attr.s(hash=False)
@@ -896,11 +897,12 @@ class Context(object):
                 self._data.far_plane
             )
             with Image.open(self.resources / "textures/test-texture.png") as txdata:
+                mesh = PlyParser.load(self.resources / "models/cube.ply")
                 simple_shader = Shader.create(
                     self.resources / "shaders/simple_vertex.glsl",
                     self.resources / "shaders/simple_fragment.glsl"
                 )
-                gpu_cube = Model.create(Mesh.create_cube(), simple_shader, txdata)
+                gpu_cube = Model.create(mesh, simple_shader, txdata)
 
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_all_systems)
@@ -913,8 +915,8 @@ class Context(object):
             ctx_mgr.callback(self._world.remove_all_entities)
             self._world.add_entities(
                 Camera.from_dict(transform=Transform(), camera_data=camera_data),
-                TestEntity.from_dict(transform=Transform((0, -2, -1), (2, 0.1, 2)), open_gl_model=gpu_cube),
-                TestEntity.from_dict(transform=Transform((-2, 0, -1), (0.1, 2, 2)), open_gl_model=gpu_cube),
+                # TestEntity.from_dict(transform=Transform((0, -2, -1), (2, 0.1, 2)), open_gl_model=gpu_cube),
+                # TestEntity.from_dict(transform=Transform((-2, 0, -1), (0.1, 2, 2)), open_gl_model=gpu_cube),
                 TestEntity.from_dict(transform=Transform((0, -1, -1), (1, 1, 1)), open_gl_model=gpu_cube)
             )
 

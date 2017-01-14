@@ -3,22 +3,17 @@
 
 """Implements parsers for resource files."""
 
+import argparse
 import array
-import enum
 import ctypes
+import enum
 import pathlib
-import warnings
+import sys
+import time
 
 import attr
 import pyparsing as pp
 from attr.validators import instance_of
-
-
-class FixmeWarning(Warning):
-    """
-    This warning is raised if something should be fixed.
-    """
-    pass
 
 
 @attr.s
@@ -26,6 +21,7 @@ class Attribute(object):
     """
     An Attribute defines the parameters necessary for the graphics library to read data from the vertex buffer.
     """
+
     class Type(enum.Enum):
         Other = 0
         Position = 1
@@ -48,7 +44,6 @@ class Attribute(object):
     components = attr.ib(validator=instance_of(int))
     stride = attr.ib(validator=instance_of(int))
     start_idx = attr.ib(validator=instance_of(int))
-    location = attr.ib(validator=instance_of(int))
 
     @property
     def stride_bytes(self):
@@ -58,6 +53,10 @@ class Attribute(object):
     def start_ptr(self):
         return ctypes.c_void_p(self.start_idx * ctypes.sizeof(ctypes.c_float))
 
+    @property
+    def location(self):
+        return self.type.value
+
 
 @attr.s
 class Mesh(object):
@@ -65,6 +64,7 @@ class Mesh(object):
     The Mesh encapsulates all data necessary for the graphics library to render. It contains
     vertex data, vertex indices, vertex attribute descriptors and the draw mode enum.
     """
+
     class DrawMode(enum.Enum):
         Points = 0
         LineStrip = 3
@@ -99,6 +99,40 @@ class Mesh(object):
     @property
     def index_type(self):
         return self.index.typecode
+
+    @classmethod
+    def create_cube(cls):
+        return cls(
+            data=array.array("f", (
+                -1, -1, -1, 0, 0, 0, 1,
+                1, -1, -1, 1, 0, 0, 1,
+                -1, 1, -1, 0, 1, 0, 1,
+                1, 1, -1, 1, 1, 0, 1,
+                -1, -1, 1, 0, 0, 1, 1,
+                1, -1, 1, 1, 0, 1, 1,
+                -1, 1, 1, 0, 1, 1, 1,
+                1, 1, 1, 1, 1, 1, 1
+            )),
+            index=array.array("B", (
+                0, 2, 1,
+                1, 2, 3,
+                4, 5, 6,
+                5, 7, 6,
+                0, 6, 2,
+                0, 4, 6,
+                1, 3, 7,
+                1, 7, 5,
+                2, 6, 3,
+                3, 6, 7,
+                0, 1, 4,
+                1, 5, 4
+            )),
+            attributes=(
+                Attribute("position", 3, 7, 0),
+                Attribute("color", 4, 7, 3)
+            ),
+            draw_mode=cls.DrawMode.Triangles
+        )
 
 
 @attr.s
@@ -172,7 +206,6 @@ class PlyParser(object):
             else:
                 return pp.Or(pp.CaselessKeyword(literal) for literal in keywords)
 
-        warnings.warn("Currently does not parse binary PLY files!", FixmeWarning)
         # format_type = keyword_or("ascii", "binary_little_endian", "binary_big_endian")
         format_type = keyword_or("ascii")
         property_type = keyword_or(cls.data_type_map)
@@ -192,7 +225,7 @@ class PlyParser(object):
         # Properties and Elements are sadly much more complex.
         property_simple_prefix = property_keyword + property_type("data_type")
         property_list_prefix = property_keyword + list_keyword + property_type("index_type") + \
-            property_type("data_type")
+                               property_type("data_type")
 
         def aggregate_property(name, *keyword_group):
             aggregates = list()
@@ -312,12 +345,7 @@ class PlyParser(object):
         :param data:
         :return:
         """
-        try:
-            return self.grammar.parseString(data)
-        except pp.ParseException as e:
-            print(e.line)
-            print(" " * (e.column - 1) + "^")
-            print(e)
+        return self.grammar.parseString(data)
 
     def parse(self, data):
         """
@@ -363,17 +391,15 @@ class PlyParser(object):
 
         # Determine the attributes
         vertex_attributes = list()
-        attribute_location = 0
         start_index = 0
         for element in tokens.declarations.elements:
             if element.name == "vertex":
                 stride = sum(len(prop) for name, prop in element.properties.items())
                 for name, prop in element.properties.items():
                     vertex_attributes.append(Attribute(
-                        name, len(prop), stride, start_index, attribute_location
+                        name, len(prop), stride, start_index
                     ))
                     start_index += len(prop)
-                    attribute_location += 1
 
         return Mesh(
             data=vertex_data,
@@ -382,7 +408,8 @@ class PlyParser(object):
             draw_mode=Mesh.DrawMode.Triangles
         )
 
-    def load(self, ply_path):
+    @classmethod
+    def load(cls, ply_path):
         """
         Load the supplied ply file as Model.
 
@@ -392,50 +419,30 @@ class PlyParser(object):
         if not isinstance(ply_path, pathlib.Path):
             ply_path = pathlib.Path(ply_path)
 
+        inst = cls.create()
         with ply_path.open(mode="r") as f:
-            return self.parse(f.read())
+            return inst.parse(f.read())
 
 
 def main():
-    data = """ply
-format ascii 1.0
-comment author: Greg Turk and Eleanore Young
-comment object: a cube
-element vertex 8
-property float x
-property float y
-property float z
-property float red
-property float green
-property float blue
-property float alpha
-element face 12
-property list uchar uchar vertex_index
-end_header
--1 -1 -1 0 0 0 1
-1 -1 -1 1 0 0 1
--1 1 -1 0 1 0 1
-1 1 -1 1 1 0 1
--1 -1 1 0 0 1 1
-1 -1 1 1 0 1 1
--1 1 1 0 1 1 1
-1 1 1 1 1 1 1
-3 0 2 1
-3 1 2 3
-3 4 5 6
-3 5 7 6
-3 0 6 2
-3 0 4 6
-3 1 3 7
-3 1 7 5
-3 2 6 3
-3 3 6 7
-3 0 1 4
-3 1 5 4
-"""
+    parser = argparse.ArgumentParser("parser",
+                                     description="Parse Stanford PLY files into a generalized data structure.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output.")
+    parser.add_argument("file", type=str, help="the input file path")
+    args = parser.parse_args()
 
-    parser = PlyParser.create()
-    print(parser.parse(data))
+    ply_file = pathlib.Path(args.file)
+    ply_parser = PlyParser.create()
+
+    start_time = time.monotonic()
+    model = ply_parser.load(ply_file)
+    stop_time = time.monotonic()
+
+    print("Total parsing and loading time: {:.02f} s".format(stop_time - start_time))
+    print("Size of the model in memory: {:d} bytes".format(sys.getsizeof(model)))
+
+    if args.verbose:
+        print(model)
 
 
 if __name__ == "__main__":
