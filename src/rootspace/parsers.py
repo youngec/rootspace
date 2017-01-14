@@ -106,6 +106,7 @@ class PlyParser(object):
     """
     Parse PLY Stanford Polygon Files
     --------------------------------
+    As of yet, the parser does not handle the binary file formats!
 
     Context free grammar:
     ply_grammar     ::= header body
