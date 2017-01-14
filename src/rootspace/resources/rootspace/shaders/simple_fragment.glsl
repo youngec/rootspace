@@ -2,12 +2,12 @@
 
 uniform sampler2D active_tex;
 
-smooth in vec2 frag_tex_uv;
-smooth in vec3 frag_color_rgb;
+smooth in vec2 frag_tex;
+smooth in vec4 frag_color;
 
-out vec4 fragColor;
+out vec4 frag_color_out;
 
 void main() {
-    // fragColor = texture(active_tex, frag_tex_uv);
-    fragColor = texture(active_tex, frag_tex_uv) + vec4(frag_color_rgb, 1.0);
+    // frag_color_out = texture(active_tex, frag_tex);
+    frag_color_out = texture(active_tex, frag_tex) + frag_color;
 }

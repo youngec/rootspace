@@ -87,14 +87,14 @@ class Mesh(object):
     def create_cube(cls):
         return cls(
             data=array.array("f", (
-                -1, -1, -1, 0, 0, 0,
-                1, -1, -1, 1, 0, 0,
-                -1, 1, -1, 0, 1, 0,
-                1, 1, -1, 1, 1, 0,
-                -1, -1, 1, 0, 0, 1,
-                1, -1, 1, 1, 0, 1,
-                -1, 1, 1, 0, 1, 1,
-                1, 1, 1, 1, 1, 1
+                -1, -1, -1, 0, 0, 0, 1,
+                1, -1, -1, 1, 0, 0, 1,
+                -1, 1, -1, 0, 1, 0, 1,
+                1, 1, -1, 1, 1, 0, 1,
+                -1, -1, 1, 0, 0, 1, 1,
+                1, -1, 1, 1, 0, 1, 1,
+                -1, 1, 1, 0, 1, 1, 1,
+                1, 1, 1, 1, 1, 1, 1
             )),
             index=array.array("B", (
                 0, 2, 1,
@@ -111,8 +111,8 @@ class Mesh(object):
                 1, 5, 4
             )),
             attributes=(
-                VertexAttribute(3, 6, 0, 0),
-                ColorAttribute(3, 6, 3, 2)
+                VertexAttribute(3, 7, 0, 0),
+                ColorAttribute(4, 7, 3, 2)
             ),
             draw_mode=gl.GL_TRIANGLES
         )
