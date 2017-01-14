@@ -65,10 +65,24 @@ class Mesh(object):
     The Mesh encapsulates all data necessary for the graphics library to render. It contains
     vertex data, vertex indices, vertex attribute descriptors and the draw mode enum.
     """
+    class DrawMode(enum.Enum):
+        Points = 0
+        LineStrip = 3
+        LineLoop = 2
+        Lines = 1
+        LineStripAdjacency = 11
+        LinesAdjacency = 10
+        TriangleStrip = 5
+        TriangleFan = 6
+        Triangles = 4
+        TriangleStripAdjacency = 13
+        TrianglesAdjacency = 12
+        Patches = 14
+
     data = attr.ib(validator=instance_of(array.array))
     index = attr.ib(validator=instance_of(array.array))
     attributes = attr.ib(validator=instance_of(tuple))
-    draw_mode = attr.ib(validator=instance_of(int))
+    draw_mode = attr.ib(validator=instance_of(DrawMode))
 
     @property
     def data_bytes(self):
@@ -364,7 +378,7 @@ class PlyParser(object):
             data=vertex_data,
             index=index_data,
             attributes=tuple(vertex_attributes),
-            draw_mode=4
+            draw_mode=Mesh.DrawMode.Triangles
         )
 
     def load(self, ply_path):
@@ -394,7 +408,7 @@ property float red
 property float green
 property float blue
 property float alpha
-element face 7
+element face 12
 property list uchar uchar vertex_index
 end_header
 -1 -1 -1 0 0 0 1
