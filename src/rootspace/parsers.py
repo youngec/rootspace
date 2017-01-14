@@ -3,45 +3,74 @@
 
 """Implements parsers for resource files."""
 
-import typing
 import array
 import pyparsing as pp
 import attr
 from attr.validators import instance_of
 import warnings
+import ctypes
 
-from .exceptions import FixmeWarning
+
+class FixmeWarning(Warning):
+    """
+    This warning is raised if something should be fixed.
+    """
+    pass
+
+
+@attr.s
+class Attribute(object):
+    components = attr.ib(validator=instance_of(int))
+    stride = attr.ib(validator=instance_of(int))
+    start_idx = attr.ib(validator=instance_of(int))
+    location = attr.ib(validator=instance_of(int))
+
+    @property
+    def stride_bytes(self):
+        return self.stride * ctypes.sizeof(ctypes.c_float)
+
+    @property
+    def start_ptr(self):
+        return ctypes.c_void_p(self.start_idx * ctypes.sizeof(ctypes.c_float))
+
+
+@attr.s
+class PositionAttribute(Attribute):
+    pass
+
+
+@attr.s
+class TextureAttribute(Attribute):
+    pass
+
+
+@attr.s
+class ColorAttribute(Attribute):
+    pass
 
 
 @attr.s
 class Mesh(object):
-    vertices = attr.ib()
-    faces = attr.ib()
-    edges = attr.ib()
-    other = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+    data = attr.ib(validator=instance_of(array.array))
+    index = attr.ib(validator=instance_of(array.array))
+    attributes = attr.ib(validator=instance_of(tuple))
+    draw_mode = attr.ib(validator=instance_of(int))
 
-    def __getattr__(self, item):
-        if item in self.other:
-            return self.other[item]
-        else:
-            raise AttributeError("No attribute named '{}'.".format(item))
+    @property
+    def data_bytes(self):
+        return self.data.tobytes()
 
+    @property
+    def data_type(self):
+        return self.data.typecode
 
-@attr.s
-class Material(object):
-    pass
+    @property
+    def index_bytes(self):
+        return self.index.tobytes()
 
-
-@attr.s
-class Texture(object):
-    pass
-
-
-@attr.s
-class Model(object):
-    meshes = attr.ib(validator=instance_of(typing.List[Mesh]))
-    materials = attr.ib(validator=instance_of(typing.List[Material]))
-    textures = attr.ib(validator=instance_of(typing.List[Texture]))
+    @property
+    def index_type(self):
+        return self.index.typecode
 
 
 @attr.s
@@ -93,9 +122,8 @@ class PlyParser(object):
                 return pp.Or(pp.CaselessKeyword(literal) for literal in keywords)
 
         warnings.warn("Currently does not parse binary PLY files!", FixmeWarning)
-        # format_types = ("ascii", "binary_little_endian", "binary_big_endian")
+        # format_type = keyword_or("ascii", "binary_little_endian", "binary_big_endian")
         format_type = keyword_or("ascii")
-        element_type = keyword_or("vertex", "face", "edge") | identifier
         property_type = keyword_or({
             "char": "b",
             "uchar": "B",
@@ -114,17 +142,6 @@ class PlyParser(object):
             "float32": "f",
             "float64": "d"
         })
-        property_position = keyword_or("x", "y", "z")
-        property_color = keyword_or("r", "g", "b", "a", "red", "green", "blue", "alpha")
-        property_ambient_color = keyword_or("ambient_red", "ambient_green", "ambient_blue", "ambient_alpha")
-        property_diffuse_color = keyword_or("diffuse_red", "diffuse_green", "diffuse_blue", "diffuse_alpha")
-        property_specular_color = keyword_or("specular_red", "specular_green", "specular_blue", "specular_alpha")
-        property_texture = keyword_or("s", "t", "u", "v", "tx", "ty")
-        property_normal = keyword_or("nx", "ny", "nz")
-        property_vertex_index = keyword_or("vertex_index", "vertex_indices")
-        property_material_index = keyword_or("material_index", "material_indices")
-        property_specular_power = keyword_or("specular_power")
-        property_opacity = keyword_or("opacity")
 
         # Define the grammar of statements
         comment_expr = pp.Group(
@@ -138,28 +155,98 @@ class PlyParser(object):
             number("version")
         )("format")
 
-        property_simple_expr = pp.Group(
-            property_keyword +
-            property_type("data_type") +
-            identifier("name")
+        property_simple_prefix = property_keyword + property_type("data_type")
+        property_list_prefix = property_keyword + list_keyword + property_type("index_type") + property_type("data_type")
+
+        property_simple_general = pp.Group(
+            property_simple_prefix + identifier("name")
         )
+        property_position = pp.Group(
+            pp.Group(property_simple_prefix + keyword_or("x")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("y")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("z")("name"))
+        )("position")
+        property_color = pp.Group(
+            pp.Group(property_simple_prefix + keyword_or("r", "red")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("g", "green")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("b", "blue")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("a", "alpha")("name"))
+        )("color")
+        property_ambient_color = pp.Group(
+            pp.Group(property_simple_prefix + keyword_or("ambient_red")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("ambient_green")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("ambient_blue")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("ambient_alpha")("name"))
+        )("ambient_color")
+        property_diffuse_color = pp.Group(
+            pp.Group(property_simple_prefix + keyword_or("diffuse_red")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("diffuse_green")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("diffuse_blue")("name"))+
+            pp.Group(property_simple_prefix + keyword_or("diffuse_alpha")("name"))
+        )("diffuse_color")
+        property_specular_color = pp.Group(
+            pp.Group(property_simple_prefix + keyword_or("specular_red")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("specular_green")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("specular_blue")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("specular_alpha")("name"))
+        )("specular_color")
+        property_texture = pp.Group(
+            pp.Group(property_simple_prefix + keyword_or("s", "u", "tx")("name")) +
+            pp.Group(property_simple_prefix + keyword_or("t", "v", "ty")("name"))
+        )("texture")
+        property_normal = pp.Group(
+           pp.Group(property_simple_prefix + keyword_or("nx")("name")) +
+           pp.Group(property_simple_prefix + keyword_or("ny")("name")) +
+           pp.Group(property_simple_prefix + keyword_or("nz")("name"))
+        )("normal")
+        property_specular_power = pp.Group(
+            property_simple_prefix + keyword_or("specular_power")("name")
+        )("specular_power")
+        property_opacity = pp.Group(
+            property_simple_prefix + keyword_or("opacity")("name")
+        )("opacity")
 
-        property_list_expr = pp.Group(
-            property_keyword + list_keyword +
-            property_type("index_type") +
-            property_type("data_type") +
-            identifier("name")
+        property_list_general = pp.Group(
+            property_list_prefix + identifier("name")
         )
+        property_vertex_index = pp.Group(
+            property_list_prefix + keyword_or("vertex_index", "vertex_indices")("name")
+        )("vertex_index")
+        property_material_index = pp.Group(
+            property_list_prefix + keyword_or("material_index", "material_indices")("name")
+        )("material_index")
 
-        element_expr = element_keyword + element_type("type") + number("count")
-
-        # Define the grammar of statement groups
-        element_group = pp.Group(
-            element_expr +
+        element_vertex = pp.Group(
+            element_keyword + keyword_or("vertex")("name") + number("count") +
             pp.Group(
-                pp.OneOrMore(property_simple_expr) | property_list_expr
+                pp.OneOrMore(
+                    property_position | property_color | property_ambient_color | property_diffuse_color |
+                    property_specular_color | property_texture | property_normal | property_specular_power |
+                    property_opacity | property_simple_general
+                )
             )("properties")
         )
+
+        element_face = pp.Group(
+            element_keyword + keyword_or("face")("name") + number("count") +
+            pp.Group(property_vertex_index | property_list_general)("properties")
+        )
+
+        element_edge = pp.Group(
+            element_keyword + keyword_or("edge")("name") + number("count") +
+            pp.Group(
+                pp.OneOrMore(property_color | property_simple_general)
+            )("properties")
+        )
+
+        element_general = pp.Group(
+            element_keyword + identifier("name") + number("count") +
+            pp.Group(
+                pp.OneOrMore(property_simple_general) | property_list_general
+            )("properties")
+        )
+
+        element_group = element_vertex | element_face | element_edge | element_general
 
         declarations = pp.Group(
             format_expr +
@@ -182,11 +269,16 @@ class PlyParser(object):
                 if len(props) == 1 and "index_type" in props[0]:
                     element = pp.countedArray(number)
                 else:
-                    element = pp.Group(
-                        pp.And(number(p.name) for p in props)
-                    )
+                    sequences = list()
+                    for prop in props:
+                        if "name" in prop:
+                            sequences.append(number(prop.name))
+                        else:
+                            for variable in prop:
+                                sequences.append(number(variable.name))
+                    element = pp.Group(pp.And(sequences))
 
-                body_expr.append(pp.Group(element * el_decl.count)(el_decl.type))
+                body_expr.append(pp.Group(element * el_decl.count)(el_decl.name))
 
             body << pp.And(body_expr)
 
@@ -201,7 +293,12 @@ class PlyParser(object):
         :param data:
         :return:
         """
-        return self.grammar.parseString(data)
+        try:
+            return self.grammar.parseString(data)
+        except pp.ParseException as e:
+            print(e.line)
+            print(" " * (e.column - 1) + "^")
+            print(e)
 
     def parse(self, data):
         """
@@ -211,6 +308,58 @@ class PlyParser(object):
         :return:
         """
         tokens = self.tokenize(data)
+
+        # Determine the data types
+        candidate_types = list()
+        for element in tokens.declarations.elements:
+            if element.name == "vertex":
+                for property in element.properties:
+                    if "name" in property:
+                        candidate_types.append(property.data_type)
+                    else:
+                        for variable in property:
+                            candidate_types.append(variable.data_type)
+
+        data_type_ordering = ("b", "B", "h", "H", "i", "I", "f", "d")
+        vertex_data_type = max(candidate_types, key=lambda e: data_type_ordering.index(e))
+
+        index_data_type = "I"
+        for element in tokens.declarations.elements:
+            if element.name == "face":
+                index_data_type = element.properties[0].data_type
+        if index_data_type not in ("B", "H", "I"):
+            index_data_type = "I"
+
+        # Store the raw data
+        vertex_data = array.array(vertex_data_type, (value for vertex in tokens.data.vertex for value in vertex))
+        index_data = array.array(index_data_type, (value for face in tokens.data.face for value in face))
+
+        # Determine the attributes
+        warnings.warn("Vertex Attributes are not initialized correctly", FixmeWarning)
+        vertex_attributes = list()
+        for element in tokens.declarations.elements:
+            if element.name == "vertex":
+                for name, property in element.properties.items():
+                    num_components = len(property)
+                    if name == "position":
+                        vertex_attributes.append(PositionAttribute(
+                            num_components, 0, 0, 0
+                        ))
+                    elif name == "color":
+                        vertex_attributes.append(ColorAttribute(
+                            num_components, 0, 0, 0
+                        ))
+                    elif name == "texture":
+                        vertex_attributes.append(TextureAttribute(
+                            num_components, 0, 0, 0
+                        ))
+
+        return Mesh(
+            data=vertex_data,
+            index=index_data,
+            attributes=tuple(vertex_attributes),
+            draw_mode=4
+        )
 
 
 def main():
@@ -259,14 +408,10 @@ end_header
 3 0 255 255 255 255
 2 0 0 0 0 255"""
 
-    try:
-        parser = PlyParser.create()
-        model = parser.tokenize(data)
-        print(model)
-    except pp.ParseException as e:
-        print(e.line)
-        print(" " * (e.column - 1) + "^")
-        print(e)
+    parser = PlyParser.create()
+    tokens = parser.tokenize(data)
+    print(parser.parse(data))
+    # print(tokens.dump())
 
 
 if __name__ == "__main__":
