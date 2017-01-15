@@ -29,7 +29,7 @@ class Attribute(object):
         Texture = 3
 
         @classmethod
-        def coerce_type(cls, type_value):
+        def coerce(cls, type_value):
             if isinstance(type_value, cls):
                 return type_value
             elif isinstance(type_value, str):
@@ -40,7 +40,7 @@ class Attribute(object):
             else:
                 return cls.Other
 
-    type = attr.ib(validator=instance_of(Type), convert=Type.coerce_type)
+    type = attr.ib(validator=instance_of(Type), convert=Type.coerce)
     components = attr.ib(validator=instance_of(int))
     stride = attr.ib(validator=instance_of(int))
     start_idx = attr.ib(validator=instance_of(int))
