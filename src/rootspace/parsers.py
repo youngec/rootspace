@@ -40,18 +40,45 @@ class Attribute(object):
             else:
                 return cls.Other
 
+    class DataType(enum.Enum):
+        Int8 = ctypes.c_int8
+        Uint8 = ctypes.c_uint8
+        Int16 = ctypes.c_int16
+        Uint16 = ctypes.c_uint16
+        Int32 = ctypes.c_int32
+        Uint32 = ctypes.c_uint32
+        Float = ctypes.c_float
+        Double = ctypes.c_double
+
+        @classmethod
+        def coerce(cls, value):
+            equivalency = {
+                "b": cls.Int8, "B": cls.Uint8, "h": cls.Int16, "H": cls.Uint16, "i": cls.Int32,
+                "I": cls.Uint32, "f": cls.Float, "d": cls.Double
+            }
+            if isinstance(value, cls):
+                return value
+            elif isinstance(value, str):
+                try:
+                    return equivalency[value]
+                except KeyError:
+                    raise ValueError("Cannot convert value {} to a valid data type.".format(value))
+            else:
+                raise ValueError("Cannot convert value {} to a valid data type.".format(value))
+
     type = attr.ib(validator=instance_of(Type), convert=Type.coerce)
+    data_type = attr.ib(validator=instance_of(DataType), convert=DataType.coerce)
     components = attr.ib(validator=instance_of(int))
     stride = attr.ib(validator=instance_of(int))
     start_idx = attr.ib(validator=instance_of(int))
 
     @property
     def stride_bytes(self):
-        return self.stride * ctypes.sizeof(ctypes.c_float)
+        return self.stride * ctypes.sizeof(self.data_type.value)
 
     @property
     def start_ptr(self):
-        return ctypes.c_void_p(self.start_idx * ctypes.sizeof(ctypes.c_float))
+        return ctypes.c_void_p(self.start_idx * ctypes.sizeof(self.data_type.value))
 
     @property
     def location(self):
@@ -99,40 +126,6 @@ class Mesh(object):
     @property
     def index_type(self):
         return self.index.typecode
-
-    @classmethod
-    def create_cube(cls):
-        return cls(
-            data=array.array("f", (
-                -1, -1, -1, 0, 0, 0, 1,
-                1, -1, -1, 1, 0, 0, 1,
-                -1, 1, -1, 0, 1, 0, 1,
-                1, 1, -1, 1, 1, 0, 1,
-                -1, -1, 1, 0, 0, 1, 1,
-                1, -1, 1, 1, 0, 1, 1,
-                -1, 1, 1, 0, 1, 1, 1,
-                1, 1, 1, 1, 1, 1, 1
-            )),
-            index=array.array("B", (
-                0, 2, 1,
-                1, 2, 3,
-                4, 5, 6,
-                5, 7, 6,
-                0, 6, 2,
-                0, 4, 6,
-                1, 3, 7,
-                1, 7, 5,
-                2, 6, 3,
-                3, 6, 7,
-                0, 1, 4,
-                1, 5, 4
-            )),
-            attributes=(
-                Attribute("position", 3, 7, 0),
-                Attribute("color", 4, 7, 3)
-            ),
-            draw_mode=cls.DrawMode.Triangles
-        )
 
 
 @attr.s
@@ -397,7 +390,7 @@ class PlyParser(object):
                 stride = sum(len(prop) for name, prop in element.properties.items())
                 for name, prop in element.properties.items():
                     vertex_attributes.append(Attribute(
-                        name, len(prop), stride, start_index
+                        name, vertex_data_type, len(prop), stride, start_index
                     ))
                     start_index += len(prop)
 
@@ -408,8 +401,7 @@ class PlyParser(object):
             draw_mode=Mesh.DrawMode.Triangles
         )
 
-    @classmethod
-    def load(cls, ply_path):
+    def load(self, ply_path):
         """
         Load the supplied ply file as Model.
 
@@ -419,9 +411,8 @@ class PlyParser(object):
         if not isinstance(ply_path, pathlib.Path):
             ply_path = pathlib.Path(ply_path)
 
-        inst = cls.create()
         with ply_path.open(mode="r") as f:
-            return inst.parse(f.read())
+            return self.parse(f.read())
 
 
 def main():
