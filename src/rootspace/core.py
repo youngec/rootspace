@@ -897,7 +897,8 @@ class Context(object):
                 self._data.far_plane
             )
             with Image.open(self.resources / "textures/test-texture.png") as txdata:
-                mesh = PlyParser.load(self.resources / "models/cube.ply")
+                parser = PlyParser.create()
+                mesh = parser.load(self.resources / "models/cube.ply")
                 simple_shader = Shader.create(
                     self.resources / "shaders/simple_vertex.glsl",
                     self.resources / "shaders/simple_fragment.glsl"
