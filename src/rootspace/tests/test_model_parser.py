@@ -5,7 +5,7 @@ import pytest
 import pyparsing
 import ctypes
 
-from rootspace.parsers import PlyParser, Mesh, Attribute
+from rootspace.model_parser import PlyParser, Mesh, Attribute
 
 
 class TestAttribute(object):

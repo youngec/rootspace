@@ -14,7 +14,7 @@ import numpy
 from attr.validators import instance_of
 
 from .exceptions import OpenGLError, TodoWarning, FixmeWarning
-from .parsers import Attribute, Mesh
+from .model_parser import Attribute, Mesh
 
 
 @attr.s

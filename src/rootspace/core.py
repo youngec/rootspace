@@ -27,7 +27,7 @@ from .exceptions import GLFWError, FixmeWarning
 from .components import Transform, CameraData
 from .utilities import subclass_of
 from .wrappers import Model, Shader
-from .parsers import PlyParser
+from .model_parser import PlyParser
 
 
 @attr.s(hash=False)

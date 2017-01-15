@@ -3,13 +3,10 @@
 
 """Implements parsers for resource files."""
 
-import argparse
 import array
 import ctypes
 import enum
 import pathlib
-import sys
-import time
 
 import attr
 import pyparsing as pp
@@ -413,28 +410,3 @@ class PlyParser(object):
 
         with ply_path.open(mode="r") as f:
             return self.parse(f.read())
-
-
-def main():
-    parser = argparse.ArgumentParser("parser",
-                                     description="Parse Stanford PLY files into a generalized data structure.")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Increase output.")
-    parser.add_argument("file", type=str, help="the input file path")
-    args = parser.parse_args()
-
-    ply_file = pathlib.Path(args.file)
-    ply_parser = PlyParser.create()
-
-    start_time = time.monotonic()
-    model = ply_parser.load(ply_file)
-    stop_time = time.monotonic()
-
-    print("Total parsing and loading time: {:.02f} s".format(stop_time - start_time))
-    print("Size of the model in memory: {:d} bytes".format(sys.getsizeof(model)))
-
-    if args.verbose:
-        print(model)
-
-
-if __name__ == "__main__":
-    main()
