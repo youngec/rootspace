@@ -1,10 +1,15 @@
 {
-  "systems": {
-    "OpenGlRenderer": {},
-    "CameraControlSystem": {}
-  },
-  "models": [],
-  "entities": {
-    "Camera": ["world", "field_of_view"]
-  }
+  "cursor_state": "disabled",
+  "cursor_origin": [400, 300],
+  "depth_test": true,
+  "depth_function": "less",
+  "face_culling": true,
+  "front_face": "ccw",
+  "cull_face": "back",
+  "camera_fov": 3.1415926,
+  "camera_aspect": null,
+  "camera_near_plane": 0.1,
+  "camera_far_plane": 100.0,
+  "clear_color": [0, 0, 0, 1],
+  "clear_bits": ["COLOR_BUFFER_BIT", "DEPTH_BUFFER_BIT"]
 }

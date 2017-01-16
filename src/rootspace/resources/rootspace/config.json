@@ -1,1 +1,14 @@
-{}
+{
+  "delta_time": 0.01,
+  "max_frame_duration": 0.25,
+  "epsilon": 1e-5,
+  "window_title": "Untitled",
+  "window_shape": [800, 600],
+  "window_hints": {
+    "CONTEXT_VERSION_MAJOR": 3,
+    "CONTEXT_VERSION_MINOR": 3,
+    "OPENGL_FORWARD_COMPAT": true,
+    "OPENGL_PROFILE": "OPENGL_CORE_PROFILE"
+  },
+  "swap_interval": 1
+}
