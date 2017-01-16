@@ -16,10 +16,11 @@ from .utilities import get_log_level, configure_logger
 @click.option("-v", "--verbose", count=True, help="Select the level of verbosity.")
 @click.option("--debug", is_flag=True, help="Enable debug mode.")
 @click.option("--profile", is_flag=True, help="Enable the profiler.")
+@click.option("--initialize", is_flag=True, help="Overwrite all user configuration.")
 @click.option("--log-file", type=click.Path(dir_okay=False, writable=True), 
               help="Output the log to the specified file")
 @click.version_option(get_versions()["version"])
-def main(verbose, debug, profile, log_file):
+def main(verbose, debug, profile, initialize, log_file):
     """
     Start a game using the rootspace game engine.
     Command line parameters take precedence over configuration values.
@@ -31,7 +32,7 @@ def main(verbose, debug, profile, log_file):
     log = configure_logger(project_name, log_level, log_path=log_file, with_warnings=debug)
 
     # Create the engine instance
-    loop = Loop(project_name, Context, debug)
+    loop = Loop(project_name, Context, initialize, debug)
 
     # Run the engine instance
     log.project.debug("Dispatching: {}".format(loop))
