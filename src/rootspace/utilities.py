@@ -187,3 +187,30 @@ def subclass_of(cls):
     :return:
     """
     return SubclassValidator(cls)
+
+
+@attr.s(repr=False, slots=True)
+class IterableValidator(object):
+    cls_container = attr.ib()
+    cls_element = attr.ib()
+
+    def __call__(self, instance, attribute, value):
+        if not (isinstance(value, self.cls_container) and all(isinstance(el, self.cls_element) for el in value)):
+            raise TypeError(
+                "'{name}' must be {cls_container!r} and elements thereof must be {cls_element!r} (got {value!r})."
+                .format(name=attribute.name, cls_container=self.cls_container, cls_element=self.cls_element,
+                        value=value),
+                attribute, self.cls_container, self.cls_element, value
+            )
+
+
+def iterable_of(container, element):
+    """
+    Return a validator that evaluates isinstance(.) on the supplied attribute and its elements.
+    To be used with attrs.
+
+    :param container:
+    :param element:
+    :return:
+    """
+    return IterableValidator(container, element)
