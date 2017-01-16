@@ -2,7 +2,10 @@
 
 """The following classes encapsulate GLFW event concepts."""
 
+import enum
 import attr
+import glfw
+from attr.validators import instance_of
 
 
 @attr.s
@@ -50,12 +53,59 @@ class ScrollEvent(object):
 
 @attr.s
 class KeyMap(object):
-    left = attr.ib()
-    right = attr.ib()
-    up = attr.ib()
-    down = attr.ib()
-    forward = attr.ib()
-    backward = attr.ib()
+    """
+    KeyMap shall hold all known keys and corresponding actions.
+    """
+    class Key(enum.Enum):
+        A = glfw.KEY_A
+        D = glfw.KEY_D
+        S = glfw.KEY_S
+        W = glfw.KEY_W
+        X = glfw.KEY_X
+        Z = glfw.KEY_Z
+
+        @classmethod
+        def coerce(cls, value):
+            if isinstance(value, cls):
+                return value
+            elif isinstance(value, str):
+                try:
+                    return cls[value]
+                except KeyError:
+                    raise ValueError("Key {} is not known.".format(value))
+            else:
+                raise ValueError("Key {} is not known.".format(value))
+
+    _left = attr.ib(validator=instance_of(Key), convert=Key.coerce)
+    _right = attr.ib(validator=instance_of(Key), convert=Key.coerce)
+    _up = attr.ib(validator=instance_of(Key), convert=Key.coerce)
+    _down = attr.ib(validator=instance_of(Key), convert=Key.coerce)
+    _forward = attr.ib(validator=instance_of(Key), convert=Key.coerce)
+    _backward = attr.ib(validator=instance_of(Key), convert=Key.coerce)
+
+    @property
+    def left(self):
+        return self._left.value
+
+    @property
+    def right(self):
+        return self._right.value
+
+    @property
+    def up(self):
+        return self._up.value
+
+    @property
+    def down(self):
+        return self._down.value
+
+    @property
+    def forward(self):
+        return self._forward.value
+
+    @property
+    def backward(self):
+        return self._backward.value
 
     def __iter__(self):
         """
@@ -64,4 +114,4 @@ class KeyMap(object):
         :return:
         """
         for member in attr.astuple(self):
-            yield member
+            yield member.value
