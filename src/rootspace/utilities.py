@@ -203,6 +203,12 @@ class IterableValidator(object):
                 attribute, self.cls_container, self.cls_element, value
             )
 
+    def __repr__(self):
+        return (
+            "<iterable_of validator for type {clsc!r} and {clse!r}>"
+                .format(clsc=self.cls_container, clse=self.cls_element)
+        )
+
 
 def iterable_of(container, element):
     """
