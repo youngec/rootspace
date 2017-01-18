@@ -24,8 +24,10 @@ class ContextData(object):
     """
     default_config_dir = ".config"
     default_resources_dir = "resources"
+    default_scenes_dir = "scenes"
     default_config_file = "config.json"
     default_keymap_file = "keymap.json"
+    default_scene_file = "main.json"
 
     # Settings for the main loop
     delta_time = attr.ib(default=0.01, validator=instance_of(float), convert=float)
@@ -79,8 +81,8 @@ class ContextData(object):
         :param config:
         :return:
         """
-        modified_attributes = {a.name: config[a.name] for a in attr.fields(cls) if a.name in config}
-        return cls(**modified_attributes)
+        known_attributes = {a.name: config[a.name] for a in attr.fields(cls) if a.name in config}
+        return cls(**known_attributes)
 
 
 @attr.s
@@ -116,30 +118,6 @@ class KeyMap(object):
     _forward = attr.ib(validator=instance_of(Key), convert=Key.coerce)
     _backward = attr.ib(validator=instance_of(Key), convert=Key.coerce)
 
-    @property
-    def left(self):
-        return self._left.value
-
-    @property
-    def right(self):
-        return self._right.value
-
-    @property
-    def up(self):
-        return self._up.value
-
-    @property
-    def down(self):
-        return self._down.value
-
-    @property
-    def forward(self):
-        return self._forward.value
-
-    @property
-    def backward(self):
-        return self._backward.value
-
     @classmethod
     def from_dict(cls, **config):
         """
@@ -158,6 +136,19 @@ class KeyMap(object):
         """
         for member in attr.astuple(self):
             yield member.value
+
+    def __getattr__(self, item):
+        """
+        Return the appropriate GLFW symbol for the requested action.
+
+        :param item:
+        :return:
+        """
+        candidates = attr.astuple(self, filter=lambda a, v: item in a.name)
+        if len(candidates) == 1:
+            return candidates[0].value
+        else:
+            raise AttributeError("Attribute '{}' was not found.".format(item))
 
 
 @attr.s
