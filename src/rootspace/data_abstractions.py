@@ -27,21 +27,30 @@ class ContextData(object):
     default_config_file = "config.json"
     default_keymap_file = "keymap.json"
 
-    delta_time = attr.ib(default=0.01, validator=instance_of(float))
-    max_frame_duration = attr.ib(default=0.25, validator=instance_of(float))
-    epsilon = attr.ib(default=1e-5, validator=instance_of(float))
+    # Settings for the main loop
+    delta_time = attr.ib(default=0.01, validator=instance_of(float), convert=float)
+    max_frame_duration = attr.ib(default=0.25, validator=instance_of(float), convert=float)
+    epsilon = attr.ib(default=1e-5, validator=instance_of(float), convert=float)
+
+    # Settings for the render pipeline
+    swap_interval = attr.ib(default=1, validator=instance_of(int), convert=int)
+    clear_color = attr.ib(default=(0, 0, 0, 1), validator=iterable_of(tuple, int), convert=tuple)
+    clear_bits = attr.ib(default=(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT), validator=instance_of(int), convert=int)
+
+    # Settings for the window
     window_title = attr.ib(default="Untitled", validator=instance_of(str))
     window_shape = attr.ib(default=(1024, 768), validator=iterable_of(tuple, int), convert=tuple)
-    window_hint_context_version_major = attr.ib(default=3, validator=instance_of(int))
-    window_hint_context_version_minor = attr.ib(default=3, validator=instance_of(int))
-    window_hint_opengl_forward_compat = attr.ib(default=True, validator=instance_of(bool))
-    window_hint_opengl_profile = attr.ib(default=glfw.OPENGL_CORE_PROFILE, validator=instance_of(int))
-    swap_interval = attr.ib(default=1, validator=instance_of(int))
-    clear_color = attr.ib(default=(0, 0, 0, 1), validator=iterable_of(tuple, int), convert=tuple)
-    clear_bits = attr.ib(default=(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT), validator=instance_of(int))
-    field_of_view = attr.ib(default=math.pi, validator=instance_of(float))
-    near_plane = attr.ib(default=0.1, validator=instance_of(float))
-    far_plane = attr.ib(default=100.0, validator=instance_of(float))
+
+    # Settings for the OpenGL context
+    window_hint_context_version_major = attr.ib(default=3, validator=instance_of(int), convert=int)
+    window_hint_context_version_minor = attr.ib(default=3, validator=instance_of(int), convert=int)
+    window_hint_opengl_forward_compat = attr.ib(default=True, validator=instance_of(bool), convert=bool)
+    window_hint_opengl_profile = attr.ib(default=glfw.OPENGL_CORE_PROFILE, validator=instance_of(int), convert=int)
+
+    # Settings for the camera
+    field_of_view = attr.ib(default=math.pi, validator=instance_of(float), convert=float)
+    near_plane = attr.ib(default=0.1, validator=instance_of(float), convert=float)
+    far_plane = attr.ib(default=100.0, validator=instance_of(float), convert=float)
 
     @property
     def window_hints(self):
