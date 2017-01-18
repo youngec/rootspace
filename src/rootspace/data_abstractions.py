@@ -55,6 +55,10 @@ class ContextData(object):
     window_hint_opengl_forward_compat = attr.ib(default=True, validator=instance_of(bool), convert=bool)
     window_hint_opengl_profile = attr.ib(default=glfw.OPENGL_CORE_PROFILE, validator=instance_of(int), convert=int)
 
+    # Set cursor options
+    cursor_mode = attr.ib(default=glfw.CURSOR_DISABLED, validator=instance_of(int), convert=int)
+    cursor_origin = attr.ib(default=(512, 384), validator=iterable_of(tuple, int), convert=tuple)
+
     # Settings for the camera
     field_of_view = attr.ib(default=math.pi, validator=instance_of(float), convert=float)
     near_plane = attr.ib(default=0.1, validator=instance_of(float), convert=float)

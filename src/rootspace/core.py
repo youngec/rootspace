@@ -855,9 +855,8 @@ class Context(object):
                 ctx_mgr.callback(self._del_window)
 
             # Set the cursor behavior
-            glfw.set_input_mode(self._window, glfw.CURSOR, glfw.CURSOR_DISABLED)
-            cursor_origin = (self._data.window_shape[0] // 2, self._data.window_shape[1] // 2)
-            glfw.set_cursor_pos(self._window, *cursor_origin)
+            glfw.set_input_mode(self._window, glfw.CURSOR, self._data.cursor_mode)
+            glfw.set_cursor_pos(self._window, *self._data.cursor_origin)
 
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
@@ -919,7 +918,7 @@ class Context(object):
             ctx_mgr.callback(self._world.remove_all_systems)
             self._world.add_systems(
                 OpenGlRenderer.from_dict(),
-                CameraControlSystem.from_dict(cursor_origin=cursor_origin)
+                CameraControlSystem.from_dict(cursor_origin=self._data.cursor_origin)
             )
 
             # Add the initial entities
