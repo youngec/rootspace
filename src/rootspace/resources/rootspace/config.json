@@ -2,13 +2,11 @@
   "delta_time": 0.01,
   "max_frame_duration": 0.25,
   "epsilon": 1e-5,
-  "window_title": "Untitled",
+  "window_title": "Rootspace",
   "window_shape": [800, 600],
-  "window_hints": {
-    "CONTEXT_VERSION_MAJOR": 3,
-    "CONTEXT_VERSION_MINOR": 3,
-    "OPENGL_FORWARD_COMPAT": true,
-    "OPENGL_PROFILE": "OPENGL_CORE_PROFILE"
-  },
+  "window_hint_context_version_major": 3,
+  "window_hint_context_version_minor": 3,
+  "window_hint_opengl_forward_compat": false,
+  "window_hint_opengl_profile": 204801,
   "swap_interval": 1
 }
