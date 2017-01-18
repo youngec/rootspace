@@ -183,6 +183,24 @@ class Scene(object):
     """
     Encapsulate the concept of a scene.
     """
+    # Settings for the render pipeline
+    clear_color = attr.ib(default=(0, 0, 0, 1), validator=iterable_of(tuple, int), convert=tuple)
+    clear_bits = attr.ib(default=(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT), validator=instance_of(int), convert=int)
+    enable_depth_test = attr.ib(default=True, validator=instance_of(bool), convert=bool)
+    depth_function = attr.ib(default=GL_LESS, validator=instance_of(int), convert=int)
+    enable_face_culling = attr.ib(default=True, validator=instance_of(bool), convert=bool)
+    front_face = attr.ib(default=GL_CCW, validator=instance_of(int), convert=int)
+    cull_face = attr.ib(default=GL_BACK, validator=instance_of(int), convert=int)
+
+    # Set cursor options
+    cursor_mode = attr.ib(default=glfw.CURSOR_DISABLED, validator=instance_of(int), convert=int)
+    cursor_origin = attr.ib(default=(512, 384), validator=iterable_of(tuple, int), convert=tuple)
+
+    # Settings for the camera
+    field_of_view = attr.ib(default=math.pi, validator=instance_of(float), convert=float)
+    near_plane = attr.ib(default=0.1, validator=instance_of(float), convert=float)
+    far_plane = attr.ib(default=100.0, validator=instance_of(float), convert=float)
+
     @classmethod
     def from_dict(cls, **config):
         """

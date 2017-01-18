@@ -1,15 +1,14 @@
 {
-  "cursor_state": "disabled",
-  "cursor_origin": [400, 300],
-  "depth_test": true,
-  "depth_function": "less",
-  "face_culling": true,
-  "front_face": "ccw",
-  "cull_face": "back",
-  "camera_fov": 3.1415926,
-  "camera_aspect": null,
-  "camera_near_plane": 0.1,
-  "camera_far_plane": 100.0,
   "clear_color": [0, 0, 0, 1],
-  "clear_bits": ["COLOR_BUFFER_BIT", "DEPTH_BUFFER_BIT"]
+  "clear_bits": 16640,
+  "enable_depth_test": true,
+  "depth_function": 513,
+  "enable_face_culling": true,
+  "front_face": 2305,
+  "cull_face": 1029,
+  "cursor_mode": 212995,
+  "cursor_origin": [512, 384],
+  "field_of_view": 3.1415926,
+  "near_plane": 0.1,
+  "far_plane": 100.0
 }
