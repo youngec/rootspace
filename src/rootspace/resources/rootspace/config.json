@@ -14,7 +14,7 @@
   "window_shape": [800, 600],
   "window_hint_context_version_major": 3,
   "window_hint_context_version_minor": 3,
-  "window_hint_opengl_forward_compat": false,
+  "window_hint_opengl_forward_compat": true,
   "window_hint_opengl_profile": 204801,
   "field_of_view": 3.1415926,
   "near_plane": 0.1,
