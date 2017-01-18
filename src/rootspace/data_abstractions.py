@@ -298,7 +298,7 @@ class Mesh(object):
 
     data = attr.ib(validator=instance_of(array.array))
     index = attr.ib(validator=instance_of(array.array))
-    attributes = attr.ib(validator=instance_of(tuple))
+    attributes = attr.ib(validator=instance_of(tuple), convert=tuple)
     draw_mode = attr.ib(validator=instance_of(DrawMode))
 
     @property

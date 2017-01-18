@@ -283,7 +283,7 @@ class PlyParser(object):
         return Mesh(
             data=vertex_data,
             index=index_data,
-            attributes=tuple(vertex_attributes),
+            attributes=vertex_attributes,
             draw_mode=Mesh.DrawMode.Triangles
         )
 
