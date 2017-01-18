@@ -8,6 +8,7 @@ import array
 import ctypes
 import enum
 import math
+import json
 
 import attr
 import glfw
@@ -84,6 +85,17 @@ class ContextData(object):
         known_attributes = {a.name: config[a.name] for a in attr.fields(cls) if a.name in config}
         return cls(**known_attributes)
 
+    @classmethod
+    def from_json(cls, file_path):
+        """
+        Create an instance from a JSON file.
+
+        :param file_path:
+        :return:
+        """
+        with file_path.open("r") as f:
+            return cls.from_dict(**json.load(f))
+
 
 @attr.s
 class KeyMap(object):
@@ -128,6 +140,17 @@ class KeyMap(object):
         """
         return cls(**config)
 
+    @classmethod
+    def from_json(cls, file_path):
+        """
+        Create an instance from a JSON file.
+
+        :param file_path:
+        :return:
+        """
+        with file_path.open("r") as f:
+            return cls.from_dict(**json.load(f))
+
     def __iter__(self):
         """
         Allow iteration over the KeyMap member variables.
@@ -149,6 +172,34 @@ class KeyMap(object):
             return candidates[0].value
         else:
             raise AttributeError("Attribute '{}' was not found.".format(item))
+
+
+@attr.s
+class Scene(object):
+    """
+    Encapsulate the concept of a scene.
+    """
+    @classmethod
+    def from_dict(cls, **config):
+        """
+        Create an instance from a dictionary.
+
+        :param config:
+        :return:
+        """
+        known_attributes = {a.name: config[a.name] for a in attr.fields(cls) if a.name in config}
+        return cls(**known_attributes)
+
+    @classmethod
+    def from_json(cls, file_path):
+        """
+        Create an instance from a JSON file.
+
+        :param file_path:
+        :return:
+        """
+        with file_path.open("r") as f:
+            return cls.from_dict(**json.load(f))
 
 
 @attr.s

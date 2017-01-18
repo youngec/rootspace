@@ -27,7 +27,7 @@ from .components import Transform, CameraData
 from .utilities import subclass_of
 from .wrappers import Model, Shader
 from .model_parser import PlyParser
-from .data_abstractions import KeyMap, ContextData
+from .data_abstractions import KeyMap, ContextData, Scene
 
 
 @attr.s(hash=False)
@@ -700,12 +700,10 @@ class Context(object):
         config_user, keymap_user = cls._ensure_config(resources_path, states_path, initialize)
 
         # Load the configuration
-        with config_user.open(mode="r") as f:
-            data = ContextData.from_dict(**json.load(f))
+        data = ContextData.from_json(config_user)
 
         # Load the keymap
-        with keymap_user.open(mode="r") as f:
-            key_map = KeyMap.from_dict(**json.load(f))
+        key_map = KeyMap.from_json(keymap_user)
 
         # Create the logger
         log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
@@ -897,6 +895,10 @@ class Context(object):
             # Register the GLFW event callbacks
             self._register_events()
             ctx_mgr.callback(self._clear_callbacks)
+
+            # Create the scene parser
+            main_scene_path = self.resources / self._data.default_scenes_dir / self._data.default_scene_file
+            main_scene = Scene.from_json(main_scene_path)
 
             # Initialize System and Entity data
             camera_data = CameraData(
