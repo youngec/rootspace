@@ -11,7 +11,7 @@
   "front_face": 2305,
   "cull_face": 1029,
   "window_title": "Rootspace",
-  "window_shape": [800, 600],
+  "window_shape": [1024, 768],
   "window_hint_context_version_major": 3,
   "window_hint_context_version_minor": 3,
   "window_hint_opengl_forward_compat": true,
