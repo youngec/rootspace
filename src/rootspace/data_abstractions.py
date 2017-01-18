@@ -18,6 +18,11 @@ class ContextData(object):
     """
     Contains simple Context data.
     """
+    default_config_dir = ".config"
+    default_resources_dir = "resources"
+    default_config_file = "config.json"
+    default_keymap_file = "keymap.json"
+
     delta_time = attr.ib(default=0.01, validator=instance_of(float))
     max_frame_duration = attr.ib(default=0.25, validator=instance_of(float))
     epsilon = attr.ib(default=1e-5, validator=instance_of(float))

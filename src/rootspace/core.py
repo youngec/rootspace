@@ -632,11 +632,6 @@ class Context(object):
     The Context is used by the Engine to set the main loop parameters,
     the systems, entities, resources, states, etc.
     """
-    default_config_dir = ".config"
-    default_resources_dir = "resources"
-    default_config_file = "config.json"
-    default_keymap_file = "keymap.json"
-
     _name = attr.ib(validator=instance_of(str))
     _resources_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
     _states_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
@@ -660,10 +655,10 @@ class Context(object):
         :return:
         """
         # Specify the configuration file paths
-        config_default = resources_path / cls.default_config_file
-        keymap_default = resources_path / cls.default_keymap_file
-        config_user = states_path / cls.default_config_file
-        keymap_user = states_path / cls.default_keymap_file
+        config_default = resources_path / ContextData.default_config_file
+        keymap_default = resources_path / ContextData.default_keymap_file
+        config_user = states_path / ContextData.default_config_file
+        keymap_user = states_path / ContextData.default_keymap_file
 
         # Ensure that both directories (resources and states) are present
         if not resources_path.exists():
@@ -698,8 +693,8 @@ class Context(object):
         :return:
         """
         # Specify the configuration directory and the resources directory
-        resources_path = engine_location / cls.default_resources_dir / name
-        states_path = user_home / cls.default_config_dir / name
+        resources_path = engine_location / ContextData.default_resources_dir / name
+        states_path = user_home / ContextData.default_config_dir / name
 
         # Initialize the persistent configuration
         config_user, keymap_user = cls._ensure_config(resources_path, states_path, initialize)
