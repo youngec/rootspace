@@ -4,13 +4,17 @@
 Define data abstractions for various concepts.
 """
 
-import attr
+import array
+import ctypes
 import enum
-from attr.validators import instance_of
-from .utilities import iterable_of
-import glfw
 import math
+
+import attr
+import glfw
 from OpenGL.GL import GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT
+from attr.validators import instance_of
+
+from .utilities import iterable_of
 
 
 @attr.s
@@ -70,6 +74,7 @@ class KeyMap(object):
     """
     KeyMap shall hold all known keys and corresponding actions.
     """
+
     class Key(enum.Enum):
         A = glfw.KEY_A
         D = glfw.KEY_D
@@ -139,3 +144,115 @@ class KeyMap(object):
         """
         for member in attr.astuple(self):
             yield member.value
+
+
+@attr.s
+class Attribute(object):
+    """
+    An Attribute defines the parameters necessary for the graphics library to read data from the vertex buffer.
+    """
+
+    class Type(enum.Enum):
+        Other = 0
+        Position = 1
+        Color = 2
+        Texture = 3
+
+        @classmethod
+        def coerce(cls, type_value):
+            if isinstance(type_value, cls):
+                return type_value
+            elif isinstance(type_value, str):
+                try:
+                    return cls[type_value.capitalize()]
+                except KeyError:
+                    return cls.Other
+            else:
+                return cls.Other
+
+    class DataType(enum.Enum):
+        Int8 = ctypes.c_int8
+        Uint8 = ctypes.c_uint8
+        Int16 = ctypes.c_int16
+        Uint16 = ctypes.c_uint16
+        Int32 = ctypes.c_int32
+        Uint32 = ctypes.c_uint32
+        Float = ctypes.c_float
+        Double = ctypes.c_double
+
+        @classmethod
+        def coerce(cls, value):
+            equivalency = {
+                "b": cls.Int8, "B": cls.Uint8, "h": cls.Int16, "H": cls.Uint16, "i": cls.Int32,
+                "I": cls.Uint32, "f": cls.Float, "d": cls.Double
+            }
+            if isinstance(value, cls):
+                return value
+            elif isinstance(value, str):
+                try:
+                    return equivalency[value]
+                except KeyError:
+                    raise ValueError("Cannot convert value {} to a valid data type.".format(value))
+            else:
+                raise ValueError("Cannot convert value {} to a valid data type.".format(value))
+
+    type = attr.ib(validator=instance_of(Type), convert=Type.coerce)
+    data_type = attr.ib(validator=instance_of(DataType), convert=DataType.coerce)
+    components = attr.ib(validator=instance_of(int))
+    stride = attr.ib(validator=instance_of(int))
+    start_idx = attr.ib(validator=instance_of(int))
+
+    @property
+    def stride_bytes(self):
+        return self.stride * ctypes.sizeof(self.data_type.value)
+
+    @property
+    def start_ptr(self):
+        return ctypes.c_void_p(self.start_idx * ctypes.sizeof(self.data_type.value))
+
+    @property
+    def location(self):
+        return self.type.value
+
+
+@attr.s
+class Mesh(object):
+    """
+    The Mesh encapsulates all data necessary for the graphics library to render. It contains
+    vertex data, vertex indices, vertex attribute descriptors and the draw mode enum.
+    """
+
+    class DrawMode(enum.Enum):
+        Points = 0
+        LineStrip = 3
+        LineLoop = 2
+        Lines = 1
+        LineStripAdjacency = 11
+        LinesAdjacency = 10
+        TriangleStrip = 5
+        TriangleFan = 6
+        Triangles = 4
+        TriangleStripAdjacency = 13
+        TrianglesAdjacency = 12
+        Patches = 14
+
+    data = attr.ib(validator=instance_of(array.array))
+    index = attr.ib(validator=instance_of(array.array))
+    attributes = attr.ib(validator=instance_of(tuple))
+    draw_mode = attr.ib(validator=instance_of(DrawMode))
+
+    @property
+    def data_bytes(self):
+        return self.data.tobytes()
+
+    @property
+    def data_type(self):
+        return self.data.typecode
+
+    @property
+    def index_bytes(self):
+        return self.index.tobytes()
+
+    @property
+    def index_type(self):
+        return self.index.typecode
