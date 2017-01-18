@@ -879,13 +879,15 @@ class Context(object):
             glfw.swap_interval(self._data.swap_interval)
 
             # Enable the OpenGL depth buffer
-            gl.glEnable(gl.GL_DEPTH_TEST)
-            gl.glDepthFunc(gl.GL_LESS)
+            if self._data.enable_depth_test:
+                gl.glEnable(gl.GL_DEPTH_TEST)
+                gl.glDepthFunc(self._data.depth_function)
 
             # Enable OpenGL face culling
-            gl.glEnable(gl.GL_CULL_FACE)
-            gl.glFrontFace(gl.GL_CCW)
-            gl.glCullFace(gl.GL_BACK)
+            if self._data.enable_face_culling:
+                gl.glEnable(gl.GL_CULL_FACE)
+                gl.glFrontFace(self._data.front_face)
+                gl.glCullFace(self._data.cull_face)
 
             # Create the World
             self._log.debug("Creating the world.")

@@ -2,11 +2,21 @@
   "delta_time": 0.01,
   "max_frame_duration": 0.25,
   "epsilon": 1e-5,
+  "swap_interval": 1,
+  "clear_color": [0, 0, 0, 1],
+  "clear_bits": 16640,
+  "enable_depth_test": true,
+  "depth_function": 513,
+  "enable_face_culling": true,
+  "front_face": 2305,
+  "cull_face": 1029,
   "window_title": "Rootspace",
   "window_shape": [800, 600],
   "window_hint_context_version_major": 3,
   "window_hint_context_version_minor": 3,
   "window_hint_opengl_forward_compat": false,
   "window_hint_opengl_profile": 204801,
-  "swap_interval": 1
+  "field_of_view": 3.1415926,
+  "near_plane": 0.1,
+  "far_plane": 100.0
 }

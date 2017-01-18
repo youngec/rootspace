@@ -11,7 +11,7 @@ import math
 
 import attr
 import glfw
-from OpenGL.GL import GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT
+from OpenGL.GL import GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_LESS, GL_CCW, GL_BACK
 from attr.validators import instance_of
 
 from .utilities import iterable_of
@@ -36,6 +36,11 @@ class ContextData(object):
     swap_interval = attr.ib(default=1, validator=instance_of(int), convert=int)
     clear_color = attr.ib(default=(0, 0, 0, 1), validator=iterable_of(tuple, int), convert=tuple)
     clear_bits = attr.ib(default=(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT), validator=instance_of(int), convert=int)
+    enable_depth_test = attr.ib(default=True, validator=instance_of(bool), convert=bool)
+    depth_function = attr.ib(default=GL_LESS, validator=instance_of(int), convert=int)
+    enable_face_culling = attr.ib(default=True, validator=instance_of(bool), convert=bool)
+    front_face = attr.ib(default=GL_CCW, validator=instance_of(int), convert=int)
+    cull_face = attr.ib(default=GL_BACK, validator=instance_of(int), convert=int)
 
     # Settings for the window
     window_title = attr.ib(default="Untitled", validator=instance_of(str))
