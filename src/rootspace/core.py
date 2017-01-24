@@ -3,267 +3,24 @@
 
 """The engine core holds the entry point into the game execution."""
 
-import abc
 import collections
 import contextlib
 import logging
 import pathlib
 import shutil
-import uuid
-import warnings
 import weakref
 
 import OpenGL.GL as gl
 import attr
 import glfw
-import numpy
 from attr.validators import instance_of
-from PIL import Image
 
-from .events import KeyEvent, CharEvent, CursorEvent
-from .exceptions import GLFWError, FixmeWarning
-from .components import Transform, CameraData
+from .systems import SceneSystem
+from .entities import Camera
+from .events import KeyEvent, CharEvent, CursorEvent, SceneEvent
+from .exceptions import GLFWError
 from .utilities import subclass_of
-from .wrappers import Model, Shader
-from .model_parser import PlyParser
-from .data_abstractions import KeyMap, ContextData, Scene
-
-
-@attr.s(hash=False)
-class Entity(object):
-    """
-    An entity is a container with a unique identifier.
-    """
-    _ident = attr.ib(validator=instance_of(uuid.UUID))
-
-    @property
-    def ident(self):
-        return self._ident
-
-    @property
-    def components(self):
-        return attr.astuple(self, recurse=False, filter=lambda a, c: not a.name.startswith("_"))
-
-    @classmethod
-    def make_ident(cls):
-        return uuid.uuid4()
-
-    @classmethod
-    def from_dict(cls, **config):
-        """
-        Create an instance from a config dictionary. Non-recursive, single level.
-
-        :param config:
-        :return:
-        """
-        return cls(ident=cls.make_ident(), **config)
-
-    def to_dict(self):
-        """
-        Serialize the instance to a dictionary. Non-recursive, single level.
-
-        :return:
-        """
-        return attr.asdict(self, recurse=False, filter=lambda a, c: not a.name.startswith("_"))
-
-    def __hash__(self):
-        return self._ident.int
-
-
-@attr.s
-class System(object, metaclass=abc.ABCMeta):
-    """
-    A processing system for component data. Base class of all systems.
-
-    A processing system within an application world consumes the
-    components of all entities, for which it was set up. At time of
-    processing, the system does not know about any other component type
-    that might be bound to any entity.
-
-    Also, the processing system does not know about any specific entity,
-    but only is aware of the data carried by all entities.
-    """
-    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
-
-    component_types = tuple()
-    is_applicator = True
-
-    @classmethod
-    def get_logger(cls):
-        """
-        Get the logger that best describes the specified class.
-
-        :return:
-        """
-        return logging.getLogger("{}.{}".format(__name__, cls.__name__))
-
-    @classmethod
-    def from_dict(cls, **config):
-        """
-        Create an instance from a config dictionary. Non-recursive, single level.
-
-        :param config:
-        :return:
-        """
-        return cls(log=cls.get_logger(), **config)
-
-    def to_dict(self):
-        """
-        Serialize the instance to a dictionary. Non-recursive, single level.
-
-        :return:
-        """
-        return attr.asdict(self, recurse=False, filter=lambda a, c: not a.name.startswith("_"))
-
-
-@attr.s
-class UpdateSystem(System):
-    """
-    A processing system for component data. Business logic variant.
-    """
-
-    @abc.abstractmethod
-    def update(self, time, delta_time, world, components):
-        """
-        Update the current world.
-
-        :param float time:
-        :param float delta_time:
-        :param World world:
-        :param components:
-        :return:
-        """
-        pass
-
-
-@attr.s
-class RenderSystem(System):
-    """
-    A processing system for component data. Rendering variant.
-    """
-
-    @abc.abstractmethod
-    def render(self, world, components):
-        """
-        Render the current world to display.
-
-        :param world:
-        :param components:
-        :return:
-        """
-        pass
-
-
-@attr.s
-class EventSystem(System):
-    """
-    A processing system for component data. Event variant.
-    """
-    event_types = tuple()
-
-    @abc.abstractmethod
-    def dispatch(self, event, world, components):
-        """
-        Dispatch the SDL2 event to the current set of components.
-
-        :param event:
-        :param world:
-        :param components:
-        :return:
-        """
-        pass
-
-
-@attr.s(hash=False)
-class TestEntity(Entity):
-    transform = attr.ib(validator=instance_of(Transform))
-    open_gl_model = attr.ib(validator=instance_of(Model))
-
-
-@attr.s(hash=False)
-class Camera(Entity):
-    transform = attr.ib(validator=instance_of(Transform))
-    camera_data = attr.ib(validator=instance_of(CameraData))
-
-    @property
-    def matrix(self):
-        return self.camera_data.matrix @ self.transform.matrix
-
-    @property
-    def aspect(self):
-        return self.camera_data.aspect
-
-    @aspect.setter
-    def aspect(self, value):
-        self.camera_data.aspect = value
-
-
-@attr.s
-class CameraControlSystem(EventSystem):
-    _cursor_origin = attr.ib(validator=instance_of(numpy.ndarray), convert=numpy.array)
-
-    component_types = (Transform, CameraData)
-    is_applicator = True
-    event_types = (KeyEvent, CursorEvent)
-
-    def dispatch(self, event, world, components):
-        key_map = world.ctx.key_map
-        dt = world.ctx.data.delta_time
-
-        if isinstance(event, KeyEvent) and event.key in key_map and event.mods == 0:
-            if event.action in (glfw.PRESS, glfw.REPEAT):
-                for transform, data in components:
-                    absolute_speed = 10
-                    speed = numpy.zeros(4)
-                    if event.key == key_map.right:
-                        speed = absolute_speed * transform.right
-                    elif event.key == key_map.left:
-                        speed = absolute_speed * -transform.right
-                    elif event.key == key_map.up:
-                        speed = absolute_speed * transform.up
-                    elif event.key == key_map.down:
-                        speed = absolute_speed * -transform.up
-                    elif event.key == key_map.forward:
-                        speed = absolute_speed * transform.forward
-                    elif event.key == key_map.backward:
-                        speed = absolute_speed * -transform.forward
-
-                    transform.position += speed[:3] * dt
-
-        elif isinstance(event, CursorEvent):
-            cursor = numpy.array((event.xpos, event.ypos))
-            for transform, data in components:
-                # Determine the position differential of the cursor
-                delta_cursor = numpy.zeros(3)
-                delta_cursor[:2] = cursor - self._cursor_origin
-                delta_cursor /= numpy.linalg.norm(delta_cursor)
-
-                target = transform.forward[:3] + 0.01 * delta_cursor
-                target /= numpy.linalg.norm(target)
-
-                # transform.look_at(target)
-
-
-@attr.s
-class OpenGlRenderer(RenderSystem):
-    component_types = (Transform, Model)
-    is_applicator = True
-
-    def render(self, world, components):
-        # Get a reference to the camera
-        camera = next(world.get_entities(Camera))
-        pv = camera.matrix
-
-        # Clear the render buffers
-        gl.glClear(world.ctx.data.clear_bits)
-
-        # Render all models
-        warnings.warn("Optimize rendering with multiple Entities.", FixmeWarning)
-        for i, (transform, model) in enumerate(components):
-            with model:
-                model.draw(pv @ transform.matrix)
-
-        glfw.swap_buffers(world.ctx.window)
+from .data_abstractions import KeyMap, ContextData
 
 
 @attr.s
@@ -297,11 +54,16 @@ class World(object):
     _update_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+
     _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
 
     @property
     def ctx(self):
         return self._ctx()
+
+    @property
+    def systems(self):
+        return self._update_systems + self._render_systems + self._event_systems
 
     @classmethod
     def create(cls, ctx):
@@ -434,12 +196,10 @@ class World(object):
         return (e for e in comp_set if comp_set[e] == component)
 
     def get_entities(self, entity_type):
-        """
-        Get
-        :param entity_type:
-        :return:
-        """
         return (e for e in self._entities if isinstance(e, entity_type))
+
+    def get_systems(self, system_type):
+        return (e for e in self.systems if isinstance(e, system_type))
 
     def add_system(self, system):
         """
@@ -521,7 +281,7 @@ class World(object):
 
     def dispatch_resize(self, window, width, height):
         for camera in self.get_entities(Camera):
-            camera.aspect = width / height
+            camera.shape = (width, height)
 
         gl.glViewport(0, 0, width, height)
 
@@ -755,15 +515,6 @@ class Context(object):
         return self._window
 
     @property
-    def renderer(self):
-        """
-        Return a reference to the Renderer or None.
-
-        :return:
-        """
-        return self._renderer
-
-    @property
     def world(self):
         """
         Return a reference to the World or None.
@@ -837,15 +588,15 @@ class Context(object):
             ctx_mgr.callback(self._del_glfw)
 
             # Add the GLFW window hints
-            for k, v in self._data.window_hints.items():
+            for k, v in self.data.window_hints.items():
                 glfw.window_hint(k, v)
 
             # Create the Window
             self._log.debug("Creating the window.")
             self._window = glfw.create_window(
-                self._data.window_shape[0],
-                self._data.window_shape[1],
-                self._data.window_title,
+                self.data.window_shape[0],
+                self.data.window_shape[1],
+                self.data.window_title,
                 None,
                 None
             )
@@ -854,12 +605,11 @@ class Context(object):
             else:
                 ctx_mgr.callback(self._del_window)
 
-            # Set the cursor behavior
-            glfw.set_input_mode(self._window, glfw.CURSOR, self._data.cursor_mode)
-            glfw.set_cursor_pos(self._window, *self._data.cursor_origin)
-
             # Make the OpenGL context current
             glfw.make_context_current(self._window)
+
+            # Set the buffer swap interval (i.e. VSync)
+            glfw.swap_interval(self.data.swap_interval)
 
             # Determine the actual context version information
             context_major = gl.glGetIntegerv(gl.GL_MAJOR_VERSION)
@@ -871,20 +621,6 @@ class Context(object):
             # extensions = (gl.glGetStringi(gl.GL_EXTENSIONS, i).decode("utf-8") for i in range(num_extensions))
             # self._log.debug("Extensions: {}".format(", ".join(extensions)))
 
-            # Set the buffer swap interval (i.e. VSync)
-            glfw.swap_interval(self._data.swap_interval)
-
-            # Enable the OpenGL depth buffer
-            if self._data.enable_depth_test:
-                gl.glEnable(gl.GL_DEPTH_TEST)
-                gl.glDepthFunc(self._data.depth_function)
-
-            # Enable OpenGL face culling
-            if self._data.enable_face_culling:
-                gl.glEnable(gl.GL_CULL_FACE)
-                gl.glFrontFace(self._data.front_face)
-                gl.glCullFace(self._data.cull_face)
-
             # Create the World
             self._log.debug("Creating the world.")
             self._world = World.create(self)
@@ -894,41 +630,13 @@ class Context(object):
             self._register_events()
             ctx_mgr.callback(self._clear_callbacks)
 
-            # Create the scene parser
-            main_scene_path = self.resources / self._data.default_scenes_dir / self._data.default_scene_file
-            main_scene = Scene.from_json(main_scene_path)
-
-            # Initialize System and Entity data
-            camera_data = CameraData(
-                self._data.field_of_view,
-                (self._data.window_shape[0] / self._data.window_shape[1]),
-                self._data.near_plane,
-                self._data.far_plane
-            )
-            with Image.open(self.resources / "textures/test-texture.png") as txdata:
-                parser = PlyParser.create()
-                mesh = parser.load(self.resources / "models/cube.ply")
-                simple_shader = Shader.create(
-                    self.resources / "shaders/simple_vertex.glsl",
-                    self.resources / "shaders/simple_fragment.glsl"
-                )
-                gpu_cube = Model.create(mesh, simple_shader, txdata)
-
             # Add the initial systems
             ctx_mgr.callback(self._world.remove_all_systems)
-            self._world.add_systems(
-                OpenGlRenderer.from_dict(),
-                CameraControlSystem.from_dict(cursor_origin=self._data.cursor_origin)
-            )
+            self._world.add_systems(SceneSystem())
 
-            # Add the initial entities
+            # Load the initial scene
             ctx_mgr.callback(self._world.remove_all_entities)
-            self._world.add_entities(
-                Camera.from_dict(transform=Transform(), camera_data=camera_data),
-                # TestEntity.from_dict(transform=Transform((0, -2, -1), (2, 0.1, 2)), open_gl_model=gpu_cube),
-                # TestEntity.from_dict(transform=Transform((-2, 0, -1), (0.1, 2, 2)), open_gl_model=gpu_cube),
-                TestEntity.from_dict(transform=Transform((0, -1, -1), (1, 1, 1)), open_gl_model=gpu_cube)
-            )
+            self._world.dispatch(SceneEvent(self.data.default_scene_file))
 
             self._ctx_exit = ctx_mgr.pop_all()
 

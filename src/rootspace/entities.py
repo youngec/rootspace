@@ -1,0 +1,64 @@
+# -*- coding: utf-8 -*-
+
+import uuid
+
+import attr
+from attr.validators import instance_of
+
+from .components import Transform, CameraData, Model
+from .utilities import camelcase_to_underscore
+
+
+class EntityMeta(type):
+    """
+    EntityMeta registers all Entities in EntityMeta.classes
+    """
+    classes = dict()
+
+    def __new__(meta, name, bases, cls_dict):
+        register = cls_dict.pop("register", True)
+        cls_dict["_ident"] = uuid.uuid4()
+        cls = super(EntityMeta, meta).__new__(meta, name, bases, cls_dict)
+        if register:
+            meta.classes[camelcase_to_underscore(cls.__name__)] = cls
+
+        return cls
+
+
+@attr.s(hash=False)
+class Entity(object, metaclass=EntityMeta):
+    """
+    An entity is a container with a unique identifier.
+    """
+    @property
+    def components(self):
+        return attr.astuple(self, recurse=False, filter=lambda a, c: not a.name.startswith("_"))
+
+    def __hash__(self):
+        return self._ident.int
+
+
+@attr.s(hash=False)
+class TestEntity(Entity):
+    transform = attr.ib(validator=instance_of(Transform))
+    model = attr.ib(validator=instance_of(Model))
+
+
+@attr.s(hash=False)
+class Camera(Entity):
+    transform = attr.ib(validator=instance_of(Transform))
+    camera_data = attr.ib(validator=instance_of(CameraData))
+
+    @property
+    def matrix(self):
+        return self.camera_data.matrix @ self.transform.matrix
+
+    @property
+    def aspect(self):
+        return self.camera_data.aspect
+
+    @aspect.setter
+    def aspect(self, value):
+        self.camera_data.aspect = value
+
+

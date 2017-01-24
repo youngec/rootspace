@@ -34,16 +34,7 @@ class ContextData(object):
     delta_time = attr.ib(default=0.01, validator=instance_of(float), convert=float)
     max_frame_duration = attr.ib(default=0.25, validator=instance_of(float), convert=float)
     epsilon = attr.ib(default=1e-5, validator=instance_of(float), convert=float)
-
-    # Settings for the render pipeline
     swap_interval = attr.ib(default=1, validator=instance_of(int), convert=int)
-    clear_color = attr.ib(default=(0, 0, 0, 1), validator=iterable_of(tuple, int), convert=tuple)
-    clear_bits = attr.ib(default=(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT), validator=instance_of(int), convert=int)
-    enable_depth_test = attr.ib(default=True, validator=instance_of(bool), convert=bool)
-    depth_function = attr.ib(default=GL_LESS, validator=instance_of(int), convert=int)
-    enable_face_culling = attr.ib(default=True, validator=instance_of(bool), convert=bool)
-    front_face = attr.ib(default=GL_CCW, validator=instance_of(int), convert=int)
-    cull_face = attr.ib(default=GL_BACK, validator=instance_of(int), convert=int)
 
     # Settings for the window
     window_title = attr.ib(default="Untitled", validator=instance_of(str))
@@ -54,15 +45,6 @@ class ContextData(object):
     window_hint_context_version_minor = attr.ib(default=3, validator=instance_of(int), convert=int)
     window_hint_opengl_forward_compat = attr.ib(default=True, validator=instance_of(bool), convert=bool)
     window_hint_opengl_profile = attr.ib(default=glfw.OPENGL_CORE_PROFILE, validator=instance_of(int), convert=int)
-
-    # Set cursor options
-    cursor_mode = attr.ib(default=glfw.CURSOR_DISABLED, validator=instance_of(int), convert=int)
-    cursor_origin = attr.ib(default=(512, 384), validator=iterable_of(tuple, int), convert=tuple)
-
-    # Settings for the camera
-    field_of_view = attr.ib(default=math.pi, validator=instance_of(float), convert=float)
-    near_plane = attr.ib(default=0.1, validator=instance_of(float), convert=float)
-    far_plane = attr.ib(default=100.0, validator=instance_of(float), convert=float)
 
     @property
     def window_hints(self):
@@ -99,6 +81,24 @@ class ContextData(object):
         """
         with file_path.open("r") as f:
             return cls.from_dict(**json.load(f))
+
+    def __iter__(self):
+        """
+        Iterate over the scene properties.
+
+        :return:
+        """
+        for k in attr.asdict(self).keys():
+            yield k
+
+    def __getitem__(self, item):
+        """
+        Allow angle-bracket access.
+
+        :param item:
+        :return:
+        """
+        return attr.asdict(self)[item]
 
 
 @attr.s
@@ -184,15 +184,15 @@ class Scene(object):
     Encapsulate the concept of a scene.
     """
     # Settings for the render pipeline
-    clear_color = attr.ib(default=(0, 0, 0, 1), validator=iterable_of(tuple, int), convert=tuple)
-    clear_bits = attr.ib(default=(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT), validator=instance_of(int), convert=int)
     enable_depth_test = attr.ib(default=True, validator=instance_of(bool), convert=bool)
     depth_function = attr.ib(default=GL_LESS, validator=instance_of(int), convert=int)
     enable_face_culling = attr.ib(default=True, validator=instance_of(bool), convert=bool)
     front_face = attr.ib(default=GL_CCW, validator=instance_of(int), convert=int)
     cull_face = attr.ib(default=GL_BACK, validator=instance_of(int), convert=int)
+    clear_color = attr.ib(default=(0, 0, 0, 1), validator=iterable_of(tuple, int), convert=tuple)
+    clear_bits = attr.ib(default=(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT), validator=instance_of(int), convert=int)
 
-    # Set cursor options
+    # Settings for the cursor
     cursor_mode = attr.ib(default=glfw.CURSOR_DISABLED, validator=instance_of(int), convert=int)
     cursor_origin = attr.ib(default=(512, 384), validator=iterable_of(tuple, int), convert=tuple)
 
@@ -200,6 +200,11 @@ class Scene(object):
     field_of_view = attr.ib(default=math.pi, validator=instance_of(float), convert=float)
     near_plane = attr.ib(default=0.1, validator=instance_of(float), convert=float)
     far_plane = attr.ib(default=100.0, validator=instance_of(float), convert=float)
+
+    # Actual scene data
+    systems = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+    entities = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+    components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
 
     @classmethod
     def from_dict(cls, **config):
@@ -222,6 +227,24 @@ class Scene(object):
         """
         with file_path.open("r") as f:
             return cls.from_dict(**json.load(f))
+
+    def __iter__(self):
+        """
+        Iterate over the scene properties.
+
+        :return:
+        """
+        for k in attr.asdict(self).keys():
+            yield k
+
+    def __getitem__(self, item):
+        """
+        Allow angle-bracket access.
+
+        :param item:
+        :return:
+        """
+        return attr.asdict(self)[item]
 
 
 @attr.s
