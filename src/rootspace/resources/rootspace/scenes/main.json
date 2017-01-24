@@ -1,14 +1,71 @@
 {
-  "clear_color": [0, 0, 0, 1],
-  "clear_bits": 16640,
   "enable_depth_test": true,
   "depth_function": 513,
   "enable_face_culling": true,
   "front_face": 2305,
   "cull_face": 1029,
+  "clear_color": [0, 0, 0, 1],
+  "clear_bits": 16640,
   "cursor_mode": 212995,
   "cursor_origin": [512, 384],
   "field_of_view": 3.1415926,
   "near_plane": 0.1,
-  "far_plane": 100.0
+  "far_plane": 100.0,
+  "systems": {
+    "renderer": {
+      "class": "open_gl_renderer",
+      "args": []
+    },
+    "hid": {
+      "class": "camera_control_system",
+      "args": []
+    }
+  },
+  "entities": {
+    "camera": {
+      "class": "camera",
+      "args": [
+        "camera_transform",
+        "camera_data"
+      ]
+    },
+    "test_entity": {
+      "class": "test_entity",
+      "args": [
+        "test_entity_transform",
+        "test_entity_model"
+      ]
+    }
+  },
+  "components": {
+    "camera_transform": {
+      "class": "transform",
+      "args": []
+    },
+    "camera_data": {
+      "class": "camera_data",
+      "args": [
+        "field_of_view",
+        "window_shape",
+        "near_plane",
+        "far_plane"
+      ]
+    },
+    "test_entity_transform": {
+      "class": "transform",
+      "args": [
+        [0, -1, -1],
+        [1, 1, 1]
+      ]
+    },
+    "test_entity_model": {
+      "class": "model",
+      "args": [
+        "models/cube.ply",
+        "shaders/simple_vertex.glsl",
+        "shaders/simple_fragment.glsl",
+        "textures/test-texture.png"
+      ]
+    }
+  }
 }
