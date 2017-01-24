@@ -185,7 +185,7 @@ class SceneSystem(EventSystem):
     def scene(self):
         return self._scene
 
-    def _update_context(self, window, old_scene, new_scene):
+    def _update_context(self, context, old_scene, new_scene):
         """
         Update the GLFW and OpenGL context according to the Scene change.
 
@@ -195,8 +195,8 @@ class SceneSystem(EventSystem):
         :return:
         """
         # Set the cursor behavior
-        glfw.set_input_mode(window, glfw.CURSOR, new_scene.cursor_mode)
-        glfw.set_cursor_pos(window, *new_scene.cursor_origin)
+        glfw.set_input_mode(context.window, glfw.CURSOR, new_scene.cursor_mode)
+        glfw.set_cursor_pos(context.window, *new_scene.cursor_origin)
 
         # Enable the OpenGL depth buffer
         if new_scene.enable_depth_test:
@@ -283,12 +283,10 @@ class SceneSystem(EventSystem):
         new_scene = Scene.from_json(scene_path)
 
         # Update the OpenGL context according to the scene data
-        self._update_context(world.ctx.window, self._scene, new_scene)
+        self._update_context(world.ctx, self._scene, new_scene)
 
         # Update the world according to the scene data
         self._update_world(world, self._scene, new_scene)
 
         # Set the new scene as current
         self._scene = new_scene
-
-
