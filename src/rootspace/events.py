@@ -4,6 +4,8 @@
 
 import attr
 
+from attr.validators import instance_of
+
 
 @attr.s
 class KeyEvent(object):
@@ -46,3 +48,8 @@ class ScrollEvent(object):
     window = attr.ib()
     xoffset = attr.ib()
     yoffset = attr.ib()
+
+
+@attr.s
+class SceneEvent(object):
+    name = attr.ib(validator=instance_of(str))
