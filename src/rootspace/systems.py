@@ -34,7 +34,6 @@ class SystemMeta(type):
         return cls
 
 
-@attr.s
 class System(object, metaclass=SystemMeta):
     """
     A processing system for component data. Base class of all systems.
@@ -51,14 +50,13 @@ class System(object, metaclass=SystemMeta):
     is_applicator = True
 
 
-@attr.s
 class UpdateSystem(System):
     """
     A processing system for component data. Business logic variant.
     """
     def update(self, time, delta_time, world, components):
         """
-        Update the current world.
+        Update the current World simulation.
 
         :param float time:
         :param float delta_time:
@@ -69,14 +67,13 @@ class UpdateSystem(System):
         pass
 
 
-@attr.s
 class RenderSystem(System):
     """
     A processing system for component data. Rendering variant.
     """
     def render(self, world, components):
         """
-        Render the current world to display.
+        Render the current World to display.
 
         :param world:
         :param components:
@@ -85,7 +82,6 @@ class RenderSystem(System):
         pass
 
 
-@attr.s
 class EventSystem(System):
     """
     A processing system for component data. Event variant.
@@ -94,7 +90,7 @@ class EventSystem(System):
 
     def dispatch(self, event, world, components):
         """
-        Dispatch the SDL2 event to the current set of components.
+        Dispatch an Event to the current set of Components.
 
         :param event:
         :param world:
@@ -152,6 +148,9 @@ class CameraControlSystem(EventSystem):
 
 @attr.s
 class OpenGlRenderer(RenderSystem):
+    """
+    The OpenGLRenderer renders those Entities within the World that have Transform and Model components.
+    """
     component_types = (Transform, Model)
     is_applicator = True
 
@@ -175,6 +174,11 @@ class OpenGlRenderer(RenderSystem):
 
 @attr.s
 class SceneSystem(EventSystem):
+    """
+    The SceneSystem provides the means to load the contents of a World, eg. a Scene,
+    into the current context. This is triggered by a SceneEvent that contains the name of the serialized
+    Scene file.
+    """
     _scene = attr.ib(default=None, validator=instance_of((type(None), Scene)))
 
     component_types = tuple()
@@ -213,10 +217,22 @@ class SceneSystem(EventSystem):
         else:
             gl.glDisable(gl.GL_CULL_FACE)
 
-    def _load_objects(self, world, scene, dict_tree, known_classes, reference_tree=None):
+    def _load_objects(self, world, scene, dict_tree, class_registry, reference_tree=None):
+        """
+        Load all objects from a given serialization dictionary. You must provide a reference to the World,
+        the soon-to-be active Scene, a class registry. Optionally, you may provide a reference dictionary to provide
+        additional lookup for serialized object references within the Scene.
+
+        :param world:
+        :param scene:
+        :param dict_tree:
+        :param class_registry:
+        :param reference_tree:
+        :return:
+        """
         objects = dict()
         for k, v in dict_tree.items():
-            cls = known_classes[v["class"]]
+            cls = class_registry[v["class"]]
             args = list()
             for arg in v["args"]:
                 if isinstance(arg, str):
