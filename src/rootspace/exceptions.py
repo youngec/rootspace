@@ -20,6 +20,13 @@ class FixmeWarning(Warning):
     pass
 
 
+class SerializationError(Exception):
+    """
+    This exception indicates that the serialization of objects failed.
+    """
+    pass
+
+
 class GLFWError(Exception):
     """
     This exception indicates that the GLFW library failed in some respect.

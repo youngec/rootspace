@@ -16,18 +16,74 @@ from OpenGL.GL import GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_LESS, GL_CCW,
 from attr.validators import instance_of
 
 from .utilities import iterable_of
+from .exceptions import SerializationError
 
 
 @attr.s
-class ContextData(object):
+class DataModel(object):
+    """
+    The interface of a data abstraction class.
+    """
+    version = "1.0.0"
+
+    @classmethod
+    def from_dict(cls, **config):
+        """
+        Create an instance from a dictionary.
+
+        :param config:
+        :return:
+        """
+        return cls(**config)
+
+    @classmethod
+    def from_json(cls, file_path):
+        """
+        Create an instance from a JSON file.
+
+        :param file_path:
+        :return:
+        """
+        with file_path.open("r") as f:
+            data = json.load(f)
+            data_version = data.pop("version", None)
+            if data_version is None or data_version != cls.version:
+                raise SerializationError("Incompatible serialization format '{}' (expected '{}').".format(
+                    data_version, cls.version
+                ))
+            return cls.from_dict(**data)
+
+    def __iter__(self):
+        """
+        Iterate over the scene properties.
+
+        :return:
+        """
+        for k in attr.asdict(self).keys():
+            yield k
+
+    def __getitem__(self, item):
+        """
+        Allow angle-bracket access.
+
+        :param item:
+        :return:
+        """
+        return attr.asdict(self)[item]
+
+
+@attr.s
+class ContextData(DataModel):
     """
     Contains simple Context data.
     """
+    version = "1.0.0"
+
     default_config_dir = ".config"
     default_resources_dir = "resources"
     default_scenes_dir = "scenes"
     default_config_file = "config.json"
-    default_keymap_file = "keymap.json"
+    default_keymap_file = "key_map.json"
     default_scene_file = "main.json"
 
     # Settings for the main loop
@@ -60,52 +116,13 @@ class ContextData(object):
 
         return window_hints
 
-    @classmethod
-    def from_dict(cls, **config):
-        """
-        Create an instance from a dictionary.
-
-        :param config:
-        :return:
-        """
-        known_attributes = {a.name: config[a.name] for a in attr.fields(cls) if a.name in config}
-        return cls(**known_attributes)
-
-    @classmethod
-    def from_json(cls, file_path):
-        """
-        Create an instance from a JSON file.
-
-        :param file_path:
-        :return:
-        """
-        with file_path.open("r") as f:
-            return cls.from_dict(**json.load(f))
-
-    def __iter__(self):
-        """
-        Iterate over the scene properties.
-
-        :return:
-        """
-        for k in attr.asdict(self).keys():
-            yield k
-
-    def __getitem__(self, item):
-        """
-        Allow angle-bracket access.
-
-        :param item:
-        :return:
-        """
-        return attr.asdict(self)[item]
-
 
 @attr.s
-class KeyMap(object):
+class KeyMap(DataModel):
     """
     KeyMap shall hold all known keys and corresponding actions.
     """
+    version = "1.0.0"
 
     class Key(enum.Enum):
         A = glfw.KEY_A
@@ -134,30 +151,9 @@ class KeyMap(object):
     _forward = attr.ib(validator=instance_of(Key), convert=Key.coerce)
     _backward = attr.ib(validator=instance_of(Key), convert=Key.coerce)
 
-    @classmethod
-    def from_dict(cls, **config):
-        """
-        Create an instance from a dictionary.
-
-        :param config:
-        :return:
-        """
-        return cls(**config)
-
-    @classmethod
-    def from_json(cls, file_path):
-        """
-        Create an instance from a JSON file.
-
-        :param file_path:
-        :return:
-        """
-        with file_path.open("r") as f:
-            return cls.from_dict(**json.load(f))
-
     def __iter__(self):
         """
-        Allow iteration over the KeyMap member variables.
+        Iterate over the GLFW constants in the KeyMap.
 
         :return:
         """
@@ -179,10 +175,12 @@ class KeyMap(object):
 
 
 @attr.s
-class Scene(object):
+class Scene(DataModel):
     """
     Encapsulate the concept of a scene.
     """
+    version = "1.0.0"
+
     # Settings for the render pipeline
     enable_depth_test = attr.ib(default=True, validator=instance_of(bool), convert=bool)
     depth_function = attr.ib(default=GL_LESS, validator=instance_of(int), convert=int)
@@ -205,46 +203,6 @@ class Scene(object):
     systems = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
     entities = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
     components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
-
-    @classmethod
-    def from_dict(cls, **config):
-        """
-        Create an instance from a dictionary.
-
-        :param config:
-        :return:
-        """
-        known_attributes = {a.name: config[a.name] for a in attr.fields(cls) if a.name in config}
-        return cls(**known_attributes)
-
-    @classmethod
-    def from_json(cls, file_path):
-        """
-        Create an instance from a JSON file.
-
-        :param file_path:
-        :return:
-        """
-        with file_path.open("r") as f:
-            return cls.from_dict(**json.load(f))
-
-    def __iter__(self):
-        """
-        Iterate over the scene properties.
-
-        :return:
-        """
-        for k in attr.asdict(self).keys():
-            yield k
-
-    def __getitem__(self, item):
-        """
-        Allow angle-bracket access.
-
-        :param item:
-        :return:
-        """
-        return attr.asdict(self)[item]
 
 
 @attr.s

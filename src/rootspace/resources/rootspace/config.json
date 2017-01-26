@@ -1,4 +1,5 @@
 {
+  "version": "1.0.0",
   "delta_time": 0.01,
   "max_frame_duration": 0.25,
   "epsilon": 1e-5,

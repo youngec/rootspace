@@ -1,4 +1,5 @@
 {
+  "version": "1.0.0",
   "enable_depth_test": true,
   "depth_function": 513,
   "enable_face_culling": true,
