@@ -290,8 +290,11 @@ class SceneSystem(EventSystem):
             SystemMeta.classes
         )
 
-        world.add_entities(*entities.values())
-        world.add_systems(*systems.values())
+        # Inject the SceneSystem into the new systems dictionary
+        systems["scene_system"] = self
+
+        world.set_entities(*entities.values())
+        world.set_systems(*systems.values())
 
     def dispatch(self, event, world, components):
         # Create the new scene

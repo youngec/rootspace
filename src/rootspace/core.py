@@ -138,40 +138,6 @@ class World(object):
         for c in entity.components:
             self._remove_component(entity, c)
 
-    def add_entity(self, entity):
-        """
-        Add an entity to the world.
-
-        :param entity:
-        :return:
-        """
-        self._add_components(entity)
-        self._entities.add(entity)
-
-    def add_entities(self, *entities):
-        """
-        Add multiple entities to the world.
-
-        :param entities:
-        :return:
-        """
-        for entity in entities:
-            self.add_entity(entity)
-
-    def remove_entity(self, entity):
-        """
-        Remove an entity and all its data from the world.
-
-        :param entity:
-        :return:
-        """
-        self._remove_components(entity)
-        self._entities.discard(entity)
-
-    def remove_all_entities(self):
-        self._log.debug("Removing all Entities from this World.")
-        self._entities.clear()
-
     def get_components(self, comp_type):
         """
         Get all registered components of a specified type.
@@ -195,10 +161,83 @@ class World(object):
         return (e for e in comp_set if comp_set[e] == component)
 
     def get_entities(self, entity_type):
+        """
+        Get all Entities of the specified class.
+
+        :param entity_type:
+        :return:
+        """
         return (e for e in self._entities if isinstance(e, entity_type))
 
     def get_systems(self, system_type):
+        """
+        Get all Systems of the specified class.
+
+        :param system_type:
+        :return:
+        """
         return (e for e in self.systems if isinstance(e, system_type))
+
+    def add_entity(self, entity):
+        """
+        Add an entity to the world.
+
+        :param entity:
+        :return:
+        """
+        self._add_components(entity)
+        self._entities.add(entity)
+
+    def add_entities(self, *entities):
+        """
+        Add multiple entities to the world.
+
+        :param entities:
+        :return:
+        """
+        for entity in entities:
+            self.add_entity(entity)
+
+    def set_entities(self, *entities):
+        """
+        Replace the current entities with the given ones.
+
+        :param entities:
+        :return:
+        """
+        for_removal = [e for e in self._entities if e not in entities]
+        for_addition = [e for e in entities if e not in self._entities]
+        self.remove_entities(*for_removal)
+        self.add_entities(*for_addition)
+
+    def remove_entity(self, entity):
+        """
+        Remove an entity and all its data from the world.
+
+        :param entity:
+        :return:
+        """
+        self._remove_components(entity)
+        self._entities.discard(entity)
+
+    def remove_entities(self, *entities):
+        """
+        Remove the specified Entities fomr the World.
+
+        :param entities:
+        :return:
+        """
+        for entity in entities:
+            self.remove_entity(entity)
+
+    def remove_all_entities(self):
+        """
+        Remove all registered Entities.
+
+        :return:
+        """
+        self._log.debug("Removing all Entities from this World.")
+        self._entities.clear()
 
     def add_system(self, system):
         """
@@ -228,6 +267,18 @@ class World(object):
         for system in systems:
             self.add_system(system)
 
+    def set_systems(self, *systems):
+        """
+        Replace the registered Systems with the specified.
+
+        :param systems:
+        :return:
+        """
+        for_removal = [s for s in self.systems if s not in systems]
+        for_addition = [s for s in systems if s not in self.systems]
+        self.remove_systems(*for_removal)
+        self.add_systems(*for_addition)
+
     def remove_system(self, system):
         """
         Remove a system from the world.
@@ -242,7 +293,22 @@ class World(object):
         elif system in self._event_systems:
             self._event_systems.remove(system)
 
+    def remove_systems(self, *systems):
+        """
+        Remove the specified Systems.
+
+        :param systems:
+        :return:
+        """
+        for system in systems:
+            self.remove_system(system)
+
     def remove_all_systems(self):
+        """
+        Remove all systems.
+
+        :return:
+        """
         self._log.debug("Removing all Systems from this World.")
         self._update_systems.clear()
         self._render_systems.clear()
