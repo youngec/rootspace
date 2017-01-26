@@ -3,7 +3,6 @@
 
 """The engine core holds the entry point into the game execution."""
 
-import collections
 import contextlib
 import logging
 import pathlib
@@ -15,7 +14,7 @@ import attr
 import glfw
 from attr.validators import instance_of
 
-from .systems import SceneSystem
+from .systems import SceneSystem, UpdateSystem, RenderSystem, EventSystem
 from .entities import Camera
 from .events import KeyEvent, CharEvent, CursorEvent, SceneEvent
 from .exceptions import GLFWError
@@ -342,11 +341,7 @@ class World(object):
         :param system:
         :return:
         """
-        comp_types = hasattr(system, "component_types") and isinstance(system.component_types, collections.Iterable)
-        applicator = hasattr(system, "is_applicator") and isinstance(system.is_applicator, bool)
-        update = hasattr(system, "update") and callable(system.update)
-
-        return comp_types and applicator and update
+        return isinstance(system, UpdateSystem)
 
     def _is_render_system(self, system):
         """
@@ -355,11 +350,7 @@ class World(object):
         :param system:
         :return:
         """
-        comp_types = hasattr(system, "component_types") and isinstance(system.component_types, collections.Iterable)
-        applicator = hasattr(system, "is_applicator") and isinstance(system.is_applicator, bool)
-        render = hasattr(system, "render") and callable(system.render)
-
-        return comp_types and applicator and render
+        return isinstance(system, RenderSystem)
 
     def _is_event_system(self, system):
         """
@@ -368,12 +359,7 @@ class World(object):
         :param system:
         :return:
         """
-        comp_types = hasattr(system, "component_types") and isinstance(system.component_types, collections.Iterable)
-        applicator = hasattr(system, "is_applicator") and isinstance(system.is_applicator, bool)
-        event_types = hasattr(system, "event_types") and isinstance(system.event_types, collections.Iterable)
-        dispatch = hasattr(system, "dispatch") and callable(system.dispatch)
-
-        return comp_types and applicator and event_types and dispatch
+        return isinstance(system, EventSystem)
 
     def _is_valid_system(self, system):
         """
