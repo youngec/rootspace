@@ -9,9 +9,9 @@
   "clear_bits": 16640,
   "cursor_mode": 212995,
   "cursor_origin": [512, 384],
-  "field_of_view": 3.1415926,
+  "field_of_view": 0.78539716,
   "near_plane": 0.1,
-  "far_plane": 100.0,
+  "far_plane": 1000.0,
   "systems": {
     "renderer": {
       "class": "open_gl_renderer",
@@ -55,8 +55,7 @@
     "test_entity_transform": {
       "class": "transform",
       "args": [
-        [0, -1, -1],
-        [1, 1, 1]
+        [0, 0, -10]
       ]
     },
     "test_entity_model": {

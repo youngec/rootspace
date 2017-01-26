@@ -133,10 +133,10 @@ class Transform(Component):
 
 @attr.s
 class CameraData(Component):
-    _fov = attr.ib(default=numpy.pi / 4, validator=instance_of(float))
+    _fov = attr.ib(default=math.pi / 4, validator=instance_of(float))
     _shape = attr.ib(default=(800, 600), validator=iterable_of(tuple, int), convert=tuple)
     _near = attr.ib(default=0.1, validator=instance_of(float))
-    _far = attr.ib(default=100.0, validator=instance_of(float))
+    _far = attr.ib(default=1000.0, validator=instance_of(float))
 
     @property
     def matrix(self):

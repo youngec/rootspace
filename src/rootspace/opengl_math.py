@@ -39,12 +39,17 @@ def perspective(field_of_view, viewport_ratio, near, far):
     t = math.tanh(field_of_view / 2)
     n = near
     f = far
+    y_scale = 1 / math.tan(field_of_view / 2)
+    x_scale = y_scale / viewport_ratio
+    z_sum = near + far
+    z_diff = near - far
+    z_prod = near * far
 
     return numpy.array((
-        (1 / (a * t), 0, 0, 0),
-        (0, 1 / t, 0, 0),
-        (0, 0, -(f + n) / (f - n), -1),
-        (0, 0, -2 * (f * n) / (f - n), 1)
+        (x_scale, 0, 0, 0),
+        (0, y_scale, 0, 0),
+        (0, 0, z_sum / z_diff, 2 * z_prod / z_diff),
+        (0, 0, -1, 0)
     ))
 
 
