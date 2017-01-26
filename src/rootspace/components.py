@@ -132,7 +132,7 @@ class Transform(Component):
 
 
 @attr.s
-class CameraData(Component):
+class Projection(Component):
     _fov = attr.ib(default=math.pi / 4, validator=instance_of(float))
     _shape = attr.ib(default=(800, 600), validator=iterable_of(tuple, int), convert=tuple)
     _near = attr.ib(default=0.1, validator=instance_of(float))

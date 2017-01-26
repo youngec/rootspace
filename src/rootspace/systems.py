@@ -11,7 +11,7 @@ import attr
 from attr.validators import instance_of
 
 from .data_abstractions import Scene
-from .components import ComponentMeta, Transform, CameraData, Model
+from .components import ComponentMeta, Transform, Projection, Model
 from .entities import EntityMeta, Camera
 from .events import KeyEvent, CursorEvent, SceneEvent
 from .exceptions import FixmeWarning
@@ -106,7 +106,7 @@ class EventSystem(System):
 
 @attr.s
 class CameraControlSystem(EventSystem):
-    component_types = (Transform, CameraData)
+    component_types = (Transform, Projection)
     is_applicator = True
     event_types = (KeyEvent, CursorEvent)
 
@@ -158,7 +158,7 @@ class OpenGlRenderer(RenderSystem):
     def render(self, world, components):
         # Get a reference to the camera
         camera = next(world.get_entities(Camera))
-        pv = camera.matrix
+        pv = camera.projection.matrix @ camera.transform.matrix
 
         # Clear the render buffers
         scene_system = next(world.get_systems(SceneSystem))

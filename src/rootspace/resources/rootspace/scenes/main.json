@@ -27,7 +27,7 @@
       "class": "camera",
       "args": [
         "camera_transform",
-        "camera_data"
+        "camera_projection"
       ]
     },
     "test_entity": {
@@ -43,8 +43,8 @@
       "class": "transform",
       "args": []
     },
-    "camera_data": {
-      "class": "camera_data",
+    "camera_projection": {
+      "class": "projection",
       "args": [
         "field_of_view",
         "window_shape",

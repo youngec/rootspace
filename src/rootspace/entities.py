@@ -5,7 +5,7 @@ import uuid
 import attr
 from attr.validators import instance_of
 
-from .components import Transform, CameraData, Model
+from .components import Transform, Projection, Model
 from .utilities import camelcase_to_underscore
 
 
@@ -47,18 +47,4 @@ class TestEntity(Entity):
 @attr.s(hash=False)
 class Camera(Entity):
     transform = attr.ib(validator=instance_of(Transform))
-    camera_data = attr.ib(validator=instance_of(CameraData))
-
-    @property
-    def matrix(self):
-        return self.camera_data.matrix @ self.transform.matrix
-
-    @property
-    def aspect(self):
-        return self.camera_data.aspect
-
-    @aspect.setter
-    def aspect(self, value):
-        self.camera_data.aspect = value
-
-
+    projection = attr.ib(validator=instance_of(Projection))
