@@ -449,8 +449,9 @@ class World(object):
         :return:
         """
         # Set the cursor behavior
-        # glfw.set_input_mode(self.ctx.window, glfw.CURSOR, new_scene.cursor_mode)
-        # glfw.set_cursor_pos(self.ctx.window, *new_scene.cursor_origin)
+        if not self.ctx.debug:
+            glfw.set_input_mode(self.ctx.window, glfw.CURSOR, new_scene.cursor_mode)
+            glfw.set_cursor_pos(self.ctx.window, *new_scene.cursor_origin)
 
         # Enable the OpenGL depth buffer
         if new_scene.enable_depth_test:
@@ -712,6 +713,15 @@ class Context(object):
         :return:
         """
         return self._world
+
+    @property
+    def debug(self):
+        """
+        Return True if debug functionality should be enabled.
+
+        :return:
+        """
+        return self._debug
 
     def _register_events(self):
         """
