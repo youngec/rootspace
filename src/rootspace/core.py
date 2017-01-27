@@ -8,18 +8,21 @@ import logging
 import pathlib
 import shutil
 import weakref
+import collections
+import os
 
 import OpenGL.GL as gl
 import attr
 import glfw
 from attr.validators import instance_of
 
-from .systems import SceneSystem, UpdateSystem, RenderSystem, EventSystem
-from .entities import Camera
+from .systems import SystemMeta, UpdateSystem, RenderSystem, EventSystem
+from .entities import EntityMeta, Camera
+from .components import ComponentMeta
 from .events import KeyEvent, CharEvent, CursorEvent, SceneEvent
 from .exceptions import GLFWError
 from .utilities import subclass_of
-from .data_abstractions import KeyMap, ContextData
+from .data_abstractions import KeyMap, ContextData, Scene
 
 
 @attr.s
@@ -50,10 +53,11 @@ class World(object):
     _ctx = attr.ib(validator=instance_of(weakref.ReferenceType), repr=False)
     _entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
     _components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict), repr=False)
-    _update_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-    _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-    _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-
+    _update_systems = attr.ib(default=attr.Factory(set), validator=instance_of(set))
+    _render_systems = attr.ib(default=attr.Factory(set), validator=instance_of(set))
+    _event_systems = attr.ib(default=attr.Factory(set), validator=instance_of(set))
+    _event_queue = attr.ib(default=attr.Factory(collections.deque), validator=instance_of(collections.deque))
+    _scene = attr.ib(default=None, validator=instance_of((type(None), Scene)))
     _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
 
     @property
@@ -62,7 +66,11 @@ class World(object):
 
     @property
     def systems(self):
-        return self._update_systems + self._render_systems + self._event_systems
+        return self._update_systems | self._render_systems | self._event_systems
+
+    @property
+    def scene(self):
+        return self._scene
 
     @classmethod
     def create(cls, ctx):
@@ -249,11 +257,11 @@ class World(object):
         if self._is_valid_system(system):
             self._log.debug("Adding System '{}'.".format(system))
             if self._is_update_system(system):
-                self._update_systems.append(system)
+                self._update_systems.add(system)
             elif self._is_render_system(system):
-                self._render_systems.append(system)
+                self._render_systems.add(system)
             elif self._is_event_system(system):
-                self._event_systems.append(system)
+                self._event_systems.add(system)
         else:
             raise TypeError("The specified system cannot be used as such.")
 
@@ -344,13 +352,42 @@ class World(object):
                 for comp_type in system.component_types:
                     system.render(self, self._components[comp_type].values())
 
-    def dispatch_resize(self, window, width, height):
+    def dispatch(self, event):
+        """
+        Add an event to the queue.
+
+        :param event:
+        :return:
+        """
+        self._event_queue.append(event)
+
+    def process(self):
+        """
+        Process all events.
+
+        :return:
+        """
+        while len(self._event_queue) > 0:
+            event = self._event_queue.popleft()
+            if isinstance(event, SceneEvent):
+                self._update_scene(event)
+            else:
+                for system in self._event_systems:
+                    if isinstance(event, system.event_types):
+                        if system.is_applicator:
+                            comps = self._combined_components(system.component_types)
+                            system.process(event, self, comps)
+                        else:
+                            for comp_type in system.component_types:
+                                system.process(event, self, self._components[comp_type].values())
+
+    def callback_resize(self, window, width, height):
         for camera in self.get_entities(Camera):
             camera.shape = (width, height)
 
         gl.glViewport(0, 0, width, height)
 
-    def dispatch_key(self, window, key, scancode, action, mode):
+    def callback_key(self, window, key, scancode, action, mode):
         """
         Dispatch a Key press event, as sent by GLFW.
 
@@ -363,7 +400,7 @@ class World(object):
         """
         self.dispatch(KeyEvent(window, key, scancode, action, mode))
 
-    def dispatch_char(self, window, codepoint):
+    def callback_char(self, window, codepoint):
         """
         Dispatch a Character entry event, as sent by GLFW.
 
@@ -373,7 +410,7 @@ class World(object):
         """
         self.dispatch(CharEvent(window, codepoint))
 
-    def dispatch_cursor(self, window, xpos, ypos):
+    def callback_cursor(self, window, xpos, ypos):
         """
         Dispatch a cursor movement event, as sent by GLFW.
 
@@ -384,21 +421,122 @@ class World(object):
         """
         self.dispatch(CursorEvent(window, xpos, ypos))
 
-    def dispatch(self, event):
+    def _update_scene(self, event):
         """
-        Dispatch an SDL2 event.
 
         :param event:
         :return:
         """
-        for system in self._event_systems:
-            if isinstance(event, system.event_types):
-                if system.is_applicator:
-                    comps = self._combined_components(system.component_types)
-                    system.dispatch(event, self, comps)
+        # Create the new scene
+        scene_path = self.ctx.resources / self.ctx.data.default_scenes_dir / event.name
+        new_scene = Scene.from_json(scene_path)
+
+        # Update the OpenGL context according to the scene data
+        self._update_context(self._scene, new_scene)
+
+        # Update the world according to the scene data
+        self._update_world(self._scene, new_scene)
+
+        # Set the new scene as current
+        self._scene = new_scene
+
+    def _update_context(self, old_scene, new_scene):
+        """
+        Update the GLFW and OpenGL context according to the Scene change.
+
+        :param old_scene:
+        :param new_scene:
+        :return:
+        """
+        # Set the cursor behavior
+        # glfw.set_input_mode(self.ctx.window, glfw.CURSOR, new_scene.cursor_mode)
+        # glfw.set_cursor_pos(self.ctx.window, *new_scene.cursor_origin)
+
+        # Enable the OpenGL depth buffer
+        if new_scene.enable_depth_test:
+            gl.glEnable(gl.GL_DEPTH_TEST)
+            gl.glDepthFunc(new_scene.depth_function)
+        else:
+            gl.glDisable(gl.GL_DEPTH_TEST)
+
+        # Enable OpenGL face culling
+        if new_scene.enable_face_culling:
+            gl.glEnable(gl.GL_CULL_FACE)
+            gl.glFrontFace(new_scene.front_face)
+            gl.glCullFace(new_scene.cull_face)
+        else:
+            gl.glDisable(gl.GL_CULL_FACE)
+
+    def _load_objects(self, scene, dict_tree, class_registry, reference_tree=None):
+        """
+        Load all objects from a given serialization dictionary. You must provide a reference to the World,
+        the soon-to-be active Scene, a class registry. Optionally, you may provide a reference dictionary to provide
+        additional lookup for serialized object references within the Scene.
+
+        :param scene:
+        :param dict_tree:
+        :param class_registry:
+        :param reference_tree:
+        :return:
+        """
+        objects = dict()
+        for k, v in dict_tree.items():
+            cls = class_registry[v["class"]]
+            args = list()
+            for arg in v["args"]:
+                if isinstance(arg, str):
+                    if arg in scene:
+                        args.append(scene[arg])
+                    elif arg in self.ctx.data:
+                        args.append(self.ctx.data[arg])
+                    elif reference_tree is not None and arg in reference_tree:
+                        args.append(reference_tree[arg])
+                    elif any(p in arg for p in (os.path.sep, "/", "\\")):
+                        args.append(self.ctx.resources / arg)
+                    else:
+                        args.append(arg)
                 else:
-                    for comp_type in system.component_types:
-                        system.dispatch(event, self, self._components[comp_type].values())
+                    args.append(arg)
+
+            if hasattr(cls, "create"):
+                objects[k] = cls.create(*args)
+            else:
+                objects[k] = cls(*args)
+
+        return objects
+
+    def _update_world(self, old_scene, new_scene):
+        """
+        Update the World according to the Scene change.
+
+        :param old_scene:
+        :param new_scene:
+        :return:
+        """
+        # Load the components into memory
+        components = self._load_objects(
+            new_scene,
+            new_scene.components,
+            ComponentMeta.classes
+        )
+
+        # Load the entities into memory
+        entities = self._load_objects(
+            new_scene,
+            new_scene.entities,
+            EntityMeta.classes,
+            components
+        )
+
+        # Load the systems into memory
+        systems = self._load_objects(
+            new_scene,
+            new_scene.systems,
+            SystemMeta.classes
+        )
+
+        self.set_entities(*entities.values())
+        self.set_systems(*systems.values())
 
     def _is_update_system(self, system):
         """
@@ -582,9 +720,9 @@ class Context(object):
         :return:
         """
         self._log.debug("Registering GLFW event callbacks with World.")
-        glfw.set_window_size_callback(self._window, self._world.dispatch_resize)
-        glfw.set_key_callback(self._window, self._world.dispatch_key)
-        glfw.set_cursor_pos_callback(self._window, self._world.dispatch_cursor)
+        glfw.set_window_size_callback(self._window, self._world.callback_resize)
+        glfw.set_key_callback(self._window, self._world.callback_key)
+        glfw.set_cursor_pos_callback(self._window, self._world.callback_cursor)
 
     def _clear_callbacks(self):
         """
@@ -682,12 +820,11 @@ class Context(object):
             self._register_events()
             ctx_mgr.callback(self._clear_callbacks)
 
-            # Add the initial systems
+            # Register the World cleanup callbacks
             ctx_mgr.callback(self._world.remove_all_systems)
-            self._world.add_systems(SceneSystem())
+            ctx_mgr.callback(self._world.remove_all_entities)
 
             # Load the initial scene
-            ctx_mgr.callback(self._world.remove_all_entities)
             self._world.dispatch(SceneEvent(self.data.default_scene_file))
 
             self._ctx_exit = ctx_mgr.pop_all()
@@ -770,7 +907,9 @@ class Loop(object):
             # Run the game update until we have one DELTA_TIME left for the
             # rendering step.
             while accumulator >= ctx.data.delta_time:
+                # Poll and process events
                 glfw.poll_events()
+                ctx.world.process()
 
                 ctx.world.update(t, ctx.data.delta_time)
                 t += ctx.data.delta_time

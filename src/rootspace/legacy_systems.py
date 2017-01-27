@@ -277,7 +277,7 @@ class TextInputSystem(EventSystem):
             log=cls.get_logger()
         )
 
-    def dispatch(self, event, world, components):
+    def process(self, event, world, components):
         """
         React to text input or text edit events.
 
