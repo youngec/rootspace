@@ -13,7 +13,7 @@ from .entities import Camera
 from .events import KeyEvent, CursorEvent
 from .exceptions import FixmeWarning
 from .utilities import camelcase_to_underscore
-from .opengl_math import identity
+from .opengl_math import identity, Quaternion
 
 
 class SystemMeta(type):
@@ -132,35 +132,46 @@ class PhysicsSystem(UpdateSystem):
         :return:
         """
         if any(state.momentum) or any(state.force):
-            dr_a, dm_a = self._evaluate(transform, state, 0, 0, 0, time, 0)
-            dr_b, dm_b = self._evaluate(transform, state, dr_a, dm_a, 0, time, delta_time * 0.5)
-            dr_c, dm_c = self._evaluate(transform, state, dr_b, dm_b, 0, time, delta_time * 0.5)
-            dr_d, dm_d = self._evaluate(transform, state, dr_c, dm_c, 0, time, delta_time)
+            # Calculate the derivative state
+            derivative_state = self._runge_kutta(state, delta_time)
 
-            dr_dt = 1 / 6 * (dr_a + 2 * (dr_b + dr_c) + dr_d)
-            dm_dt = 1 / 6 * (dm_a + 2 * (dm_b + dm_c) + dm_d)
+            # Calculate the linear component
+            transform.position += derivative_state.momentum / properties.mass * delta_time
+            state.momentum += derivative_state.force * delta_time
 
-            transform.position += dr_dt / properties.mass * delta_time
-            state.momentum += dm_dt * delta_time
+            # Calculate the angular component
+            r = transform.position - properties.center_of_mass
+            torque = numpy.cross(derivative_state.force, r)
+            angular_momentum = torque * delta_time
+            transform.orientation += derivative_state.spin / properties.inertia * delta_time
+            state.spin += 0.5 * (Quaternion(0, *angular_momentum) @ transform.orientation)
 
-    def _evaluate(self, transform, state, dr_dt, dm_dt, ds_dt, t, dt):
+    def _runge_kutta(self, state, delta_time):
+        """
+        Perform a fourth-order Runge Kutta integration.
+        Based on http://gafferongames.com/game-physics/
+
+        :param state:
+        :param delta_time:
+        :return:
+        """
+        derivative_a = self._evaluate(state, PhysicsState(), 0)
+        derivative_b = self._evaluate(state, derivative_a, delta_time * 0.5)
+        derivative_c = self._evaluate(state, derivative_b, delta_time * 0.5)
+        derivative_d = self._evaluate(state, derivative_c, delta_time)
+
+        return 1 / 6 * (derivative_a + 2 * (derivative_b + derivative_c) + derivative_d)
+
+    def _evaluate(self, state, derivative, dt):
         """
         Evaluate the current derivative in an Euler step.
 
-        :param transform:
         :param state:
-        :param dr:
-        :param dm:
-        :param t:
+        :param derivative:
         :param dt:
         :return:
         """
-        new_physics = PhysicsState(
-            state.momentum + dm_dt * dt,
-            state.spin + ds_dt * dt,
-            state.force
-        )
-        return state.momentum + dm_dt * dt, state.force
+        return state + derivative * dt
 
 
 @attr.s
@@ -178,37 +189,37 @@ class PlayerMovementSystem(EventSystem):
         multiplier = 1
 
         if event.key in key_map and event.mods == 0:
-            for transform, physics, projection in components:
+            for transform, state, projection in components:
                 if event.key == key_map.right:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.momentum = multiplier * transform.right[:3]
+                        state.momentum = multiplier * transform.right
                     else:
-                        physics.momentum = transform.zero[:3]
+                        state.momentum = transform.zero
                 elif event.key == key_map.left:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.momentum = multiplier * -transform.right[:3]
+                        state.momentum = multiplier * -transform.right
                     else:
-                        physics.momentum = transform.zero[:3]
+                        state.momentum = transform.zero
                 elif event.key == key_map.up:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.momentum = multiplier * transform.up[:3]
+                        state.momentum = multiplier * transform.up
                     else:
-                        physics.momentum = transform.zero[:3]
+                        state.momentum = transform.zero
                 elif event.key == key_map.down:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.momentum = multiplier * -transform.up[:3]
+                        state.momentum = multiplier * -transform.up
                     else:
-                        physics.momentum = transform.zero[:3]
+                        state.momentum = transform.zero
                 elif event.key == key_map.forward:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.momentum = multiplier * transform.forward[:3]
+                        state.momentum = multiplier * transform.forward
                     else:
-                        physics.momentum = transform.zero[:3]
+                        state.momentum = transform.zero
                 elif event.key == key_map.backward:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.momentum = multiplier * -transform.forward[:3]
+                        state.momentum = multiplier * -transform.forward
                     else:
-                        physics.momentum = transform.zero[:3]
+                        state.momentum = transform.zero
 
 
 @attr.s
@@ -216,7 +227,7 @@ class CameraControlSystem(EventSystem):
     """
     CameraControlSystem changes the Camera orientation based on mouse movement.
     """
-    component_types = (Transform, Projection)
+    component_types = (Transform, PhysicsState, Projection)
     is_applicator = True
     event_types = (CursorEvent,)
 
@@ -224,16 +235,18 @@ class CameraControlSystem(EventSystem):
         cursor_origin = world.scene.cursor_origin
         cursor = numpy.array((event.xpos, event.ypos))
 
-        for transform, projection in components:
+        for transform, state, projection in components:
             # Determine the position differential of the cursor
             delta_cursor = numpy.zeros(3)
             delta_cursor[:2] = cursor - cursor_origin
             delta_cursor /= numpy.linalg.norm(delta_cursor)
 
-            target = transform.forward[:3] + 0.01 * delta_cursor
+            target = transform.forward + 0.01 * delta_cursor
             target /= numpy.linalg.norm(target)
 
-            transform.look_at(target)
+            # state.spin = 0.5 * (Quaternion(0, *target) @ transform.orientation)
+
+            # transform.look_at(target)
 
 
 @attr.s

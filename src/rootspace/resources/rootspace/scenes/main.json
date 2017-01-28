@@ -32,6 +32,8 @@
       "class": "test_entity",
       "args": [
         "test_entity_transform",
+        "te_physics_properties",
+        "te_physics_state",
         "test_entity_model"
       ]
     }
@@ -61,16 +63,23 @@
     "test_entity_transform": {
       "class": "transform",
       "args": [
-        [0, 0, -10]
+        [0.0, 0.0, -10.0]
       ]
+    },
+    "te_physics_properties": {
+      "class": "physics_properties",
+      "args": []
+    },
+    "te_physics_state": {
+      "class": "physics_state",
+      "args": [[0.0, 0.0, 0.0], [0.707, 0.0, 0.0, 0.707], [0.0, 0.0, 0.0]]
     },
     "test_entity_model": {
       "class": "model",
       "args": [
         "models/cube.ply",
         "shaders/simple_vertex.glsl",
-        "shaders/simple_fragment.glsl",
-        "textures/test-texture.png"
+        "shaders/simple_fragment.glsl"
       ]
     }
   }
