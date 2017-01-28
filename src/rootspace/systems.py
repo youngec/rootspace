@@ -117,49 +117,44 @@ class PhysicsSystem(UpdateSystem):
         :return:
         """
         for transform, physics in components:
-            transform.position, physics.velocity = self._integrate(
-                transform.position, physics.velocity, physics.acceleration, time, delta_time
-            )
+            self._integrate(transform, physics, time, delta_time)
 
-    def _integrate(self, position, velocity, acceleration, time, delta_time):
+    def _integrate(self, transform, physics, time, delta_time):
         """
         Perform a fourth-order Runge Kutta integration of the equations of motion.
-        Based on http://gafferongames.com/game-physics/physics-in-3d/
+        Based on http://gafferongames.com/game-physics/
 
-        :param position:
-        :param velocity:
-        :param acceleration:
+        :param transform:
+        :param physics:
         :param time:
         :param delta_time:
         :return:
         """
-        dr_a, dv_a = self._evaluate(position, velocity, acceleration, 0, 0, time, 0)
-        dr_b, dv_b = self._evaluate(position, velocity, acceleration, dr_a, dv_a, time, delta_time * 0.5)
-        dr_c, dv_c = self._evaluate(position, velocity, acceleration, dr_b, dv_b, time, delta_time * 0.5)
-        dr_d, dv_d = self._evaluate(position, velocity, acceleration, dr_c, dv_c, time, delta_time)
+        if any(physics.momentum) or any(physics.force):
+            dr_a, dm_a = self._evaluate(transform, physics, 0, 0, time, 0)
+            dr_b, dm_b = self._evaluate(transform, physics, dr_a, dm_a, time, delta_time * 0.5)
+            dr_c, dm_c = self._evaluate(transform, physics, dr_b, dm_b, time, delta_time * 0.5)
+            dr_d, dm_d = self._evaluate(transform, physics, dr_c, dm_c, time, delta_time)
 
-        dx_dt = 1 / 6 * (dr_a + 2 * (dr_b + dr_c) + dr_d)
-        dv_dt = 1 / 6 * (dv_a + 2 * (dv_b + dv_c) + dv_d)
+            dr_dt = 1 / 6 * (dr_a + 2 * (dr_b + dr_c) + dr_d)
+            dm_dt = 1 / 6 * (dm_a + 2 * (dm_b + dm_c) + dm_d)
 
-        new_position = position + dx_dt * delta_time
-        new_velocity = velocity + dv_dt * delta_time
+            transform.position += dr_dt * delta_time
+            physics.momentum += dm_dt * delta_time
 
-        return new_position, new_velocity
-
-    def _evaluate(self, r, v, a, dr, dv, t, dt):
+    def _evaluate(self, transform, physics, dr, dm, t, dt):
         """
         Evaluate the current derivative in an Euler step.
 
-        :param r:
-        :param v:
-        :param a:
+        :param transform:
+        :param physics:
         :param dr:
-        :param dv:
+        :param dm:
         :param t:
         :param dt:
         :return:
         """
-        return v + dv * dt, a
+        return (physics.momentum + dm * dt) / physics.mass, physics.force
 
 
 @attr.s
@@ -172,6 +167,7 @@ class PlayerMovementSystem(EventSystem):
     event_types = (KeyEvent,)
 
     def process(self, event, world, components):
+        warnings.warn("PlayerMovementSystem does not handle simultaneous key-presses.", FixmeWarning)
         key_map = world.ctx.key_map
         multiplier = 1
 
@@ -179,34 +175,34 @@ class PlayerMovementSystem(EventSystem):
             for transform, physics, projection in components:
                 if event.key == key_map.right:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.velocity = multiplier * transform.right[:3]
+                        physics.momentum = multiplier * transform.right[:3]
                     else:
-                        physics.velocity = transform.zero[:3]
+                        physics.momentum = transform.zero[:3]
                 elif event.key == key_map.left:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.velocity = multiplier * -transform.right[:3]
+                        physics.momentum = multiplier * -transform.right[:3]
                     else:
-                        physics.velocity = transform.zero[:3]
+                        physics.momentum = transform.zero[:3]
                 elif event.key == key_map.up:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.velocity = multiplier * transform.up[:3]
+                        physics.momentum = multiplier * transform.up[:3]
                     else:
-                        physics.velocity = transform.zero[:3]
+                        physics.momentum = transform.zero[:3]
                 elif event.key == key_map.down:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.velocity = multiplier * -transform.up[:3]
+                        physics.momentum = multiplier * -transform.up[:3]
                     else:
-                        physics.velocity = transform.zero[:3]
+                        physics.momentum = transform.zero[:3]
                 elif event.key == key_map.forward:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.velocity = multiplier * transform.forward[:3]
+                        physics.momentum = multiplier * transform.forward[:3]
                     else:
-                        physics.velocity = transform.zero[:3]
+                        physics.momentum = transform.zero[:3]
                 elif event.key == key_map.backward:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
-                        physics.velocity = multiplier * -transform.forward[:3]
+                        physics.momentum = multiplier * -transform.forward[:3]
                     else:
-                        physics.velocity = transform.zero[:3]
+                        physics.momentum = transform.zero[:3]
 
 
 @attr.s

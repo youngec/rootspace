@@ -42,8 +42,9 @@ class Component(object, metaclass=ComponentMeta):
 
 @attr.s
 class Physics(Component):
-    velocity = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    acceleration = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    mass = attr.ib(default=1, validator=instance_of(float), convert=float)
+    momentum = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    force = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
 
 
 @attr.s
