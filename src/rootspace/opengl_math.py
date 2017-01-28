@@ -161,13 +161,48 @@ class Quaternion(object):
 
     def __rmul__(self, other):
         """
-        Perform a right-sided element-wise operation. Equivalent to left-sided.
+        Perform a right-sided element-wise multiplication. Equivalent to left-sided.
+
         :param other:
         :return:
         """
         return self.__mul__(other)
 
+    def __truediv__(self, other):
+        """
+        Perform an element-wise division.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Quaternion):
+            return Quaternion(self.r / other.r, self.i / other.i, self.j / other.j, self.k / other.k)
+        elif isinstance(other, (int, float)):
+            return Quaternion(self.r / other, self.i / other, self.j / other, self.k / other)
+        else:
+            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(self), type(other)))
+
+    def __rtruediv__(self, other):
+        """
+        Perform a right-sided element-wise division.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Quaternion):
+            return Quaternion(other.r / self.r, other.i / self.i, other.j / self.j, other.k / self.k)
+        elif isinstance(other, (int, float)):
+            return Quaternion(other / self.r, other / self.i, other / self.j, other / self.k)
+        else:
+            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(other), type(self)))
+
     def __matmul__(self, other):
+        """
+        Perform a quaternion multiplication.
+
+        :param other:
+        :return:
+        """
         if isinstance(other, Quaternion):
             return Quaternion(
                 self.r * other.r - self.i * other.i - self.j * other.j - self.k * other.k,
