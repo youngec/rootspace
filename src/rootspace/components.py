@@ -45,6 +45,7 @@ class Component(object, metaclass=ComponentMeta):
 class PhysicsProperties(Component):
     mass = attr.ib(default=1, validator=instance_of(float), convert=float)
     inertia = attr.ib(default=1, validator=instance_of(float), convert=float)
+    center_of_mass = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
 
 
 @attr.s
