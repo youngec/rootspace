@@ -36,9 +36,14 @@ class ComponentMeta(type):
         return cls
 
 
-@attr.s
 class Component(object, metaclass=ComponentMeta):
     pass
+
+
+@attr.s
+class Physics(Component):
+    velocity = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    acceleration = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
 
 
 @attr.s
@@ -81,6 +86,10 @@ class Transform(Component):
             self._quat = value
         else:
             raise TypeError("Orientation must be a Quaternion.")
+
+    @property
+    def zero(self):
+        return numpy.zeros(4)
 
     @property
     def up(self):

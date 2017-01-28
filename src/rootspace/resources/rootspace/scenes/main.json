@@ -20,6 +20,10 @@
     "hid": {
       "class": "camera_control_system",
       "args": []
+    },
+    "physics": {
+      "class": "physics_system",
+      "args": []
     }
   },
   "entities": {
@@ -27,6 +31,7 @@
       "class": "camera",
       "args": [
         "camera_transform",
+        "camera_physics",
         "camera_projection"
       ]
     },
@@ -41,6 +46,10 @@
   "components": {
     "camera_transform": {
       "class": "transform",
+      "args": []
+    },
+    "camera_physics": {
+      "class": "physics",
       "args": []
     },
     "camera_projection": {

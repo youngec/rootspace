@@ -7,8 +7,9 @@ import OpenGL.GL as gl
 import numpy
 import glfw
 import attr
+from attr.validators import instance_of
 
-from .components import Transform, Projection, Model
+from .components import Transform, Projection, Model, Physics
 from .entities import Camera
 from .events import KeyEvent, CursorEvent
 from .exceptions import FixmeWarning
@@ -99,35 +100,112 @@ class EventSystem(System):
 
 
 @attr.s
+class PhysicsSystem(UpdateSystem):
+    """
+    Simulate the equations of motion.
+    """
+    component_types = (Transform, Physics)
+    is_applicator = True
+
+    def update(self, time, delta_time, world, components):
+        """
+        Update the current position of a simulation of a physics-bound object.
+
+        :param time:
+        :param delta_time:
+        :param world:
+        :param components:
+        :return:
+        """
+        for transform, physics in components:
+            transform.position, physics.velocity = self._integrate(
+                transform.position, physics.velocity, physics.acceleration, time, delta_time
+            )
+
+    def _integrate(self, position, velocity, acceleration, time, delta_time):
+        """
+        Perform a fourth-order Runge Kutta integration of the equations of motion.
+        Based on http://gafferongames.com/game-physics/physics-in-3d/
+
+        :param position:
+        :param velocity:
+        :param acceleration:
+        :param time:
+        :param delta_time:
+        :return:
+        """
+        dr_a, dv_a = self._evaluate(position, velocity, acceleration, 0, 0, time, 0)
+        dr_b, dv_b = self._evaluate(position, velocity, acceleration, dr_a, dv_a, time, delta_time * 0.5)
+        dr_c, dv_c = self._evaluate(position, velocity, acceleration, dr_b, dv_b, time, delta_time * 0.5)
+        dr_d, dv_d = self._evaluate(position, velocity, acceleration, dr_c, dv_c, time, delta_time)
+
+        dx_dt = 1 / 6 * (dr_a + 2 * (dr_b + dr_c) + dr_d)
+        dv_dt = 1 / 6 * (dv_a + 2 * (dv_b + dv_c) + dv_d)
+
+        new_position = position + dx_dt * delta_time
+        new_velocity = velocity + dv_dt * delta_time
+
+        return new_position, new_velocity
+
+    def _evaluate(self, r, v, a, dr, dv, t, dt):
+        """
+        Evaluate the current derivative in an Euler step.
+
+        :param r:
+        :param v:
+        :param a:
+        :param dr:
+        :param dv:
+        :param t:
+        :param dt:
+        :return:
+        """
+        return v + dv * dt, a
+
+
+@attr.s
 class CameraControlSystem(EventSystem):
-    component_types = (Transform, Projection)
+    component_types = (Transform, Physics, Projection)
     is_applicator = True
     event_types = (KeyEvent, CursorEvent)
 
     def process(self, event, world, components):
         key_map = world.ctx.key_map
         cursor_origin = world.scene.cursor_origin
-        dt = world.ctx.data.delta_time
+        multiplier = 1
 
         if isinstance(event, KeyEvent) and event.key in key_map and event.mods == 0:
-            if event.action in (glfw.PRESS, glfw.REPEAT):
-                for transform, data in components:
-                    absolute_speed = 10
-                    speed = numpy.zeros(4)
-                    if event.key == key_map.right:
-                        speed = absolute_speed * transform.right
-                    elif event.key == key_map.left:
-                        speed = absolute_speed * -transform.right
-                    elif event.key == key_map.up:
-                        speed = absolute_speed * transform.up
-                    elif event.key == key_map.down:
-                        speed = absolute_speed * -transform.up
-                    elif event.key == key_map.forward:
-                        speed = absolute_speed * transform.forward
-                    elif event.key == key_map.backward:
-                        speed = absolute_speed * -transform.forward
-
-                    transform.position += speed[:3] * dt
+            for transform, physics, projection in components:
+                if event.key == key_map.right:
+                    if event.action in (glfw.PRESS, glfw.REPEAT):
+                        physics.velocity = multiplier * transform.right[:3]
+                    else:
+                        physics.velocity = transform.zero[:3]
+                elif event.key == key_map.left:
+                    if event.action in (glfw.PRESS, glfw.REPEAT):
+                        physics.velocity = multiplier * -transform.right[:3]
+                    else:
+                        physics.velocity = transform.zero[:3]
+                elif event.key == key_map.up:
+                    if event.action in (glfw.PRESS, glfw.REPEAT):
+                        physics.velocity = multiplier * transform.up[:3]
+                    else:
+                        physics.velocity = transform.zero[:3]
+                elif event.key == key_map.down:
+                    if event.action in (glfw.PRESS, glfw.REPEAT):
+                        physics.velocity = multiplier * -transform.up[:3]
+                    else:
+                        physics.velocity = transform.zero[:3]
+                elif event.key == key_map.forward:
+                    if event.action in (glfw.PRESS, glfw.REPEAT):
+                        physics.velocity = multiplier * transform.forward[:3]
+                    else:
+                        physics.velocity = transform.zero[:3]
+                elif event.key == key_map.backward:
+                    if event.action in (glfw.PRESS, glfw.REPEAT):
+                        physics.velocity = multiplier * -transform.forward[:3]
+                    else:
+                        physics.velocity = transform.zero[:3]
 
         elif isinstance(event, CursorEvent):
             cursor = numpy.array((event.xpos, event.ypos))
@@ -140,7 +218,7 @@ class CameraControlSystem(EventSystem):
                 target = transform.forward[:3] + 0.01 * delta_cursor
                 target /= numpy.linalg.norm(target)
 
-                # transform.look_at(target)
+                transform.look_at(target)
 
 
 @attr.s
