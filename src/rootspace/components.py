@@ -136,19 +136,19 @@ class Transform(Component):
 
     @property
     def zero(self):
-        return numpy.zeros(4)
+        return numpy.zeros(3)
 
     @property
     def up(self):
-        return self._quat.T.matrix4 @ (0, 1, 0, 1)
+        return (self._quat.T.matrix4 @ (0, 1, 0, 1))[:3]
 
     @property
     def right(self):
-        return self._quat.T.matrix4 @ (1, 0, 0, 1)
+        return (self._quat.T.matrix4 @ (1, 0, 0, 1))[:3]
 
     @property
     def forward(self):
-        return self._quat.T.matrix4 @ (0, 0, 1, 1)
+        return (self._quat.T.matrix4 @ (0, 0, 1, 1))[:3]
 
     @property
     def matrix(self):
