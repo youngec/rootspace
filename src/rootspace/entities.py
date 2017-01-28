@@ -5,7 +5,7 @@ import uuid
 import attr
 from attr.validators import instance_of
 
-from .components import Transform, Projection, Model, Physics
+from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties
 from .utilities import camelcase_to_underscore
 
 
@@ -47,5 +47,6 @@ class TestEntity(Entity):
 @attr.s(hash=False)
 class Camera(Entity):
     transform = attr.ib(validator=instance_of(Transform))
-    physics = attr.ib(validator=instance_of(Physics))
+    physics_properties = attr.ib(validator=instance_of(PhysicsProperties))
+    physics_state = attr.ib(validator=instance_of(PhysicsState))
     projection = attr.ib(validator=instance_of(Projection))

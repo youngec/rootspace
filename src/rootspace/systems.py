@@ -8,7 +8,7 @@ import numpy
 import glfw
 import attr
 
-from .components import Transform, Projection, Model, Physics
+from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties
 from .entities import Camera
 from .events import KeyEvent, CursorEvent
 from .exceptions import FixmeWarning
@@ -103,7 +103,7 @@ class PhysicsSystem(UpdateSystem):
     """
     Simulate the equations of motion.
     """
-    component_types = (Transform, Physics)
+    component_types = (Transform, PhysicsProperties, PhysicsState)
     is_applicator = True
 
     def update(self, time, delta_time, world, components):
@@ -116,45 +116,51 @@ class PhysicsSystem(UpdateSystem):
         :param components:
         :return:
         """
-        for transform, physics in components:
-            self._integrate(transform, physics, time, delta_time)
+        for transform, properties, state in components:
+            self._integrate(transform, properties, state, time, delta_time)
 
-    def _integrate(self, transform, physics, time, delta_time):
+    def _integrate(self, transform, properties, state, time, delta_time):
         """
         Perform a fourth-order Runge Kutta integration of the equations of motion.
         Based on http://gafferongames.com/game-physics/
 
         :param transform:
-        :param physics:
+        :param properties:
+        :param state:
         :param time:
         :param delta_time:
         :return:
         """
-        if any(physics.momentum) or any(physics.force):
-            dr_a, dm_a = self._evaluate(transform, physics, 0, 0, time, 0)
-            dr_b, dm_b = self._evaluate(transform, physics, dr_a, dm_a, time, delta_time * 0.5)
-            dr_c, dm_c = self._evaluate(transform, physics, dr_b, dm_b, time, delta_time * 0.5)
-            dr_d, dm_d = self._evaluate(transform, physics, dr_c, dm_c, time, delta_time)
+        if any(state.momentum) or any(state.force):
+            dr_a, dm_a = self._evaluate(transform, state, 0, 0, 0, time, 0)
+            dr_b, dm_b = self._evaluate(transform, state, dr_a, dm_a, 0, time, delta_time * 0.5)
+            dr_c, dm_c = self._evaluate(transform, state, dr_b, dm_b, 0, time, delta_time * 0.5)
+            dr_d, dm_d = self._evaluate(transform, state, dr_c, dm_c, 0, time, delta_time)
 
             dr_dt = 1 / 6 * (dr_a + 2 * (dr_b + dr_c) + dr_d)
             dm_dt = 1 / 6 * (dm_a + 2 * (dm_b + dm_c) + dm_d)
 
-            transform.position += dr_dt * delta_time
-            physics.momentum += dm_dt * delta_time
+            transform.position += dr_dt / properties.mass * delta_time
+            state.momentum += dm_dt * delta_time
 
-    def _evaluate(self, transform, physics, dr, dm, t, dt):
+    def _evaluate(self, transform, state, dr_dt, dm_dt, ds_dt, t, dt):
         """
         Evaluate the current derivative in an Euler step.
 
         :param transform:
-        :param physics:
+        :param state:
         :param dr:
         :param dm:
         :param t:
         :param dt:
         :return:
         """
-        return (physics.momentum + dm * dt) / physics.mass, physics.force
+        new_physics = PhysicsState(
+            state.momentum + dm_dt * dt,
+            state.spin + ds_dt * dt,
+            state.force
+        )
+        return state.momentum + dm_dt * dt, state.force
 
 
 @attr.s
@@ -162,7 +168,7 @@ class PlayerMovementSystem(EventSystem):
     """
     PlayerMovementSystem causes the Camera to react on the basis of keyboard button presses.
     """
-    component_types = (Transform, Physics, Projection)
+    component_types = (Transform, PhysicsState, Projection)
     is_applicator = True
     event_types = (KeyEvent,)
 

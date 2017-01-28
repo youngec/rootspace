@@ -23,7 +23,8 @@
       "class": "camera",
       "args": [
         "camera_transform",
-        "camera_physics",
+        "camera_physics_properties",
+        "camera_physics_state",
         "camera_projection"
       ]
     },
@@ -40,8 +41,12 @@
       "class": "transform",
       "args": []
     },
-    "camera_physics": {
-      "class": "physics",
+    "camera_physics_properties": {
+      "class": "physics_properties",
+      "args": []
+    },
+    "camera_physics_state": {
+      "class": "physics_state",
       "args": []
     },
     "camera_projection": {

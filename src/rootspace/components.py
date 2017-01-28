@@ -11,6 +11,7 @@ import numpy
 import OpenGL.GL as gl
 import PIL.Image
 from attr.validators import instance_of
+from attr import Factory
 from OpenGL.constant import Constant
 
 from .opengl_math import perspective, translation, Quaternion, to_quaternion
@@ -41,9 +42,15 @@ class Component(object, metaclass=ComponentMeta):
 
 
 @attr.s
-class Physics(Component):
+class PhysicsProperties(Component):
     mass = attr.ib(default=1, validator=instance_of(float), convert=float)
+    inertia = attr.ib(default=1, validator=instance_of(float), convert=float)
+
+
+@attr.s
+class PhysicsState(Component):
     momentum = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    spin = attr.ib(default=Factory(Quaternion), validator=instance_of(Quaternion), convert=to_quaternion)
     force = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
 
 
@@ -51,7 +58,7 @@ class Physics(Component):
 class Transform(Component):
     _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
     _scale = attr.ib(default=numpy.ones(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    _quat = attr.ib(default=Quaternion(1, 0, 0, 0), validator=instance_of(Quaternion), convert=to_quaternion)
+    _quat = attr.ib(default=Factory(Quaternion), validator=instance_of(Quaternion), convert=to_quaternion)
 
     @property
     def position(self):
