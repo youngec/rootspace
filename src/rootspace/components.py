@@ -53,6 +53,44 @@ class PhysicsState(Component):
     spin = attr.ib(default=Factory(Quaternion), validator=instance_of(Quaternion), convert=to_quaternion)
     force = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
 
+    def __add__(self, other):
+        if isinstance(other, PhysicsState):
+            return PhysicsState(self.momentum + other.momentum, self.spin + other.spin, self.force + other.force)
+        elif isinstance(other, (int, float)):
+            return PhysicsState(self.momentum + other, self.spin + other, self.force + other)
+        else:
+            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(type(self), type(other)))
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __sub__(self, other):
+        if isinstance(other, PhysicsState):
+            return PhysicsState(self.momentum - other.momentum, self.spin - other.spin, self.force - other.force)
+        elif isinstance(other, (int, float)):
+            return PhysicsState(self.momentum - other, self.spin - other, self.force - other)
+        else:
+            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(self), type(other)))
+
+    def __rsub__(self, other):
+        if isinstance(other, PhysicsState):
+            return PhysicsState(other.momentum - self.momentum, other.spin - self.spin, other.force - self.force)
+        elif isinstance(other, (int, float)):
+            return PhysicsState(other - self.momentum, other - self.spin, other - self.force)
+        else:
+            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(other), type(self)))
+
+    def __mul__(self, other):
+        if isinstance(other, PhysicsState):
+            return PhysicsState(self.momentum * other.momentum, self.spin * other.spin, self.force * other.force)
+        elif isinstance(other, (int, float)):
+            return PhysicsState(self.momentum * other, self.spin * other, self.force * other)
+        else:
+            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(type(self), type(other)))
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
 
 @attr.s
 class Transform(Component):
