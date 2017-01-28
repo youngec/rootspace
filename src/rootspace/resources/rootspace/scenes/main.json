@@ -12,20 +12,20 @@
   "field_of_view": 0.78539716,
   "near_plane": 0.1,
   "far_plane": 1000.0,
-  "systems": {
-    "renderer": {
-      "class": "open_gl_renderer",
-      "args": []
-    },
-    "hid": {
+  "systems": [
+    {
       "class": "camera_control_system",
       "args": []
     },
-    "physics": {
+    {
       "class": "physics_system",
       "args": []
+    },
+    {
+      "class": "open_gl_renderer",
+      "args": []
     }
-  },
+  ],
   "entities": {
     "camera": {
       "class": "camera",

@@ -200,7 +200,7 @@ class Scene(DataModel):
     far_plane = attr.ib(default=100.0, validator=instance_of(float), convert=float)
 
     # Actual scene data
-    systems = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+    systems = attr.ib(default=attr.Factory(tuple), validator=instance_of(tuple), convert=tuple)
     entities = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
     components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
 

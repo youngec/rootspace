@@ -53,9 +53,9 @@ class World(object):
     _ctx = attr.ib(validator=instance_of(weakref.ReferenceType), repr=False)
     _entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
     _components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict), repr=False)
-    _update_systems = attr.ib(default=attr.Factory(set), validator=instance_of(set))
-    _render_systems = attr.ib(default=attr.Factory(set), validator=instance_of(set))
-    _event_systems = attr.ib(default=attr.Factory(set), validator=instance_of(set))
+    _update_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _event_queue = attr.ib(default=attr.Factory(collections.deque), validator=instance_of(collections.deque))
     _scene = attr.ib(default=None, validator=instance_of((type(None), Scene)))
     _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
@@ -66,7 +66,7 @@ class World(object):
 
     @property
     def systems(self):
-        return self._update_systems | self._render_systems | self._event_systems
+        return self._update_systems + self._render_systems + self._event_systems
 
     @property
     def scene(self):
@@ -254,16 +254,19 @@ class World(object):
         :param system:
         :return:
         """
-        if self._is_valid_system(system):
-            self._log.debug("Adding System '{}'.".format(system))
-            if self._is_update_system(system):
-                self._update_systems.add(system)
-            elif self._is_render_system(system):
-                self._render_systems.add(system)
-            elif self._is_event_system(system):
-                self._event_systems.add(system)
+        if system not in self.systems:
+            if self._is_valid_system(system):
+                self._log.debug("Adding System '{}'.".format(system))
+                if self._is_update_system(system):
+                    self._update_systems.append(system)
+                elif self._is_render_system(system):
+                    self._render_systems.append(system)
+                elif self._is_event_system(system):
+                    self._event_systems.append(system)
+            else:
+                raise TypeError("The specified system cannot be used as such.")
         else:
-            raise TypeError("The specified system cannot be used as such.")
+            raise ValueError("You cannot add multiple instances of a particular systme class.")
 
     def add_systems(self, *systems):
         """
@@ -468,41 +471,66 @@ class World(object):
         else:
             gl.glDisable(gl.GL_CULL_FACE)
 
-    def _load_objects(self, scene, dict_tree, class_registry, reference_tree=None):
+    def _load_objects(self, scene, object_tree, class_registry, reference_tree=None):
         """
         Load all objects from a given serialization dictionary. You must provide a reference to the World,
         the soon-to-be active Scene, a class registry. Optionally, you may provide a reference dictionary to provide
         additional lookup for serialized object references within the Scene.
 
         :param scene:
-        :param dict_tree:
+        :param object_tree:
         :param class_registry:
         :param reference_tree:
         :return:
         """
-        objects = dict()
-        for k, v in dict_tree.items():
-            cls = class_registry[v["class"]]
-            args = list()
-            for arg in v["args"]:
-                if isinstance(arg, str):
-                    if arg in scene:
-                        args.append(scene[arg])
-                    elif arg in self.ctx.data:
-                        args.append(self.ctx.data[arg])
-                    elif reference_tree is not None and arg in reference_tree:
-                        args.append(reference_tree[arg])
-                    elif any(p in arg for p in (os.path.sep, "/", "\\")):
-                        args.append(self.ctx.resources / arg)
+        if isinstance(object_tree, dict):
+            objects = dict()
+            for k, v in object_tree.items():
+                cls = class_registry[v["class"]]
+                args = list()
+                for arg in v["args"]:
+                    if isinstance(arg, str):
+                        if arg in scene:
+                            args.append(scene[arg])
+                        elif arg in self.ctx.data:
+                            args.append(self.ctx.data[arg])
+                        elif reference_tree is not None and arg in reference_tree:
+                            args.append(reference_tree[arg])
+                        elif any(p in arg for p in (os.path.sep, "/", "\\")):
+                            args.append(self.ctx.resources / arg)
+                        else:
+                            args.append(arg)
                     else:
                         args.append(arg)
-                else:
-                    args.append(arg)
 
-            if hasattr(cls, "create"):
-                objects[k] = cls.create(*args)
-            else:
-                objects[k] = cls(*args)
+                if hasattr(cls, "create"):
+                    objects[k] = cls.create(*args)
+                else:
+                    objects[k] = cls(*args)
+        else:
+            objects = list()
+            for v in object_tree:
+                cls = class_registry[v["class"]]
+                args = list()
+                for arg in v["args"]:
+                    if isinstance(arg, str):
+                        if arg in scene:
+                            args.append(scene[arg])
+                        elif arg in self.ctx.data:
+                            args.append(self.ctx.data[arg])
+                        elif reference_tree is not None and arg in reference_tree:
+                            args.append(reference_tree[arg])
+                        elif any(p in arg for p in (os.path.sep, "/", "\\")):
+                            args.append(self.ctx.resources / arg)
+                        else:
+                            args.append(arg)
+                    else:
+                        args.append(arg)
+
+                if hasattr(cls, "create"):
+                    objects.append(cls.create(*args))
+                else:
+                    objects.append(cls(*args))
 
         return objects
 
@@ -537,7 +565,7 @@ class World(object):
         )
 
         self.set_entities(*entities.values())
-        self.set_systems(*systems.values())
+        self.set_systems(*systems)
 
     def _is_update_system(self, system):
         """
