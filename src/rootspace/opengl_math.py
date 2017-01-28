@@ -94,16 +94,89 @@ class Quaternion(object):
         q[:3, :3] = self.matrix3
         return q
 
+    def __add__(self, other):
+        """
+        Perform an addition.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Quaternion):
+            return Quaternion(self.r + other.r, self.i + other.i, self.j + other.j, self.k + other.k)
+        elif isinstance(other, (int, float)):
+            return Quaternion(self.r + other, self.i + other, self.j + other, self.k + other)
+        else:
+            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(type(self), type(other)))
+
+    def __radd__(self, other):
+        """
+        Perform a right-sided addition. Equivalent to left-sided.
+
+        :param other:
+        :return:
+        """
+        return self.__add__(other)
+
+    def __sub__(self, other):
+        """
+        Perform a subtraction.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Quaternion):
+            return Quaternion(self.r - other.r, self.i - other.i, self.j - other.j, self.k - other.k)
+        elif isinstance(other, (int, float)):
+            return Quaternion(self.r - other, self.i - other, self.j - other, self.k - other)
+        else:
+            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(self), type(other)))
+
+    def __rsub__(self, other):
+        """
+        Perform a right-sided subtraction.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Quaternion):
+            return Quaternion(other.r - self.r, other.i - self.i, other.j - self.j, other.k - self.k)
+        elif isinstance(other, (int, float)):
+            return Quaternion(other - self.r, other - self.i, other - self.j, other - self.k)
+        else:
+            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(other), type(self)))
+
     def __mul__(self, other):
-        return Quaternion(self.r * other.r, self.i * other.i, self.j * other.j, self.k * other.k)
+        """
+        Perform an element-wise multiplication.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Quaternion):
+            return Quaternion(self.r * other.r, self.i * other.i, self.j * other.j, self.k * other.k)
+        elif isinstance(other, (int, float)):
+            return Quaternion(self.r * other, self.i * other, self.j * other, self.k * other)
+        else:
+            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(type(self), type(other)))
+
+    def __rmul__(self, other):
+        """
+        Perform a right-sided element-wise operation. Equivalent to left-sided.
+        :param other:
+        :return:
+        """
+        return self.__mul__(other)
 
     def __matmul__(self, other):
-        return Quaternion(
-            self.r * other.r - self.i * other.i - self.j * other.j - self.k * other.k,
-            self.r * other.i + self.i * other.r + self.j * other.k - self.k * other.j,
-            self.r * other.j - self.i * other.k + self.j * other.r + self.k * other.i,
-            self.r * other.k + self.i * other.j - self.j * other.i + self.k * other.r
-        )
+        if isinstance(other, Quaternion):
+            return Quaternion(
+                self.r * other.r - self.i * other.i - self.j * other.j - self.k * other.k,
+                self.r * other.i + self.i * other.r + self.j * other.k - self.k * other.j,
+                self.r * other.j - self.i * other.k + self.j * other.r + self.k * other.i,
+                self.r * other.k + self.i * other.j - self.j * other.i + self.k * other.r
+            )
+        else:
+            raise TypeError("unsupported operand type(s) for @: '{}' and '{}'".format(type(self), type(other)))
 
     @classmethod
     def from_axis(cls, axis, angle):
