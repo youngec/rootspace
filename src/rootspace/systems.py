@@ -164,6 +164,9 @@ class PhysicsSystem(UpdateSystem):
 
 @attr.s
 class PlayerMovementSystem(EventSystem):
+    """
+    PlayerMovementSystem causes the Camera to react on the basis of keyboard button presses.
+    """
     component_types = (Transform, Physics, Projection)
     is_applicator = True
     event_types = (KeyEvent,)
@@ -208,6 +211,9 @@ class PlayerMovementSystem(EventSystem):
 
 @attr.s
 class CameraControlSystem(EventSystem):
+    """
+    CameraControlSystem changes the Camera orientation based on mouse movement.
+    """
     component_types = (Transform, Projection)
     is_applicator = True
     event_types = (CursorEvent,)
