@@ -7,7 +7,6 @@ import OpenGL.GL as gl
 import numpy
 import glfw
 import attr
-from attr.validators import instance_of
 
 from .components import Transform, Projection, Model, Physics
 from .entities import Camera
@@ -164,17 +163,16 @@ class PhysicsSystem(UpdateSystem):
 
 
 @attr.s
-class CameraControlSystem(EventSystem):
+class PlayerMovementSystem(EventSystem):
     component_types = (Transform, Physics, Projection)
     is_applicator = True
-    event_types = (KeyEvent, CursorEvent)
+    event_types = (KeyEvent,)
 
     def process(self, event, world, components):
         key_map = world.ctx.key_map
-        cursor_origin = world.scene.cursor_origin
         multiplier = 1
 
-        if isinstance(event, KeyEvent) and event.key in key_map and event.mods == 0:
+        if event.key in key_map and event.mods == 0:
             for transform, physics, projection in components:
                 if event.key == key_map.right:
                     if event.action in (glfw.PRESS, glfw.REPEAT):
@@ -207,18 +205,27 @@ class CameraControlSystem(EventSystem):
                     else:
                         physics.velocity = transform.zero[:3]
 
-        elif isinstance(event, CursorEvent):
-            cursor = numpy.array((event.xpos, event.ypos))
-            for transform, data in components:
-                # Determine the position differential of the cursor
-                delta_cursor = numpy.zeros(3)
-                delta_cursor[:2] = cursor - cursor_origin
-                delta_cursor /= numpy.linalg.norm(delta_cursor)
 
-                target = transform.forward[:3] + 0.01 * delta_cursor
-                target /= numpy.linalg.norm(target)
+@attr.s
+class CameraControlSystem(EventSystem):
+    component_types = (Transform, Projection)
+    is_applicator = True
+    event_types = (CursorEvent,)
 
-                transform.look_at(target)
+    def process(self, event, world, components):
+        cursor_origin = world.scene.cursor_origin
+        cursor = numpy.array((event.xpos, event.ypos))
+
+        for transform, projection in components:
+            # Determine the position differential of the cursor
+            delta_cursor = numpy.zeros(3)
+            delta_cursor[:2] = cursor - cursor_origin
+            delta_cursor /= numpy.linalg.norm(delta_cursor)
+
+            target = transform.forward[:3] + 0.01 * delta_cursor
+            target /= numpy.linalg.norm(target)
+
+            transform.look_at(target)
 
 
 @attr.s

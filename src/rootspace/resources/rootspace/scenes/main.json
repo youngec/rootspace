@@ -13,18 +13,10 @@
   "near_plane": 0.1,
   "far_plane": 1000.0,
   "systems": [
-    {
-      "class": "camera_control_system",
-      "args": []
-    },
-    {
-      "class": "physics_system",
-      "args": []
-    },
-    {
-      "class": "open_gl_renderer",
-      "args": []
-    }
+    {"class": "player_movement_system", "args": []},
+    {"class": "camera_control_system", "args": []},
+    {"class": "physics_system", "args": []},
+    {"class": "open_gl_renderer", "args": []}
   ],
   "entities": {
     "camera": {
