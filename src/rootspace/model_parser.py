@@ -84,8 +84,8 @@ class PlyParser(object):
             else:
                 return pp.Or(pp.CaselessKeyword(literal) for literal in keywords)
 
-        format_type = keyword_or("ascii", "binary_little_endian", "binary_big_endian")
-        # format_type = keyword_or("ascii")
+        # format_type = keyword_or("ascii", "binary_little_endian", "binary_big_endian")
+        format_type = keyword_or("ascii")
         property_type = keyword_or(cls.data_type_map)
 
         # Define the grammar of statements
@@ -303,13 +303,13 @@ class PlyParser(object):
         :return:
         """
         if isinstance(file, (str, bytes)):
-            with open(file, "rb")as f:
+            with open(file, "r")as f:
                 return self.parse(f.read())
         elif isinstance(file, pathlib.Path):
-            with file.open("rb") as f:
+            with file.open("r") as f:
                 return self.parse(f.read())
-        elif hasattr(file, "mode") and "b" in file.mode:
+        elif hasattr(file, "mode") and "t" in file.mode:
             return self.parse(file.read())
         else:
             raise TypeError("The 'file' parameter must be either a path to a file, a pathlib.Path object, "
-                            "or a binary file object.")
+                            "or a text file object.")
