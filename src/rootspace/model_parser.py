@@ -21,17 +21,31 @@ class PlyParser(object):
     As of yet, the parser does not handle the binary file formats!
 
     Context free grammar:
-    ply_grammar     ::= header body
-    header          ::= "ply" declaration+ "end_header"
-    declaration     ::= format | element | property
-    format          ::= "format" format_type NUMBER
-    element         ::= "element" element_type NUMBER
-    property        ::= ("property" property_type IDENT) | ("property" "list" property_type property_type IDENT)
-    format_type     ::= "ascii" | "binary_little_endian" | "binary_big_endian"
-    element_type    ::= "vertex" | "face" | "edge" | IDENT
-    property_type   ::= "char" | "uchar" | "short" | "ushort" | "int" | "uint" | "float" | "double"
-    body            ::= statement+
-    statement       ::= NUMBER+
+    Ignore all "comment" statements.
+    ply_grammar      ::= header body
+    header           ::= "ply" format element_group+ "end_header"
+    num_el_grp       ::= [number of element_group occurrences]
+    element_group    ::= element property+
+    num_el_prop      ::= [number of property occurrences for the parent element]
+    format           ::= "format" format_type format_version
+    element          ::= "element" element_type element_count
+    property         ::= property_simple | property_list
+    property_simple  ::= "property" property_type prop_simple_name
+    property_list    ::= "property" "list" property_type property_type prop_list_name
+    format_type      ::= "ascii" | "binary_little_endian" | "binary_big_endian"
+    element_type     ::= "vertex" | "face" | "edge" | IDENT
+    property_type    ::= "char" | "uchar" | "short" | "ushort" | "int" | "uint" | "float" | "double"
+    prop_simple_name ::= "x" | "y" | "z" | [many more] | IDENT
+    prop_list_name   ::= "vertex_index" | "material_index" | IDENT
+    format_version   ::= FLOAT_NUMBER
+    element_count    ::= INT_NUMBER
+
+    body             ::= el_data_group * num_el_grp
+    el_data_group    ::= prp_data_group * element_count
+    prp_data_group   ::= (prop_simple_data | prop_list_data) * num_el_prop
+    prop_simple_data ::= NUMBER
+    prop_list_data   ::= list_length (NUMBER * list_length)
+    list_length      ::= NUMBER
     """
     grammar = attr.ib(validator=instance_of(pp.ParserElement))
 
