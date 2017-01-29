@@ -130,7 +130,7 @@ class Transform(Component):
     @orientation.setter
     def orientation(self, value):
         if isinstance(value, Quaternion):
-            self._quat = value / numpy.linalg.norm(value)
+            self._quat = value
         else:
             raise TypeError("Orientation must be a Quaternion.")
 
