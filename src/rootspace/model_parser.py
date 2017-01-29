@@ -80,6 +80,8 @@ class PlyParser(object):
         """
         # Define the base patterns for parsing
         number = pp.pyparsing_common.number()
+        real = pp.pyparsing_common.real()
+        integer = pp.pyparsing_common.integer()
         identifier = pp.pyparsing_common.identifier()
 
         # Define the suppressed keywords
@@ -111,7 +113,7 @@ class PlyParser(object):
         format_expr = pp.Group(
             format_keyword +
             format_type("file_type") +
-            number("version")
+            real("version")
         )("format")
 
         # Properties and Elements are sadly much more complex.
@@ -161,7 +163,7 @@ class PlyParser(object):
         # )("material_index")
 
         element_vertex = pp.Group(
-            element_keyword + keyword_or("vertex")("name") + number("count") +
+            element_keyword + keyword_or("vertex")("name") + integer("count") +
             pp.Group(
                 pp.OneOrMore(
                     property_position | property_color | property_ambient_color | property_diffuse_color |
@@ -172,19 +174,19 @@ class PlyParser(object):
         )
 
         element_face = pp.Group(
-            element_keyword + keyword_or("face")("name") + number("count") +
+            element_keyword + keyword_or("face")("name") + integer("count") +
             pp.Group(property_vertex_index | property_list_general)("properties")
         )
 
         element_edge = pp.Group(
-            element_keyword + keyword_or("edge")("name") + number("count") +
+            element_keyword + keyword_or("edge")("name") + integer("count") +
             pp.Group(
                 pp.OneOrMore(property_color | property_simple_general)
             )("properties")
         )
 
         element_general = pp.Group(
-            element_keyword + identifier("name") + number("count") +
+            element_keyword + identifier("name") + integer("count") +
             pp.Group(
                 pp.OneOrMore(property_simple_general) | property_list_general
             )("properties")
