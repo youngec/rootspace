@@ -14,67 +14,26 @@
   "far_plane": 1000.0,
   "systems": [
     {"class": "player_movement_system", "args": []},
-    {"class": "camera_control_system", "args": []},
     {"class": "physics_system", "args": []},
     {"class": "open_gl_renderer", "args": []}
   ],
   "entities": {
     "camera": {
       "class": "camera",
-      "args": [
-        "camera_transform",
-        "camera_physics_properties",
-        "camera_physics_state",
-        "camera_projection"
-      ]
+      "args": ["cam_trf", "cam_phys_prop", "cam_phys_state", "cam_proj"]
     },
     "test_entity": {
-      "class": "test_entity",
-      "args": [
-        "test_entity_transform",
-        "te_physics_properties",
-        "te_physics_state",
-        "test_entity_model"
-      ]
+      "class": "static_object",
+      "args": ["te_trf", "cube"]
     }
   },
   "components": {
-    "camera_transform": {
-      "class": "transform",
-      "args": []
-    },
-    "camera_physics_properties": {
-      "class": "physics_properties",
-      "args": []
-    },
-    "camera_physics_state": {
-      "class": "physics_state",
-      "args": []
-    },
-    "camera_projection": {
-      "class": "projection",
-      "args": [
-        "field_of_view",
-        "window_shape",
-        "near_plane",
-        "far_plane"
-      ]
-    },
-    "test_entity_transform": {
-      "class": "transform",
-      "args": [
-        [0.0, 0.0, -10.0]
-      ]
-    },
-    "te_physics_properties": {
-      "class": "physics_properties",
-      "args": []
-    },
-    "te_physics_state": {
-      "class": "physics_state",
-      "args": [[0.0, 0.0, 0.0], [0.707, 0.0, 0.0, 0.707], [0.0, 0.0, 0.0]]
-    },
-    "test_entity_model": {
+    "cam_trf": {"class": "transform", "args": []},
+    "cam_phys_prop": {"class": "physics_properties", "args": []},
+    "cam_phys_state": {"class": "physics_state", "args": []},
+    "cam_proj": {"class": "projection", "args": ["field_of_view", "window_shape", "near_plane", "far_plane"]},
+    "te_trf": {"class": "transform", "args": [[0.0, 0.0, -10.0]]},
+    "cube": {
       "class": "model",
       "args": [
         "models/cube.ply",
