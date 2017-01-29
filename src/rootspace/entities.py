@@ -39,16 +39,22 @@ class Entity(object, metaclass=EntityMeta):
 
 
 @attr.s(hash=False)
-class TestEntity(Entity):
-    transform = attr.ib(validator=instance_of(Transform))
-    physics_properties = attr.ib(validator=instance_of(PhysicsProperties))
-    physics_state = attr.ib(validator=instance_of(PhysicsState))
-    model = attr.ib(validator=instance_of(Model))
-
-
-@attr.s(hash=False)
 class Camera(Entity):
     transform = attr.ib(validator=instance_of(Transform))
     physics_properties = attr.ib(validator=instance_of(PhysicsProperties))
     physics_state = attr.ib(validator=instance_of(PhysicsState))
     projection = attr.ib(validator=instance_of(Projection))
+
+
+@attr.s(hash=False)
+class StaticObject(Entity):
+    transform = attr.ib(validator=instance_of(Transform))
+    model = attr.ib(validator=instance_of(Model))
+
+
+@attr.s(hash=False)
+class PhysicalObject(Entity):
+    transform = attr.ib(validator=instance_of(Transform))
+    model = attr.ib(validator=instance_of(Model))
+    physics_properties = attr.ib(validator=instance_of(PhysicsProperties))
+    physics_state = attr.ib(validator=instance_of(PhysicsState))
