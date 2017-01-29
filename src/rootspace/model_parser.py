@@ -303,12 +303,12 @@ class PlyParser(object):
         :return:
         """
         if isinstance(file, (str, bytes)):
-            with open(file, "r")as f:
+            with open(file, "rb")as f:
                 return self.parse(f.read())
         elif isinstance(file, pathlib.Path):
-            with file.open("r") as f:
+            with file.open("rb") as f:
                 return self.parse(f.read())
-        elif isinstance(file.peek(), bytes):
+        elif hasattr(file, "mode") and "b" in file.mode:
             return self.parse(file.read())
         else:
             raise TypeError("The 'file' parameter must be either a path to a file, a pathlib.Path object, "
