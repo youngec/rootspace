@@ -55,6 +55,13 @@ class PhysicsState(Component):
     force = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
 
     def __add__(self, other):
+        """
+        Perform a left-sided addition operation.
+
+        :param PhysicsState|int|float other:
+        :rtype: PhysicsState
+        :return:
+        """
         if isinstance(other, PhysicsState):
             return PhysicsState(self.momentum + other.momentum, self.spin + other.spin, self.force + other.force)
         elif isinstance(other, (int, float)):
@@ -63,9 +70,23 @@ class PhysicsState(Component):
             raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(type(self), type(other)))
 
     def __radd__(self, other):
+        """
+        Perform a right-sided addition operation. Equivalent to __add__.
+
+        :param PhysicsState|int|float other:
+        :rtype: PhysicsState
+        :return:
+        """
         return self.__add__(other)
 
     def __sub__(self, other):
+        """
+        Perform a left-sided subtraction operation.
+
+        :param PhysicsState|int|float other:
+        :rtype: PhysicsState
+        :return:
+        """
         if isinstance(other, PhysicsState):
             return PhysicsState(self.momentum - other.momentum, self.spin - other.spin, self.force - other.force)
         elif isinstance(other, (int, float)):
@@ -74,6 +95,13 @@ class PhysicsState(Component):
             raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(self), type(other)))
 
     def __rsub__(self, other):
+        """
+        Perform a right-sided subtraction operation.
+
+        :param PhysicsState|int|float other:
+        :rtype: PhysicsState
+        :return:
+        """
         if isinstance(other, PhysicsState):
             return PhysicsState(other.momentum - self.momentum, other.spin - self.spin, other.force - self.force)
         elif isinstance(other, (int, float)):
@@ -82,6 +110,13 @@ class PhysicsState(Component):
             raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(other), type(self)))
 
     def __mul__(self, other):
+        """
+        Perform a left-sided multiplication operation.
+
+        :param PhysicsState|int|float other:
+        :rtype: PhysicsState
+        :return:
+        """
         if isinstance(other, PhysicsState):
             return PhysicsState(self.momentum * other.momentum, self.spin * other.spin, self.force * other.force)
         elif isinstance(other, (int, float)):
@@ -90,6 +125,13 @@ class PhysicsState(Component):
             raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(type(self), type(other)))
 
     def __rmul__(self, other):
+        """
+        Perform a right-sided multiplication operation. Equivalent to __mul__.
+
+        :param PhysicsState|int|float other:
+        :rtype: PhysicsState
+        :return:
+        """
         return self.__mul__(other)
 
 
