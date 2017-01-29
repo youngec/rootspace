@@ -385,6 +385,31 @@ class World(object):
                             for comp_type in system.component_types:
                                 system.process(event, self, self._components[comp_type].values())
 
+    def register_callbacks(self, window):
+        """
+        Register the GLFW callbacks with the specified window.
+
+        :param window:
+        :return:
+        """
+        self._log.debug("Registering GLFW event callbacks with World.")
+        glfw.set_window_size_callback(window, self.callback_resize)
+        glfw.set_key_callback(window, self.callback_key)
+        glfw.set_cursor_pos_callback(window, self.callback_cursor)
+
+    def unregister_callbacks(self, window):
+        """
+        Clear the GLFW callbacks for the specified window.
+
+        :param window:
+        :return:
+        """
+        self._log.debug("Clearing GLFW event callbacks.")
+        glfw.set_window_size_callback(window, None)
+        glfw.set_key_callback(window, None)
+        glfw.set_cursor_pos_callback(window, None)
+
+
     def callback_resize(self, window, width, height):
         for camera in self.get_entities(Camera):
             camera.shape = (width, height)
@@ -753,28 +778,6 @@ class Context(object):
         """
         return self._debug
 
-    def _register_events(self):
-        """
-        Register event callbacks of World with GLFW.
-
-        :return:
-        """
-        self._log.debug("Registering GLFW event callbacks with World.")
-        glfw.set_window_size_callback(self._window, self._world.callback_resize)
-        glfw.set_key_callback(self._window, self._world.callback_key)
-        glfw.set_cursor_pos_callback(self._window, self._world.callback_cursor)
-
-    def _clear_callbacks(self):
-        """
-        Clear the callbacks registered with GLFW.
-
-        :return:
-        """
-        self._log.debug("Clearing GLFW event callbacks.")
-        glfw.set_window_size_callback(self._window, None)
-        glfw.set_key_callback(self._window, None)
-        glfw.set_cursor_pos_callback(self._window, None)
-
     def _del_glfw(self):
         """
         Close down GLFW.
@@ -857,8 +860,8 @@ class Context(object):
             ctx_mgr.callback(self._del_world)
 
             # Register the GLFW event callbacks
-            self._register_events()
-            ctx_mgr.callback(self._clear_callbacks)
+            self._world.register_callbacks(self._window)
+            ctx_mgr.callback(self._world.unregister_callbacks, self._window)
 
             # Register the World cleanup callbacks
             ctx_mgr.callback(self._world.remove_all_systems)
