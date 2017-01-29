@@ -107,10 +107,7 @@ class PlyParser(object):
         property_type = keyword_or(cls.data_type_map)
 
         # Define the grammar of statements
-        comment_expr = pp.Group(
-            comment_keyword +
-            pp.restOfLine
-        )("comment")
+        comment_expr = comment_keyword + pp.restOfLine
 
         format_expr = pp.Group(
             format_keyword +
