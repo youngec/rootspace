@@ -96,9 +96,11 @@ class PlyParser(object):
         # Define the necessary keywords
         def keyword_or(*keywords):
             if isinstance(keywords[0], dict):
-                return pp.Or(pp.CaselessKeyword(l).addParseAction(pp.replaceWith(d)) for l, d in keywords[0].items())
+                return pp.MatchFirst(
+                    pp.CaselessKeyword(l).addParseAction(pp.replaceWith(d)) for l, d in keywords[0].items()
+                )
             else:
-                return pp.Or(pp.CaselessKeyword(literal) for literal in keywords)
+                return pp.MatchFirst(pp.CaselessKeyword(literal) for literal in keywords)
 
         # format_type = keyword_or("ascii", "binary_little_endian", "binary_big_endian")
         format_type = keyword_or("ascii")
