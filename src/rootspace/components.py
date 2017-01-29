@@ -111,7 +111,7 @@ class PhysicsState(Component):
 
     def __mul__(self, other):
         """
-        Perform a left-sided multiplication operation.
+        Perform a left-sided element-wise multiplication operation.
 
         :param PhysicsState|int|float other:
         :rtype: PhysicsState
@@ -126,13 +126,43 @@ class PhysicsState(Component):
 
     def __rmul__(self, other):
         """
-        Perform a right-sided multiplication operation. Equivalent to __mul__.
+        Perform a right-sided element-wise multiplication operation. Equivalent to __mul__.
 
         :param PhysicsState|int|float other:
         :rtype: PhysicsState
         :return:
         """
         return self.__mul__(other)
+
+    def __truediv__(self, other):
+        """
+        Perform a left-sided element-wise division operation.
+
+        :param PhysicsState|int|float other:
+        :rtype: PhysicsState
+        :return:
+        """
+        if isinstance(other, PhysicsState):
+            return PhysicsState(self.momentum / other.momentum, self.spin / other.spin, self.force / other.force)
+        elif isinstance(other, (int, float)):
+            return PhysicsState(self.momentum / other, self.spin / other, self.force / other)
+        else:
+            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(self), type(other)))
+
+    def __rtruediv__(self, other):
+        """
+        Perform a right-sided element-wise division operation.
+
+        :param PhysicsState|int|float other:
+        :rtype: PhysicsState
+        :return:
+        """
+        if isinstance(other, PhysicsState):
+            return PhysicsState(other.momentum / self.momentum, other.spin / self.spin, other.force / self.force)
+        elif isinstance(other, (int, float)):
+            return PhysicsState(other / self.momentum, other / self.spin, other / self.force)
+        else:
+            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(other), type(self)))
 
 
 @attr.s
