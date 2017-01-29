@@ -84,8 +84,8 @@ class PlyParser(object):
             else:
                 return pp.Or(pp.CaselessKeyword(literal) for literal in keywords)
 
-        # format_type = keyword_or("ascii", "binary_little_endian", "binary_big_endian")
-        format_type = keyword_or("ascii")
+        format_type = keyword_or("ascii", "binary_little_endian", "binary_big_endian")
+        # format_type = keyword_or("ascii")
         property_type = keyword_or(cls.data_type_map)
 
         # Define the grammar of statements
@@ -194,21 +194,29 @@ class PlyParser(object):
         # Define the grammar of the body based on the header data
         def construct_body_expr(source, location, tokens):
             body_expr = list()
-            for el_decl in tokens.declarations.elements:
-                props = el_decl.properties
-                if len(props) == 1 and "index_type" in props[0]:
-                    element = pp.countedArray(number)
-                else:
-                    sequences = list()
-                    for prop in props:
-                        if "name" in prop:
-                            sequences.append(number(prop.name))
-                        else:
-                            for variable in prop:
-                                sequences.append(number(variable.name))
-                    element = pp.Group(pp.And(sequences))
+            file_type = tokens.declarations.format.file_type
+            if file_type == "ascii":
+                for el_decl in tokens.declarations.elements:
+                    props = el_decl.properties
+                    if len(props) == 1 and "index_type" in props[0]:
+                        element = pp.countedArray(number)
+                    else:
+                        sequences = list()
+                        for prop in props:
+                            if "name" in prop:
+                                sequences.append(number(prop.name))
+                            else:
+                                for variable in prop:
+                                    sequences.append(number(variable.name))
+                        element = pp.Group(pp.And(sequences))
 
-                body_expr.append(pp.Group(element * el_decl.count)(el_decl.name))
+                    body_expr.append(pp.Group(element * el_decl.count)(el_decl.name))
+            elif file_type == "binary_little_endian":
+                raise NotImplementedError("Cannot properly parse binary little endian files yet.")
+            elif file_type == "binary_big_endian":
+                raise NotImplementedError("Cannot properly parse binary big endian files yet.")
+            else:
+                raise ValueError("Unknown file type '{}'. This should have been caught earlier!".format(file_type))
 
             body << pp.And(body_expr)
 
@@ -287,15 +295,21 @@ class PlyParser(object):
             draw_mode=Mesh.DrawMode.Triangles
         )
 
-    def load(self, ply_path):
+    def load(self, file):
         """
         Load the supplied ply file as Model.
 
-        :param ply_path:
+        :param file:
         :return:
         """
-        if not isinstance(ply_path, pathlib.Path):
-            ply_path = pathlib.Path(ply_path)
-
-        with ply_path.open(mode="r") as f:
-            return self.parse(f.read())
+        if isinstance(file, (str, bytes)):
+            with open(file, "r")as f:
+                return self.parse(f.read())
+        elif isinstance(file, pathlib.Path):
+            with file.open("r") as f:
+                return self.parse(f.read())
+        elif isinstance(file.peek(), bytes):
+            return self.parse(file.read())
+        else:
+            raise TypeError("The 'file' parameter must be either a path to a file, a pathlib.Path object, "
+                            "or a binary file object.")
