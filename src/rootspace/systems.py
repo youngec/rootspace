@@ -10,7 +10,7 @@ import attr
 
 from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties
 from .entities import Camera
-from .events import KeyEvent, CursorEvent
+from .events import KeyEvent
 from .exceptions import FixmeWarning
 from .utilities import camelcase_to_underscore
 from .opengl_math import identity, Quaternion
@@ -146,7 +146,7 @@ class PhysicsSystem(UpdateSystem):
             transform.orientation += derivative_state.spin / properties.inertia * delta_time
             state.spin += 0.5 * (Quaternion(0, *angular_momentum) @ transform.orientation)
 
-    def _runge_kutta(self, state, delta_time):
+    def _runge_kutta(self, state: PhysicsState, delta_time: float) -> PhysicsState:
         """
         Perform a fourth-order Runge Kutta integration.
         Based on http://gafferongames.com/game-physics/
@@ -160,18 +160,18 @@ class PhysicsSystem(UpdateSystem):
         derivative_c = self._evaluate(state, derivative_b, delta_time * 0.5)
         derivative_d = self._evaluate(state, derivative_c, delta_time)
 
-        return 1 / 6 * (derivative_a + 2 * (derivative_b + derivative_c) + derivative_d)
+        return (derivative_a + 2 * (derivative_b + derivative_c) + derivative_d) / 6
 
-    def _evaluate(self, state, derivative, dt):
+    def _evaluate(self, state: PhysicsState, derivative: PhysicsState, delta_time: float) -> PhysicsState:
         """
         Evaluate the current derivative in an Euler step.
 
         :param state:
         :param derivative:
-        :param dt:
+        :param delta_time:
         :return:
         """
-        return state + derivative * dt
+        return state + derivative * delta_time
 
 
 @attr.s
@@ -220,33 +220,6 @@ class PlayerMovementSystem(EventSystem):
                         state.momentum = multiplier * -transform.forward
                     else:
                         state.momentum = transform.zero
-
-
-@attr.s
-class CameraControlSystem(EventSystem):
-    """
-    CameraControlSystem changes the Camera orientation based on mouse movement.
-    """
-    component_types = (Transform, PhysicsState, Projection)
-    is_applicator = True
-    event_types = (CursorEvent,)
-
-    def process(self, event, world, components):
-        cursor_origin = world.scene.cursor_origin
-        cursor = numpy.array((event.xpos, event.ypos))
-
-        for transform, state, projection in components:
-            # Determine the position differential of the cursor
-            delta_cursor = numpy.zeros(3)
-            delta_cursor[:2] = cursor - cursor_origin
-            delta_cursor /= numpy.linalg.norm(delta_cursor)
-
-            target = transform.forward + 0.01 * delta_cursor
-            target /= numpy.linalg.norm(target)
-
-            # state.spin = 0.5 * (Quaternion(0, *target) @ transform.orientation)
-
-            # transform.look_at(target)
 
 
 @attr.s
