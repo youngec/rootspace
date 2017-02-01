@@ -22,7 +22,7 @@ class FixmeWarning(Warning):
 
 class SerializationError(Exception):
     """
-    This exception indicates that the serialization of objects failed.
+    This exception indicates that the (de)-serialization of objects failed.
     """
     pass
 
