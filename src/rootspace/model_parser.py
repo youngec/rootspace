@@ -243,26 +243,28 @@ class PlyParser(object):
         # Separate the header and the body portion
         with mmap.mmap(file_object.fileno(), 0, access=mmap.ACCESS_READ) as file_mmap:
             # Read and tokenize the header portion
-            header_data = self._extract_header(file_mmap, advance_idx=True)
+            header_data, data_start_idx = self._extract_header(file_mmap)
             tokens = self.tokenize_header(header_data)
 
             # Determine the data types
-            vertex_data_type = self._get_aggregate_data_type(tokens, "vertex", "f")
-            index_data_type = self._get_aggregate_data_type(tokens, "face", self.default_index_type, self.allowed_index_types)
+            aggregate_data_types = {
+                "vertex": self._get_aggregate_data_type(tokens, "vertex", "f"),
+                "face": self._get_aggregate_data_type(tokens, "face", self.default_index_type, self.allowed_index_types)
+            }
 
             # Determine the attributes
-            vertex_attributes = self._get_vertex_attributes(tokens, vertex_data_type)
+            vertex_attributes = self._get_vertex_attributes(tokens, aggregate_data_types["vertex"])
 
             # Parse the data of the PLY file
             if tokens.format.file_type == self.FormatType.ASCII:
-                vertex_data, index_data = self._parse_ascii_data(tokens, file_mmap, vertex_data_type, index_data_type)
+                element_data = self._parse_ascii_data(tokens, file_mmap, data_start_idx, aggregate_data_types)
             else:
-                vertex_data, index_data = self._parse_binary_data(tokens, file_mmap, vertex_data_type, index_data_type)
+                element_data = self._parse_binary_data(tokens, file_mmap, data_start_idx, aggregate_data_types)
 
             # Store the raw data as array
             return Mesh(
-                data=vertex_data,
-                index=index_data,
+                data=element_data["vertex"],
+                index=element_data["face"],
                 attributes=vertex_attributes,
                 draw_mode=Mesh.DrawMode.Triangles
             )
@@ -308,13 +310,11 @@ class PlyParser(object):
 
         return pp.Group(pp.And(aggregates))(name)
 
-    def _extract_header(self, file_mmap, advance_idx=True):
+    def _extract_header(self, file_mmap):
         """
         Given a memory map of a file object, search for a valid PLY header and return the data as a string.
-        Optionally advance the memory mapped file index to just after the header.
 
         :param file_mmap:
-        :param advance_idx:
         :return:
         """
         # Find the indices of the header beginning and end
@@ -323,14 +323,20 @@ class PlyParser(object):
         if begin_idx != 0 or end_idx == -1:
             raise ValueError("Could not find a valid PLY header portion in the submitted file.")
 
+        # Adjust the header end index to after the keyword
+        end_idx += len(self.end_header_keyword)
+
+        # Also correct for any stray newline characters
+        for idx in range(end_idx, len(file_mmap)):
+            if file_mmap[idx] in (0x0a, 0x0d):
+                end_idx += 1
+            else:
+                break
+
         # Extract the header data
-        header_data = file_mmap[begin_idx:end_idx + len(self.end_header_keyword)].decode("ascii")
+        header_data = file_mmap[begin_idx:end_idx].decode("ascii")
 
-        # Advance the memory map pointer to just after the header
-        if advance_idx:
-            file_mmap.seek(end_idx + len(self.end_header_keyword))
-
-        return header_data
+        return header_data, end_idx
 
     def _get_aggregate_data_type(self, token_tree, element_name, default_data_type, allowed_data_types=None):
         """
@@ -383,7 +389,7 @@ class PlyParser(object):
 
         return tuple(vertex_attributes)
 
-    def _parse_ascii_data(self, header_tokens, file_mmap, vertex_data_type, index_data_type):
+    def _parse_ascii_data(self, header_tokens, file_mmap, buffer_offset, aggregate_data_types):
         """
         Parse the data portion of a PLY file assuming it uses ASCII format.
 
@@ -411,18 +417,19 @@ class PlyParser(object):
         ascii_grammar = pp.And(body_expr)
 
         # Load the body data into a string
-        body_data = file_mmap[file_mmap.tell():].decode("ascii")
+        body_data = file_mmap[buffer_offset:].decode("ascii")
 
         # Tokenize the body data
         body_tokens = ascii_grammar.parseString(body_data, parseAll=True)
 
         # Convert the data to arrays.
-        vertex_data = array.array(vertex_data_type, (value for vertex in body_tokens.vertex for value in vertex))
-        index_data = array.array(index_data_type, (value for group in body_tokens.face for face in group for value in face))
+        element_data = dict()
+        for name, dtype in aggregate_data_types.items():
+            element_data[name] = array.array(dtype, self._flatten(body_tokens[name]))
 
-        return vertex_data, index_data
+        return element_data
 
-    def _parse_binary_data(self, header_tokens, file_mmap, vertex_data_type, index_data_type):
+    def _parse_binary_data(self, header_tokens, file_mmap, buffer_offset, aggregate_data_types):
         """
         Parse the data portion of a PLY file assuming it uses one of the two binary formats.
 
@@ -433,18 +440,58 @@ class PlyParser(object):
         :return:
         """
         # Determine the byte order of the data
-        byte_order = self.byte_order_map[header_tokens.declarations.format.file_type]
+        byte_order = self.byte_order_map[header_tokens.format.file_type]
 
-        # Get the vertex element, the data types, and the total size in bytes
-        vertex_element = next(e for e in header_tokens.declarations.elements if e.name == "vertex")
-        vertex_data_types = vertex_element.count * [p.data_type for g in vertex_element.properties for p in g]
-        vertex_bytes = sum(self.data_type_sizes[t] for t in vertex_data_types)
+        # Get the data
+        element_data = dict()
+        buffer_idx = buffer_offset
+        for element in header_tokens.elements:
+            data_types = list()
+            for prop in element.properties:
+                for variable in prop:
+                    if "index_type" in variable:
+                        data_types.append("p")
+                    else:
+                        data_types.append(variable.data_type)
 
-        # Parse the data into an array
-        vertex_data_iter = struct.iter_unpack(byte_order + "".join(vertex_data_types), file_mmap.read(vertex_bytes))
-        vertex_data = array.array(vertex_data_type, vertex_data_iter)
+            aggregate_data_type = aggregate_data_types.get(element.name, "f")
 
-        # Get the index element
-        index_data = array.array(index_data_type, (0,))
+            if "p" in data_types:
+                data_len = len(file_mmap) - buffer_idx
+                pattern_len = data_len // element.count
+                pattern_basis = list()
+                for dt in data_types:
+                    if dt == "p":
+                        pattern_basis.append("{}{}".format(pattern_len, dt))
+                    else:
+                        pattern_basis.append(dt)
+                data_format_spec = "{}{}".format(byte_order, "".join(pattern_basis))
+                element_data[element.name] = array.array(aggregate_data_type, self._flatten(self._unpack_multiple_from(data_format_spec, element.count, file_mmap, buffer_idx)))
+            else:
+                data_format_spec = "{}{}".format(byte_order, "".join(data_types))
+                element_data[element.name] = array.array(aggregate_data_type, self._unpack_multiple_from(data_format_spec, element.count, file_mmap, buffer_idx))
+                buffer_idx += struct.calcsize(data_format_spec) * element.count
 
-        return vertex_data, index_data
+        return element_data
+
+    def _unpack_multiple_from(self, format_string, count, file_mmap, buffer_offset):
+        for i in range(count):
+            try:
+                data = struct.unpack_from(format_string, file_mmap, buffer_offset + i * struct.calcsize(format_string))[0]
+                yield data
+            except struct.error:
+                break
+
+    def _flatten(self, nested_iterable):
+        flattened = list()
+        for d in nested_iterable:
+            if isinstance(d, (bytes, pp.ParseResults)):
+                for e in d:
+                    if isinstance(e, pp.ParseResults):
+                        flattened.extend(tuple(e))
+                    else:
+                        flattened.append(e)
+            else:
+                flattened.append(d)
+
+        return flattened
