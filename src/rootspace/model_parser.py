@@ -8,7 +8,6 @@ import pathlib
 import mmap
 import struct
 import enum
-import math
 
 import attr
 import pyparsing as pp
@@ -56,7 +55,7 @@ class PlyParser(object):
     class FormatType(enum.Enum):
         ASCII = 0
         BINARY_LE = 1
-        BINARY_BE = 1
+        BINARY_BE = 2
 
     begin_header = "ply"
     end_header = "end_header"
@@ -64,6 +63,11 @@ class PlyParser(object):
         "ascii": FormatType.ASCII,
         "binary_little_endian": FormatType.BINARY_LE,
         "binary_big_endian": FormatType.BINARY_BE
+    }
+    byte_order_map = {
+        FormatType.ASCII: "=",
+        FormatType.BINARY_LE: "<",
+        FormatType.BINARY_BE: ">"
     }
     data_type_map = {
         "char": "b",
@@ -428,11 +432,19 @@ class PlyParser(object):
         :param index_data_type:
         :return:
         """
-        vertex_element = next(e for e in header_tokens.declarations.elements if e.name == "vertex")
-        vertex_fmt = vertex_element.count * [p.data_type for g in vertex_element.properties for p in g]
-        vertex_bytes = sum(self.data_type_sizes[t] for t in vertex_fmt)
-        vertex_data = array.array(vertex_data_type, struct.unpack("<" + "".join(vertex_fmt), file_mmap.read(vertex_bytes)))
+        # Determine the byte order of the data
+        byte_order = self.byte_order_map[header_tokens.declarations.format.file_type]
 
+        # Get the vertex element, the data types, and the total size in bytes
+        vertex_element = next(e for e in header_tokens.declarations.elements if e.name == "vertex")
+        vertex_data_types = vertex_element.count * [p.data_type for g in vertex_element.properties for p in g]
+        vertex_bytes = sum(self.data_type_sizes[t] for t in vertex_data_types)
+
+        # Parse the data into an array
+        vertex_data_iter = struct.iter_unpack(byte_order + "".join(vertex_data_types), file_mmap.read(vertex_bytes))
+        vertex_data = array.array(vertex_data_type, vertex_data_iter)
+
+        # Get the index element
         index_data = array.array(index_data_type, (0,))
 
         return vertex_data, index_data
