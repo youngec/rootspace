@@ -57,8 +57,14 @@ class PlyParser(object):
         BINARY_LE = 1
         BINARY_BE = 2
 
-    begin_header = "ply"
-    end_header = "end_header"
+    begin_header_keyword = "ply"
+    end_header_keyword = "end_header"
+    comment_keyword = "comment"
+    format_keyword = "format"
+    element_keyword = "element"
+    property_keyword = "property"
+    list_keyword = "list"
+
     format_type_map = {
         "ascii": FormatType.ASCII,
         "binary_little_endian": FormatType.BINARY_LE,
@@ -113,120 +119,104 @@ class PlyParser(object):
         integer = pp.pyparsing_common.integer()
         identifier = pp.pyparsing_common.identifier()
 
-        # Define the suppressed keywords
-        start_keyword = pp.Suppress(pp.CaselessKeyword(cls.begin_header))
-        stop_keyword = pp.Suppress(pp.CaselessKeyword(cls.end_header))
-        comment_keyword = pp.Suppress(pp.CaselessKeyword("comment"))
-        format_keyword = pp.Suppress(pp.CaselessKeyword("format"))
-        element_keyword = pp.Suppress(pp.CaselessKeyword("element"))
-        property_keyword = pp.Suppress(pp.CaselessKeyword("property"))
-        list_keyword = pp.Suppress(pp.CaselessKeyword("list"))
+        # Define how the header portion begins and ends
+        start_keyword = cls._keyword_or(cls.begin_header_keyword, suppress=True)
+        stop_keyword = cls._keyword_or(cls.end_header_keyword, suppress=True)
 
-        # Define the necessary keywords
-        def keyword_or(*keywords):
-            if isinstance(keywords[0], dict):
-                return pp.MatchFirst(
-                    pp.CaselessKeyword(l).addParseAction(pp.replaceWith(d)) for l, d in keywords[0].items()
-                )
-            else:
-                return pp.MatchFirst(pp.CaselessKeyword(literal) for literal in keywords)
-
-        format_type = keyword_or(cls.format_type_map)
-        property_type = keyword_or(cls.data_type_map)
-
-        # Define the grammar of statements
+        # Define the grammar of a comment statement
+        comment_keyword = cls._keyword_or(cls.comment_keyword, suppress=True)
         comment_expr = comment_keyword + pp.restOfLine
 
+        # Define the grammar of a format statement
+        format_keyword = cls._keyword_or(cls.format_keyword, suppress=True)
+        format_type = cls._keyword_or(cls.format_type_map)
         format_expr = pp.Group(
             format_keyword +
             format_type("file_type") +
             real("version")
         )("format")
 
-        # Properties and Elements are sadly much more complex.
+        # Define the grammar of properties
+        property_keyword = cls._keyword_or(cls.property_keyword, suppress=True)
+        list_keyword = cls._keyword_or(cls.list_keyword, suppress=True)
+        property_type = cls._keyword_or(cls.data_type_map)
         property_simple_prefix = property_keyword + property_type("data_type")
-        property_list_prefix = property_keyword + list_keyword + property_type("index_type") + \
-                               property_type("data_type")
 
-        def aggregate_property(name, *keyword_group):
-            aggregates = list()
-            for keywords in keyword_group:
-                aggregates.append(pp.Group(property_simple_prefix + keyword_or(*keywords)("name")))
+        position_keywords = [cls._keyword_or(k) for k in ("x", "y", "z")]
+        property_position = cls._aggregate_property("position", property_simple_prefix, *position_keywords)
 
-            return pp.Group(pp.And(aggregates))(name)
+        color_keywords = [cls._keyword_or(*k) for k in (("r", "red"), ("g", "green"), ("b", "blue"), ("a", "alpha"))]
+        property_color = cls._aggregate_property("color", property_simple_prefix, *color_keywords)
 
-        property_simple_general = pp.Group(
-            property_simple_prefix + identifier("name")
-        )
-        property_position = aggregate_property("position", "x", "y", "z")
-        property_color = aggregate_property("color", ("r", "red"), ("g", "green"), ("b", "blue"), ("a", "alpha"))
-        property_ambient_color = aggregate_property(
-            "ambient_color", "ambient_red", "ambient_green", "ambient_blue", "ambient_alpha"
-        )
-        property_diffuse_color = aggregate_property(
-            "diffuse_color", "diffuse_red", "diffuse_green", "diffuse_blue", "diffuse_alpha"
-        )
-        property_specular_color = aggregate_property(
-            "specular_color", "specular_red", "specular_green", "specular_blue", "specular_alpha"
-        )
-        property_texture = aggregate_property("texture", ("s", "u", "tx"), ("t", "v", "ty"))
-        property_normal = aggregate_property("normal", "nx", "ny", "nz")
+        ambient_keywords = [cls._keyword_or(k) for k in ("ambient_red", "ambient_green", "ambient_blue", "ambient_alpha")]
+        property_ambient_color = cls._aggregate_property("ambient_color", property_simple_prefix, *ambient_keywords)
 
-        property_specular_power = pp.Group(
-            property_simple_prefix + keyword_or("specular_power")("name")
-        )("specular_power")
-        property_opacity = pp.Group(
-            property_simple_prefix + keyword_or("opacity")("name")
-        )("opacity")
+        diffuse_keywords = [cls._keyword_or(k) for k in ("diffuse_red", "diffuse_green", "diffuse_blue", "diffuse_alpha")]
+        property_diffuse_color = cls._aggregate_property("diffuse_color", property_simple_prefix, *diffuse_keywords)
 
-        property_list_general = pp.Group(
-            property_list_prefix + identifier("name")
-        )
-        property_vertex_index = pp.Group(
-            property_list_prefix + keyword_or("vertex_index", "vertex_indices")("name")
-        )("vertex_index")
-        # property_material_index = pp.Group(
-        #     property_list_prefix + keyword_or("material_index", "material_indices")("name")
-        # )("material_index")
+        specular_keywords = [cls._keyword_or(k) for k in ("specular_red", "specular_green", "specular_blue", "specular_alpha")]
+        property_specular_color = cls._aggregate_property("specular_color", property_simple_prefix, *specular_keywords)
+
+        texture_keywords = [cls._keyword_or(*k) for k in (("s", "u", "tx"), ("t", "v", "ty"))]
+        property_texture = cls._aggregate_property("texture", property_simple_prefix, *texture_keywords)
+
+        normal_keywords = [cls._keyword_or(k) for k in ("nx", "ny", "nz")]
+        property_normal = cls._aggregate_property("normal", property_simple_prefix, *normal_keywords)
+
+        power_keywords = [pp.CaselessKeyword("specular_power")]
+        property_specular_power = cls._aggregate_property("specular_power", property_simple_prefix, *power_keywords)
+
+        opacity_keywords = [pp.CaselessKeyword("opacity")]
+        property_opacity = cls._aggregate_property("opacity", property_simple_prefix, *opacity_keywords)
+
+        property_simple_catchall = cls._aggregate_property("other_simple", property_simple_prefix, identifier)
+
+        property_list_prefix = property_keyword + list_keyword + property_type("index_type") + property_type("data_type")
+
+        vertex_index_keywords = [cls._keyword_or("vertex_index", "vertex_indices")]
+        property_vertex_index = cls._aggregate_property("vertex_index", property_list_prefix, *vertex_index_keywords)
+
+        material_index_keywords = [cls._keyword_or("material_index", "material_indices")]
+        property_material_index = cls._aggregate_property("material_index", property_list_prefix, *material_index_keywords)
+
+        property_list_catchall = cls._aggregate_property("other_list", property_list_prefix, identifier)
+
+        # Define the grammar of elements
+        element_keyword = cls._keyword_or(cls.element_keyword, suppress=True)
 
         element_vertex = pp.Group(
-            element_keyword + keyword_or("vertex")("name") + integer("count") +
+            element_keyword + pp.CaselessKeyword("vertex")("name") + integer("count") +
             pp.Group(
                 pp.OneOrMore(
                     property_position | property_color | property_ambient_color | property_diffuse_color |
                     property_specular_color | property_texture | property_normal | property_specular_power |
-                    property_opacity | property_simple_general
+                    property_opacity | property_simple_catchall
                 )
             )("properties")
         )
 
         element_face = pp.Group(
-            element_keyword + keyword_or("face")("name") + integer("count") +
-            pp.Group(property_vertex_index | property_list_general)("properties")
+            element_keyword + pp.CaselessKeyword("face")("name") + integer("count") +
+            pp.Group(property_vertex_index | property_material_index | property_list_catchall)("properties")
         )
 
         element_edge = pp.Group(
-            element_keyword + keyword_or("edge")("name") + integer("count") +
+            element_keyword + pp.CaselessKeyword("edge")("name") + integer("count") +
             pp.Group(
-                pp.OneOrMore(property_color | property_simple_general)
+                pp.OneOrMore(property_color | property_simple_catchall)
             )("properties")
         )
 
-        element_general = pp.Group(
+        element_catchall = pp.Group(
             element_keyword + identifier("name") + integer("count") +
             pp.Group(
-                pp.OneOrMore(property_simple_general) | property_list_general
+                pp.OneOrMore(property_simple_catchall) | property_list_catchall
             )("properties")
         )
 
-        element_group = element_vertex | element_face | element_edge | element_general
+        element_group = element_vertex | element_face | element_edge | element_catchall
 
-        declarations = pp.Group(
-            format_expr +
-            pp.Group(
-                pp.OneOrMore(element_group)
-            )("elements")
-        )("declarations")
+        declarations = format_expr + pp.Group(pp.OneOrMore(element_group))("elements")
 
         header = start_keyword + declarations + stop_keyword
 
@@ -257,14 +247,14 @@ class PlyParser(object):
             tokens = self.tokenize_header(header_data)
 
             # Determine the data types
-            vertex_data_type = self._get_vertex_data_type(tokens)
-            index_data_type = self._get_index_data_type(tokens)
+            vertex_data_type = self._get_aggregate_data_type(tokens, "vertex", "f")
+            index_data_type = self._get_aggregate_data_type(tokens, "face", self.default_index_type, self.allowed_index_types)
 
             # Determine the attributes
             vertex_attributes = self._get_vertex_attributes(tokens, vertex_data_type)
 
             # Parse the data of the PLY file
-            if tokens.declarations.format.file_type == self.FormatType.ASCII:
+            if tokens.format.file_type == self.FormatType.ASCII:
                 vertex_data, index_data = self._parse_ascii_data(tokens, file_mmap, vertex_data_type, index_data_type)
             else:
                 vertex_data, index_data = self._parse_binary_data(tokens, file_mmap, vertex_data_type, index_data_type)
@@ -296,6 +286,28 @@ class PlyParser(object):
             raise TypeError("The 'file' parameter must be either a path to a file, a pathlib.Path object, "
                             "or a binary file object.")
 
+    @classmethod
+    def _keyword_or(cls, *literals, suppress=False):
+        if isinstance(literals[0], dict):
+            keywords = (pp.CaselessKeyword(l).addParseAction(pp.replaceWith(d)) for l, d in literals[0].items())
+        else:
+            keywords = (pp.CaselessKeyword(literal) for literal in literals)
+
+        match_first = pp.MatchFirst(keywords)
+
+        if suppress:
+            return pp.Suppress(match_first)
+        else:
+            return match_first
+
+    @classmethod
+    def _aggregate_property(cls, name, prefix, *keywords):
+        aggregates = list()
+        for keyword in keywords:
+            aggregates.append(pp.Group(prefix + keyword("name")))
+
+        return pp.Group(pp.And(aggregates))(name)
+
     def _extract_header(self, file_mmap, advance_idx=True):
         """
         Given a memory map of a file object, search for a valid PLY header and return the data as a string.
@@ -306,59 +318,51 @@ class PlyParser(object):
         :return:
         """
         # Find the indices of the header beginning and end
-        begin_idx = file_mmap.find(self.begin_header.encode("ascii"))
-        end_idx = file_mmap.find(self.end_header.encode("ascii"))
+        begin_idx = file_mmap.find(self.begin_header_keyword.encode("ascii"))
+        end_idx = file_mmap.find(self.end_header_keyword.encode("ascii"))
         if begin_idx != 0 or end_idx == -1:
             raise ValueError("Could not find a valid PLY header portion in the submitted file.")
 
         # Extract the header data
-        header_data = file_mmap[begin_idx:end_idx + len(self.end_header)].decode("ascii")
+        header_data = file_mmap[begin_idx:end_idx + len(self.end_header_keyword)].decode("ascii")
 
         # Advance the memory map pointer to just after the header
         if advance_idx:
-            file_mmap.seek(end_idx + len(self.end_header))
+            file_mmap.seek(end_idx + len(self.end_header_keyword))
 
         return header_data
 
-    def _get_vertex_data_type(self, token_tree, element_name="vertex"):
+    def _get_aggregate_data_type(self, token_tree, element_name, default_data_type, allowed_data_types=None):
         """
-        Return the aggregate data type for the vertex data.
+        Return the aggregate data type for the data of a specified element.
 
         :param token_tree:
         :param element_name:
+        :param default_data_type:
+        :param allowed_data_types:
         :return:
         """
         candidate_types = list()
-        for el in token_tree.declarations.elements:
+        for el in token_tree.elements:
             if el.name == element_name:
                 for prop in el.properties:
-                    if "name" in prop:
-                        candidate_types.append(prop.data_type)
-                    else:
-                        for variable in prop:
-                            candidate_types.append(variable.data_type)
+                    for variable in prop:
+                        candidate_types.append(variable.data_type)
 
-        return max(candidate_types, key=lambda e: self.data_type_precedence.index(e))
+        if len(candidate_types) > 0:
+            priority_type = max(candidate_types, key=lambda e: self.data_type_precedence.index(e))
 
-    def _get_index_data_type(self, token_tree, element_name="face"):
-        """
-        Return the aggregate data type for the vertex index data.
-
-        :param token_tree:
-        :param element_name:
-        :return:
-        """
-        for el in token_tree.declarations.elements:
-            if el.name == element_name:
-                candidate_type = el.properties[0].data_type
-                if candidate_type in self.allowed_index_types:
-                    return candidate_type
+            if allowed_data_types is not None:
+                if priority_type in allowed_data_types:
+                    return priority_type
                 else:
-                    return self.default_index_type
+                    return default_data_type
+            else:
+                return priority_type
+        else:
+            return default_data_type
 
-        return self.default_index_type
-
-    def _get_vertex_attributes(self, header_tokens, vertex_data_type):
+    def _get_vertex_attributes(self, header_tokens, vertex_data_type, element_name="vertex"):
         """
         From the header tokens, extract a tuple of Attribute instances that describe the vertex data.
 
@@ -368,8 +372,8 @@ class PlyParser(object):
         """
         vertex_attributes = list()
         start_index = 0
-        for element in header_tokens.declarations.elements:
-            if element.name == "vertex":
+        for element in header_tokens.elements:
+            if element.name == element_name:
                 stride = sum(len(prop) for name, prop in element.properties.items())
                 for name, prop in element.properties.items():
                     vertex_attributes.append(Attribute(
@@ -392,21 +396,17 @@ class PlyParser(object):
         # Define the grammar of the body
         number = pp.pyparsing_common.number()
         body_expr = list()
-        for el_decl in header_tokens.declarations.elements:
-            props = el_decl.properties
-            if len(props) == 1 and "index_type" in props[0]:
-                element = pp.countedArray(number)
-            else:
-                sequences = list()
-                for prop in props:
-                    if "name" in prop:
-                        sequences.append(number(prop.name))
+        for element in header_tokens.elements:
+            sequences = list()
+            for prop in element.properties:
+                for variable in prop:
+                    if "index_type" in variable:
+                        sequences.append(pp.countedArray(number))
                     else:
-                        for variable in prop:
-                            sequences.append(number(variable.name))
-                element = pp.Group(pp.And(sequences))
+                        sequences.append(number(variable.name))
 
-            body_expr.append(pp.Group(element * el_decl.count)(el_decl.name))
+            element_data = pp.Group(pp.And(sequences))
+            body_expr.append(pp.Group(element_data * element.count)(element.name))
 
         ascii_grammar = pp.And(body_expr)
 
@@ -418,7 +418,7 @@ class PlyParser(object):
 
         # Convert the data to arrays.
         vertex_data = array.array(vertex_data_type, (value for vertex in body_tokens.vertex for value in vertex))
-        index_data = array.array(index_data_type, (value for face in body_tokens.face for value in face))
+        index_data = array.array(index_data_type, (value for group in body_tokens.face for face in group for value in face))
 
         return vertex_data, index_data
 
