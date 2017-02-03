@@ -450,48 +450,53 @@ class PlyParser(object):
             for prop in element.properties:
                 for variable in prop:
                     if "index_type" in variable:
-                        data_types.append("p")
+                        data_types.append((variable.index_type, variable.data_type))
                     else:
                         data_types.append(variable.data_type)
 
             aggregate_data_type = aggregate_data_types.get(element.name, "f")
 
-            if "p" in data_types:
-                data_len = len(file_mmap) - buffer_idx
-                pattern_len = data_len // element.count
-                pattern_basis = list()
-                for dt in data_types:
-                    if dt == "p":
-                        pattern_basis.append("{}{}".format(pattern_len, dt))
-                    else:
-                        pattern_basis.append(dt)
-                data_format_spec = "{}{}".format(byte_order, "".join(pattern_basis))
-                element_data[element.name] = array.array(aggregate_data_type, self._flatten(self._unpack_multiple_from(data_format_spec, element.count, file_mmap, buffer_idx)))
-            else:
+            if all(isinstance(dt, str) for dt in data_types):
                 data_format_spec = "{}{}".format(byte_order, "".join(data_types))
-                element_data[element.name] = array.array(aggregate_data_type, self._unpack_multiple_from(data_format_spec, element.count, file_mmap, buffer_idx))
+                data = self._flatten(self._unpack_property_simple(data_format_spec, element.count, file_mmap, buffer_idx))
+                element_data[element.name] = array.array(aggregate_data_type, data)
                 buffer_idx += struct.calcsize(data_format_spec) * element.count
+            elif all(isinstance(dt, tuple) for dt in data_types) and len(data_types) == 1:
+                index_format_spec = "{}{}".format(byte_order, data_types[0][0])
+                raw_data_format_spec = "{}{}{}".format(byte_order, "{}", data_types[0][1])
+                data = self._flatten(self._unpack_property_list(index_format_spec, raw_data_format_spec, element.count, file_mmap, buffer_idx))
+                element_data[element.name] = array.array(aggregate_data_type, data)
+                buffer_idx += 13 * element.count
+            else:
+                raise NotImplementedError("Currently cannot parse mixed simple and list properties per element. "
+                                          "If a list property is present, it must be the only one for that element.")
 
         return element_data
 
-    def _unpack_multiple_from(self, format_string, count, file_mmap, buffer_offset):
+    def _unpack_property_simple(self, format_string, count, file_mmap, buffer_offset):
+        pattern_size = struct.calcsize(format_string)
         for i in range(count):
-            try:
-                data = struct.unpack_from(format_string, file_mmap, buffer_offset + i * struct.calcsize(format_string))[0]
-                yield data
-            except struct.error:
-                break
+            yield struct.unpack_from(format_string, file_mmap, buffer_offset + i * pattern_size)
+
+    def _unpack_property_list(self, index_format_string, raw_data_format_string, count, file_mmap, buffer_offset):
+        index_size = struct.calcsize(index_format_string)
+        secondary_offset = 0
+        for i in range(count):
+            num_values = struct.unpack_from(index_format_string, file_mmap, buffer_offset + secondary_offset)[0]
+            data_format_string = raw_data_format_string.format(num_values)
+            data_size = struct.calcsize(data_format_string)
+            data = struct.unpack_from(data_format_string, file_mmap, buffer_offset + secondary_offset + index_size)
+            secondary_offset += index_size + data_size
+            yield data
 
     def _flatten(self, nested_iterable):
-        flattened = list()
         for d in nested_iterable:
-            if isinstance(d, (bytes, pp.ParseResults)):
+            if isinstance(d, (tuple, pp.ParseResults)):
                 for e in d:
                     if isinstance(e, pp.ParseResults):
-                        flattened.extend(tuple(e))
+                        for f in e:
+                            yield f
                     else:
-                        flattened.append(e)
+                        yield e
             else:
-                flattened.append(d)
-
-        return flattened
+                yield d
