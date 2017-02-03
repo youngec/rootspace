@@ -21,8 +21,6 @@ class PlyParser(object):
     """
     Parse PLY Stanford Polygon Files
     --------------------------------
-    As of yet, the parser does not handle the binary file formats!
-
     Context free grammar:
     Ignore all "comment" statements.
     ply_grammar      ::= header body
@@ -235,9 +233,9 @@ class PlyParser(object):
 
     def parse(self, file_object):
         """
-        Parse the supplied data into a model.
+        Parse the supplied file object as PLY file and return a Mesh data abstraction object.
 
-        :param data:
+        :param file_object:
         :return:
         """
         # Separate the header and the body portion
@@ -248,8 +246,8 @@ class PlyParser(object):
 
             # Determine the data types
             aggregate_data_types = {
-                "vertex": self._get_aggregate_data_type(tokens, "vertex", "f"),
-                "face": self._get_aggregate_data_type(tokens, "face", self.default_index_type, self.allowed_index_types)
+                "vertex": self._get_array_type(tokens, "vertex", "f"),
+                "face": self._get_array_type(tokens, "face", self.default_index_type, self.allowed_index_types)
             }
 
             # Determine the attributes
@@ -271,7 +269,7 @@ class PlyParser(object):
 
     def load(self, file):
         """
-        Load the supplied ply file as Model.
+        Load the supplied file as PLY file into a Mesh data abstraction object.
 
         :param file:
         :return:
@@ -290,6 +288,15 @@ class PlyParser(object):
 
     @classmethod
     def _keyword_or(cls, *literals, suppress=False):
+        """
+        Return a MatchFirst aggregation of CaselessKeyword literals based on the supplied iterable of strings.
+        If the supplied iterable is a dictionary, replace the keys with the values as a pyparsing parse action.
+        If suppress is True, wrap the output in a Suppress object.
+
+        :param literals:
+        :param suppress:
+        :return:
+        """
         if isinstance(literals[0], dict):
             keywords = (pp.CaselessKeyword(l).addParseAction(pp.replaceWith(d)) for l, d in literals[0].items())
         else:
@@ -304,6 +311,18 @@ class PlyParser(object):
 
     @classmethod
     def _aggregate_property(cls, name, prefix, *keywords):
+        """
+        Create a property group from the specified name,
+        the pattern prefix (a ParseElement instance), and an iterable of keywords.
+
+        Example:
+        aggregate_property('position', CaselessKeyword('property'), *[CaselessKeyword('x'), ...])
+
+        :param name:
+        :param prefix:
+        :param keywords:
+        :return:
+        """
         aggregates = list()
         for keyword in keywords:
             aggregates.append(pp.Group(prefix + keyword("name")))
@@ -312,7 +331,7 @@ class PlyParser(object):
 
     def _extract_header(self, file_mmap):
         """
-        Given a memory map of a file object, search for a valid PLY header and return the data as a string.
+        Given a memory map of a file object, search for a valid PLY header and return the header as a string.
 
         :param file_mmap:
         :return:
@@ -338,9 +357,9 @@ class PlyParser(object):
 
         return header_data, end_idx
 
-    def _get_aggregate_data_type(self, token_tree, element_name, default_data_type, allowed_data_types=None):
+    def _get_array_type(self, token_tree, element_name, default_data_type, allowed_data_types=None):
         """
-        Return the aggregate data type for the data of a specified element.
+        Return the data type for the aggregate array that contains the data of the specified element.
 
         :param token_tree:
         :param element_name:
@@ -348,6 +367,7 @@ class PlyParser(object):
         :param allowed_data_types:
         :return:
         """
+        # Get a list of the data types of all element properties
         candidate_types = list()
         for el in token_tree.elements:
             if el.name == element_name:
@@ -355,6 +375,7 @@ class PlyParser(object):
                     for variable in prop:
                         candidate_types.append(variable.data_type)
 
+        # Sort the list according to the type preference and return the appropriate result
         if len(candidate_types) > 0:
             priority_type = max(candidate_types, key=lambda e: self.data_type_precedence.index(e))
 
@@ -374,6 +395,7 @@ class PlyParser(object):
 
         :param header_tokens:
         :param vertex_data_type:
+        :param element_name:
         :return:
         """
         vertex_attributes = list()
@@ -416,11 +438,8 @@ class PlyParser(object):
 
         ascii_grammar = pp.And(body_expr)
 
-        # Load the body data into a string
-        body_data = file_mmap[buffer_offset:].decode("ascii")
-
         # Tokenize the body data
-        body_tokens = ascii_grammar.parseString(body_data, parseAll=True)
+        body_tokens = ascii_grammar.parseString(file_mmap[buffer_offset:].decode("ascii"), parseAll=True)
 
         # Convert the data to arrays.
         element_data = dict()
