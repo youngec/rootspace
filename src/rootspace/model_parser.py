@@ -395,8 +395,8 @@ class PlyParser(object):
 
         :param header_tokens:
         :param file_mmap:
-        :param vertex_data_type:
-        :param index_data_type:
+        :param buffer_offset:
+        :param aggregate_data_types:
         :return:
         """
         # Define the grammar of the body
@@ -435,8 +435,8 @@ class PlyParser(object):
 
         :param header_tokens:
         :param file_mmap:
-        :param vertex_data_type:
-        :param index_data_type:
+        :param buffer_offset:
+        :param aggregate_data_types:
         :return:
         """
         # Determine the byte order of the data
@@ -466,7 +466,7 @@ class PlyParser(object):
                 raw_data_format_spec = "{}{}{}".format(byte_order, "{}", data_types[0][1])
                 data = self._flatten(self._unpack_property_list(index_format_spec, raw_data_format_spec, element.count, file_mmap, buffer_idx))
                 element_data[element.name] = array.array(aggregate_data_type, data)
-                buffer_idx += 13 * element.count
+                buffer_idx += self._calculate_property_list_size(index_format_spec, raw_data_format_spec, element.count, file_mmap, buffer_idx)
             else:
                 raise NotImplementedError("Currently cannot parse mixed simple and list properties per element. "
                                           "If a list property is present, it must be the only one for that element.")
@@ -474,11 +474,50 @@ class PlyParser(object):
         return element_data
 
     def _unpack_property_simple(self, format_string, count, file_mmap, buffer_offset):
+        """
+        Unpack binary data from a simple property. Works as generator.
+
+        :param format_string:
+        :param count:
+        :param file_mmap:
+        :param buffer_offset:
+        :return:
+        """
         pattern_size = struct.calcsize(format_string)
         for i in range(count):
             yield struct.unpack_from(format_string, file_mmap, buffer_offset + i * pattern_size)
 
+    def _calculate_property_list_size(self, index_format_string, raw_data_format_string, count, file_mmap, buffer_offset):
+        """
+
+        :param index_format_string:
+        :param raw_data_format_string:
+        :param count:
+        :param file_mmap:
+        :param buffer_offset:
+        :return:
+        """
+        index_size = struct.calcsize(index_format_string)
+        data_block_size = 0
+        for i in range(count):
+            num_values = struct.unpack_from(index_format_string, file_mmap, buffer_offset + data_block_size)[0]
+            data_format_string = raw_data_format_string.format(num_values)
+            data_size = struct.calcsize(data_format_string)
+            data_block_size += index_size + data_size
+
+        return data_block_size
+
     def _unpack_property_list(self, index_format_string, raw_data_format_string, count, file_mmap, buffer_offset):
+        """
+        Unpack binary data from a list property. Works as generator.
+
+        :param index_format_string:
+        :param raw_data_format_string:
+        :param count:
+        :param file_mmap:
+        :param buffer_offset:
+        :return:
+        """
         index_size = struct.calcsize(index_format_string)
         secondary_offset = 0
         for i in range(count):
@@ -490,6 +529,12 @@ class PlyParser(object):
             yield data
 
     def _flatten(self, nested_iterable):
+        """
+        Flatten a nested iterable. Is capable of flattening up to three levels, and works as generator.
+
+        :param nested_iterable:
+        :return:
+        """
         for d in nested_iterable:
             if isinstance(d, (tuple, pp.ParseResults)):
                 for e in d:
