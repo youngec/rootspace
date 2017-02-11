@@ -10,10 +10,10 @@ import attr
 
 from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties
 from .entities import Camera
-from .events import KeyEvent
+from .events import KeyEvent, CursorEvent
 from .exceptions import FixmeWarning
 from .utilities import camelcase_to_underscore
-from .opengl_math import identity, Quaternion
+from .math import identity, Quaternion
 
 
 class SystemMeta(type):
@@ -220,6 +220,31 @@ class PlayerMovementSystem(EventSystem):
                         state.momentum = multiplier * -transform.forward
                     else:
                         state.momentum = transform.zero
+
+
+@attr.s
+class CameraControlSystem(EventSystem):
+    """
+
+    """
+    component_types = (Transform, Projection)
+    is_applicator = True
+    event_types = (CursorEvent,)
+
+    def process(self, event, world, components):
+        camera = next(world.get_entities(Camera))
+        inv_p = camera.projection.inverse_matrix
+        window_shape = world.ctx.data.window_shape
+        cursor_pos = numpy.array((
+            2 * event.xpos / window_shape[0] - 1,
+            -(2 * event.ypos / window_shape[1] - 1),
+            0,
+            1
+        ))
+        proj_pos = inv_p @ cursor_pos
+        pass
+        #for transform, projection in components:
+        #    pass
 
 
 @attr.s
