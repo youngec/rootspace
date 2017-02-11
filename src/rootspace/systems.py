@@ -184,7 +184,6 @@ class PlayerMovementSystem(EventSystem):
     event_types = (KeyEvent,)
 
     def process(self, event, world, components):
-        warnings.warn("PlayerMovementSystem does not handle simultaneous key-presses.", FixmeWarning)
         key_map = world.ctx.key_map
         multiplier = 1
 
