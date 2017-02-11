@@ -190,36 +190,40 @@ class PlayerMovementSystem(EventSystem):
 
         if event.key in key_map and event.mods == 0:
             for transform, state, projection in components:
+                direction = numpy.zeros(3)
                 if event.key == key_map.right:
-                    if event.action in (glfw.PRESS, glfw.REPEAT):
-                        state.momentum = multiplier * transform.right
-                    else:
-                        state.momentum = transform.zero
+                    if event.action == glfw.PRESS:
+                        direction += transform.right
+                    if event.action == glfw.RELEASE:
+                        direction -= transform.right
                 elif event.key == key_map.left:
-                    if event.action in (glfw.PRESS, glfw.REPEAT):
-                        state.momentum = multiplier * -transform.right
-                    else:
-                        state.momentum = transform.zero
+                    if event.action == glfw.PRESS:
+                        direction += -transform.right
+                    elif event.action == glfw.RELEASE:
+                        direction -= -transform.right
                 elif event.key == key_map.up:
-                    if event.action in (glfw.PRESS, glfw.REPEAT):
-                        state.momentum = multiplier * transform.up
-                    else:
-                        state.momentum = transform.zero
+                    if event.action == glfw.PRESS:
+                        direction += transform.up
+                    if event.action == glfw.RELEASE:
+                        direction -= transform.up
                 elif event.key == key_map.down:
-                    if event.action in (glfw.PRESS, glfw.REPEAT):
-                        state.momentum = multiplier * -transform.up
-                    else:
-                        state.momentum = transform.zero
+                    if event.action == glfw.PRESS:
+                        direction += -transform.up
+                    elif event.action == glfw.RELEASE:
+                        direction -= -transform.up
                 elif event.key == key_map.forward:
-                    if event.action in (glfw.PRESS, glfw.REPEAT):
-                        state.momentum = multiplier * transform.forward
-                    else:
-                        state.momentum = transform.zero
+                    if event.action == glfw.PRESS:
+                        direction += transform.forward
+                    if event.action == glfw.RELEASE:
+                        direction -= transform.forward
                 elif event.key == key_map.backward:
-                    if event.action in (glfw.PRESS, glfw.REPEAT):
-                        state.momentum = multiplier * -transform.forward
-                    else:
-                        state.momentum = transform.zero
+                    if event.action == glfw.PRESS:
+                        direction += -transform.forward
+                    elif event.action == glfw.RELEASE:
+                        direction -= -transform.forward
+
+                if any(direction):
+                    state.momentum += multiplier * direction / numpy.linalg.norm(direction)
 
 
 @attr.s
