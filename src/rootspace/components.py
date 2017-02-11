@@ -14,7 +14,7 @@ from attr.validators import instance_of
 from attr import Factory
 from OpenGL.constant import Constant
 
-from .opengl_math import perspective, translation, Quaternion, to_quaternion
+from .math import perspective, translation, Quaternion
 from .wrappers import Texture, OpenGlProgram, OpenGlShader
 from .utilities import camelcase_to_underscore, iterable_of
 from .exceptions import TodoWarning, FixmeWarning
@@ -51,7 +51,7 @@ class PhysicsProperties(Component):
 @attr.s
 class PhysicsState(Component):
     momentum = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    spin = attr.ib(default=Factory(Quaternion), validator=instance_of(Quaternion), convert=to_quaternion)
+    spin = attr.ib(default=Factory(Quaternion), validator=instance_of(Quaternion), convert=Quaternion)
     force = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
 
     def __add__(self, other):
@@ -169,7 +169,7 @@ class PhysicsState(Component):
 class Transform(Component):
     _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
     _scale = attr.ib(default=numpy.ones(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    _quat = attr.ib(default=Factory(Quaternion), validator=instance_of(Quaternion), convert=to_quaternion)
+    _quat = attr.ib(default=Factory(Quaternion), validator=instance_of(Quaternion), convert=Quaternion)
 
     @property
     def position(self):
@@ -212,51 +212,21 @@ class Transform(Component):
 
     @property
     def up(self):
-        return (self._quat.T.matrix4 @ (0, 1, 0, 1))[:3]
+        return (self._quat.t.matrix4 @ (0, 1, 0, 1))[:3]
 
     @property
     def right(self):
-        return (self._quat.T.matrix4 @ (1, 0, 0, 1))[:3]
+        return (self._quat.t.matrix4 @ (1, 0, 0, 1))[:3]
 
     @property
     def forward(self):
-        return (self._quat.T.matrix4 @ (0, 0, 1, 1))[:3]
+        return (self._quat.t.matrix4 @ (0, 0, 1, 1))[:3]
 
     @property
     def matrix(self):
         scale_matrix = numpy.eye(4)
         scale_matrix[:3, :3] *= self._scale
         return translation(self._pos) @ scale_matrix @ self._quat.matrix4
-
-    def look_at(self, target):
-        forward = target - self._pos
-        forward /= numpy.linalg.norm(forward)
-
-        forward_dot = self.forward[:3] @ forward
-        if math.isclose(forward_dot, -1):
-            self._quat = Quaternion(0, 0, 1, 0)
-        elif math.isclose(forward_dot, 1):
-            self._quat = Quaternion(1, 0, 0, 0)
-        else:
-            axis = numpy.cross(self.forward[:3], forward)
-            angle = math.acos(forward_dot)
-            self.rotate(axis, angle, chain=False)
-
-    def rotate(self, axis, angle, chain=True):
-        """
-        Rotate the component around the given axis by the specified angle.
-
-        :param axis:
-        :param angle:
-        :param chain:
-        :return:
-        """
-        quat = Quaternion.from_axis(axis, angle)
-
-        if chain:
-            self._quat = quat @ self._quat
-        else:
-            self._quat = quat
 
 
 @attr.s
@@ -269,6 +239,11 @@ class Projection(Component):
     @property
     def matrix(self):
         return perspective(self._fov, self._shape[0] / self._shape[1], self._near, self._far)
+
+    @property
+    def inverse_matrix(self):
+        warnings.warn("Do something more efficient than simply invert the projection matrix.", FixmeWarning)
+        return numpy.linalg.inv(self.matrix)
 
     @property
     def shape(self):
