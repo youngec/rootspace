@@ -2,6 +2,8 @@
 
 import enum
 import math
+from array import ArrayType
+
 import xxhash
 import contextlib
 import warnings
@@ -223,10 +225,10 @@ class Transform(Component):
         return (self._quat.t.matrix4 @ (0, 0, 1, 1))[:3]
 
     @property
-    def matrix(self):
+    def model_matrix(self):
         scale_matrix = numpy.eye(4)
         scale_matrix[:3, :3] *= self._scale
-        return translation(self._pos) @ scale_matrix @ self._quat.matrix4
+        return translation(self._pos) @ self._quat.matrix4 @ scale_matrix
 
 
 @attr.s

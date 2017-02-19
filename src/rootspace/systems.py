@@ -262,7 +262,7 @@ class OpenGlRenderer(RenderSystem):
         # Get a reference to the camera
         try:
             camera = next(world.get_entities(Camera))
-            pv = camera.projection.matrix @ camera.transform.matrix
+            pv = camera.projection.matrix @ camera.transform.model_matrix
         except StopIteration:
             pv = identity()
 
@@ -273,6 +273,6 @@ class OpenGlRenderer(RenderSystem):
         warnings.warn("Optimize rendering with multiple Entities.", FixmeWarning)
         for i, (transform, model) in enumerate(components):
             with model:
-                model.draw(pv @ transform.matrix)
+                model.draw(pv @ transform.model_matrix)
 
         glfw.swap_buffers(world.ctx.window)
