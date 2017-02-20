@@ -23,4 +23,3 @@ def test_linearize_indices():
 
 def test_normalize_slice():
     assert normalize_slice(slice(None), 0, 100) == slice(0, 100, 1)
-
