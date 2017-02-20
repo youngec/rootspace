@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import collections
+import collections.abc
 import math
 import array
+import functools
+import operator
 
 import numpy
+
+from .utilities import linearize_indices, normalize_slice, slice_length
 
 
 def epsilon(*float_values, iterable=False):
@@ -88,6 +92,10 @@ class Vector(object):
 
         self._data = array.array(data_type, epsilon(*data, iterable=True))
 
+    @property
+    def data(self):
+        return self._data
+
     def to_bytes(self):
         """
         Return a bytes-based representation of the Vector3.
@@ -163,7 +171,10 @@ class Vector(object):
         :param value:
         :return:
         """
-        self._data[key] = epsilon(value)
+        if isinstance(value, Vector):
+            self._data[key] = value.data
+        else:
+            self._data[key] = epsilon(value)
 
     def __repr__(self):
         """
@@ -333,6 +344,298 @@ class Vector(object):
             raise TypeError("unsupported operand type(s) for @: '{}' and '{}'".format(Vector, type(other)))
 
 
+class Matrix(object):
+    """
+    The base class for four-dimensional Matrices of real numbers. The internal data structure uses row-major ordering.
+    """
+    @classmethod
+    def identity(cls, d):
+        """
+        Return an identity matrix of shape d x d.
+
+        :param d:
+        :return:
+        """
+        return cls((d, d))
+
+    @classmethod
+    def translation(cls, t_x, t_y, t_z):
+        """
+        Return an affine translation Matrix.
+
+        :param t_x:
+        :param t_y:
+        :param t_z:
+        :return:
+        """
+        return cls(
+            (4, 4),
+            1, 0, 0, t_x,
+            0, 1, 0, t_y,
+            0, 0, 1, t_z,
+            0, 0, 0, 1
+        )
+
+    @classmethod
+    def rotation_x(cls, angle):
+        """
+        Return an affine rotation matrix about the x-axis.
+
+        :param angle:
+        :return:
+        """
+        c = math.cos(angle)
+        s = math.sin(angle)
+        return cls(
+            (4, 4),
+            1, 0, 0, 0,
+            0, c, -s, 0,
+            0, s, c, 0,
+            0, 0, 0, 1
+        )
+
+    @classmethod
+    def rotation_y(cls, angle):
+        """
+        Return an affine rotation matrix about the y-axis.
+
+        :param angle:
+        :return:
+        """
+        c = math.cos(angle)
+        s = math.sin(angle)
+        return cls(
+            (4, 4),
+            c, 0, s, 0,
+            0, 1, 0, 0,
+            -s, 0, c, 0,
+            0, 0, 0, 1
+        )
+
+    @classmethod
+    def rotation_z(cls, angle):
+        """
+        Return an affine rotation matrix about the z-axis.
+
+        :param angle:
+        :return:
+        """
+        c = math.cos(angle)
+        s = math.sin(angle)
+        return cls(
+            (4, 4),
+            c, -s, 0, 0,
+            s, c, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        )
+
+    @classmethod
+    def scaling(cls, s_x, s_y, s_z):
+        """
+        Return an affine scaling matrix.
+
+        :param s_x:
+        :param s_y:
+        :param s_z:
+        :return:
+        """
+        return cls(
+            (4, 4),
+            s_x, 0, 0, 0,
+            0, s_y, 0, 0,
+            0, 0, s_z, 0,
+            0, 0, 0, 1
+        )
+
+    @classmethod
+    def shearing(cls, s, i, j):
+        """
+        Return an affine shearing matrix.
+
+        :param s:
+        :param i:
+        :param j:
+        :return:
+        """
+        h = cls.identity(4)
+        h[i, j] = s
+        return h
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property
+    def data(self):
+        return self._data
+
+    def _get_shape(self, *indices):
+        """
+        For a given set of multi-dimensional indices,
+        return the shape of the resulting sub-matrix.
+
+        :param indices:
+        :return:
+        """
+        shape = list()
+        for i, k in enumerate(indices):
+            if isinstance(k, int):
+                shape.append(1)
+            elif isinstance(k, slice):
+                shape.append(slice_length(k, 0, self.shape[i]))
+            else:
+                raise TypeError("Expected the tuple indices to be either int or slice.")
+
+        if len(shape) == 1:
+            shape.append(1)
+
+        return tuple(shape)
+
+    def _get_linear_index(self, i, j):
+        """
+        For given multi-dimensional indices, provide a linear index. This also works for sliced indices.
+
+        :param i:
+        :param j:
+        :return:
+        """
+        if isinstance(i, int) and isinstance(j, int):  # Single 2-index
+            return linearize_indices(self.shape, i, j)
+        elif isinstance(i, slice) and isinstance(j, slice):  # Full sliced 2-index
+            i = normalize_slice(i, 0, self.shape[0])
+            j = normalize_slice(j, 0, self.shape[1])
+            if i.step != 1 and j.step != 1:
+                raise NotImplementedError("Cannot currently deal with multiple strides, e.g. a[::2, ::2].")
+
+            start = linearize_indices(self.shape, i.start, j.start)
+            stop = linearize_indices(self.shape, i.stop, j.stop)
+            step = j.step
+            return slice(start, stop, step)
+        elif isinstance(i, int) and isinstance(j, slice):  # Partial sliced 2-index
+            j = normalize_slice(j, 0, self.shape[1])
+            start = linearize_indices(self.shape, i, j.start)
+            stop = linearize_indices(self.shape, i, j.stop)
+            step = linearize_indices(self.shape, 0, j.step)
+            return slice(start, stop, step)
+        elif isinstance(i, slice) and isinstance(j, int):  # Partial sliced 2-index
+            i = normalize_slice(i, 0, self.shape[0])
+            start = linearize_indices(self.shape, i.start, j)
+            stop = linearize_indices(self.shape, i.stop, j)
+            step = linearize_indices(self.shape, i.step, 0)
+            return slice(start, stop, step)
+        else:
+            raise TypeError("Expected the tuple indices to be either int or slice, not '{}' and '{}'.".format(type(i), type(j)))
+
+    def __init__(self, shape, *args, data_type="f"):
+        """
+        Create a Matrix instance from a shape and either an iterable, or positional arguments.
+        Using only the shape creates an identity matrix if the shape is square.
+
+        :param shape:
+        :param args:
+        :param data_type:
+        """
+        # Set the shape of the matrix
+        if isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(s, int) for s in shape):
+            self._shape = shape
+        else:
+            raise ValueError("The parameter 'shape' must be a 2-tuple of integers.")
+
+        # Set the matrix data
+        length = shape[0] * shape[1]
+        if len(args) == 1 and isinstance(args[0], collections.abc.Iterable):
+            self._data = array.array(data_type, args[0])
+            if len(self._data) != length:
+                raise ValueError("Expected an iterable of length '{0}' or '{0}' numeric positional arguments.".format(length))
+        elif len(args) == length and all(isinstance(a, (int, float)) for a in args):
+            self._data = array.array(data_type, args)
+        elif len(args) == 0 and shape[0] == shape[1]:
+            self._data = array.array(data_type, (1 if i in range(0, length, shape[0] + 1) else 0 for i in range(length)))
+        else:
+            raise ValueError("Expected an iterable of length '{0}' or '{0}' numeric positional arguments.".format(length))
+
+    def __str__(self):
+        """
+        Return a human-readable representation.
+
+        :return:
+        """
+        return self.__repr__()
+
+    def __repr__(self):
+        """
+        Return a eval-compatible representation.
+
+        :return:
+        """
+        return "{}({})".format(self.__class__.__name__, ", ".join(str(e) for e in self.data))
+
+    def __len__(self):
+        """
+        Return the number of matrix elements.
+
+        :return:
+        """
+        return self.shape[0] * self.shape[1]
+
+    def __eq__(self, other):
+        """
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Matrix):
+            return self.shape == other.shape and all(s == o for s, o in zip(self.data, other.data))
+        else:
+            return False
+
+    def __getitem__(self, key):
+        """
+        Provide angle-bracket element access to the matrix.
+
+        :param key:
+        :return:
+        """
+        if isinstance(key, (int, slice)):
+            key = (key, slice(None))
+
+        if isinstance(key, tuple):
+            shape = self._get_shape(*key)
+            idx = self._get_linear_index(*key)
+            if shape != (1, 1):
+                return Matrix(shape, self._data[idx])
+            else:
+                return self._data[idx]
+        else:
+            raise TypeError("Expected indices of type int, slice or tuple.")
+
+    def __setitem__(self, key, value):
+        """
+        Provide angle-bracket element setting to the matrix.
+
+        :param key:
+        :param value:
+        :return:
+        """
+        if isinstance(key, (int, slice)):
+            key = (key, slice(None))
+
+        if isinstance(key, tuple):
+            shape = self._get_shape(*key)
+            idx = self._get_linear_index(*key)
+            if isinstance(value, Matrix) and value.shape == shape:
+                self._data[idx] = value.data
+            elif isinstance(value, collections.abc.Collection) and len(value) == functools.reduce(operator.mul, shape):
+                self._data[idx] = array.array(self.data.typecode, value)
+            elif isinstance(value, (int, float)) and shape == (1, 1):
+                self._data[idx] = value
+            else:
+                raise ValueError("The shape/length of the value must equal the shape/length of the indexed range.")
+        else:
+            raise TypeError("Expected indices of type int, slice or tuple, not '{}'.".format(type(key)))
+
+
 class Quaternion(object):
     """
     The Quaternion class provides a way to work with four-dimensional complex numbers.
@@ -344,7 +647,7 @@ class Quaternion(object):
         :param args:
         :param data_type:
         """
-        if len(args) == 1 and isinstance(args[0], collections.Iterable):
+        if len(args) == 1 and isinstance(args[0], collections.abc.Iterable):
             data = tuple(args[0])
         else:
             data = args
@@ -631,8 +934,8 @@ class Quaternion(object):
 
     @classmethod
     def from_axis(cls, axis, angle):
-        axis = Vector(axis)
-        axis.normalize()
+        axis = numpy.array(axis)
+        axis /= numpy.linalg.norm(axis)
         angle %= 2 * math.pi
 
         sin = math.sin(angle / 2)
@@ -642,3 +945,23 @@ class Quaternion(object):
             axis[1] * sin, 
             axis[2] * sin
         )
+
+    @classmethod
+    def look_at(cls, source, target, up_direction):
+        """
+        Construct a Quaternion from a source position, a target position, and a locked up position.
+
+        :param source:
+        :param target:
+        :param up_direction:
+        :return:
+        """
+        difference = source - target
+        difference /= numpy.linalg.norm(difference)
+
+        right_direction = numpy.cross(up_direction, difference)
+        right_direction /= numpy.linalg.norm(right_direction)
+
+        angle = math.acos(up_direction @ difference)
+
+        return cls.from_axis(right_direction, angle)

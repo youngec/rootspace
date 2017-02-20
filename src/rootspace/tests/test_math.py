@@ -5,7 +5,7 @@ import math
 
 import pytest
 
-from rootspace.math import Vector, Quaternion
+from rootspace.math import Vector, Matrix, Quaternion
 
 
 class TestVector(object):
@@ -129,6 +129,118 @@ class TestVector(object):
     def test_matmul(self):
         assert Vector(1, 2, 3) @ Vector(2, 3, 4) == 20
         assert Vector(2, 3, 4) @ Vector(1, 2, 3) == 20
+
+
+class TestMatrix4(object):
+    def test_creation(self):
+        Matrix((4, 4))
+        Matrix((4, 4), range(16))
+        Matrix((4, 4), *list(range(16)))
+
+    def test_data(self):
+        assert Matrix((4, 4), range(16))._data == array.array("f", range(16))
+
+    def test_equality(self):
+        assert Matrix((4, 4)) == Matrix((4, 4))
+        assert Matrix((4, 4), range(16)) == Matrix((4, 4), *list(range(16)))
+
+    def test_length(self):
+        assert len(Matrix((4, 4))) == 16
+
+    def test_shape(self):
+        assert Matrix((4, 4)).shape == (4, 4)
+
+    def test_get_shape(self):
+        m = Matrix((4, 4))
+        assert m._get_shape(4) == (1, 1)
+        assert m._get_shape(2, 2) == (1, 1)
+        assert m._get_shape(2, slice(4)) == (1, 4)
+        assert m._get_shape(slice(4), 2) == (4, 1)
+        assert m._get_shape(slice(1, 5), slice(4)) == (4, 4)
+        with pytest.raises(TypeError):
+            m._get_shape(None)
+
+    def test_getitem(self):
+        m = Matrix((4, 4), range(16))
+        assert m[0] == Matrix((1, 4), 0, 1, 2, 3)
+        assert m[0, 1] == 1.0
+        assert m[:4] == Matrix((4, 4), range(16))
+        assert m[:] == Matrix((4, 4), range(16))
+        assert m[1, :4] == Matrix((1, 4), 4, 5, 6, 7)
+        assert m[1, :] == Matrix((1, 4), 4, 5, 6, 7)
+        assert m[:4, 1] == Matrix((4, 1), 1, 5, 9, 13)
+        assert m[:, 1] == Matrix((4, 1), 1, 5, 9, 13)
+
+    def test_setitem(self):
+        m = Matrix((4, 4))
+        m[0] = (2, 2, 2, 2)
+        assert m[0] == Matrix((1, 4), 2, 2, 2, 2)
+        m[0, 0] = 3.0
+        assert m[0, 0] == 3.0
+        m[0, :3] = (4.0, 4.0, 4.0)
+        assert m[0, :3] == Matrix((1, 3), 4, 4, 4)
+        m[:3, 0] = (5.0, 5.0, 5.0)
+        assert m[:3, 0] == Matrix((3, 1), 5, 5, 5)
+
+    def test_translation(self):
+        assert Matrix.translation(1, 1, 1) == Matrix(
+            (4, 4),
+            1, 0, 0, 1,
+            0, 1, 0, 1,
+            0, 0, 1, 1,
+            0, 0, 0, 1
+        )
+
+    def test_rotation_x(self):
+        c = math.cos(math.pi)
+        s = math.sin(math.pi)
+        assert Matrix.rotation_x(math.pi) == Matrix(
+            (4, 4),
+            1, 0, 0, 0,
+            0, c, -s, 0,
+            0, s, c, 0,
+            0, 0, 0, 1
+        )
+
+    def test_rotation_y(self):
+        c = math.cos(math.pi)
+        s = math.sin(math.pi)
+        assert Matrix.rotation_y(math.pi) == Matrix(
+            (4, 4),
+            c, 0, s, 0,
+            0, 1, 0, 0,
+            -s, 0, c, 0,
+            0, 0, 0, 1
+        )
+
+    def test_rotation_z(self):
+        c = math.cos(math.pi)
+        s = math.sin(math.pi)
+        assert Matrix.rotation_z(math.pi) == Matrix(
+            (4, 4),
+            c, -s, 0, 0,
+            s, c, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        )
+
+    def test_scaling(self):
+        assert Matrix.scaling(2, 2, 2) == Matrix(
+            (4, 4),
+            2, 0, 0, 0,
+            0, 2, 0, 0,
+            0, 0, 2, 0,
+            0, 0, 0, 1
+        )
+
+    def test_shearing(self):
+        assert Matrix.shearing(2, 0, 2) == Matrix(
+            (4, 4),
+            1, 0, 2, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        )
 
 
 class TestQuaternion(object):
