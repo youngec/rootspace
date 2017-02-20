@@ -20,6 +20,62 @@ FIRST_CAP_RE = re.compile(r"(.)([A-Z][a-z]+)")
 ALL_CAP_RE = re.compile(r"([a-z0-9])([A-Z])")
 
 
+def normalize_slice(s, lower_bound, upper_bound):
+    """
+    Normalize a given slice. That is, convert a slice with
+    None attributes to contain the specified bounds:
+
+    slice(None, None, None) becomes
+    slice(lower_bound, upper_bound, 1)
+
+    :param s:
+    :param lower_bound:
+    :param upper_bound:
+    :return:
+    """
+    start = s.start if s.start is not None else lower_bound
+    stop = s.stop if s.stop is not None else upper_bound
+    step = s.step if s.step is not None else 1
+    return slice(start, stop, step)
+
+
+def as_range(s, lower_bound, upper_bound):
+    """
+    Convert a slice to a range.
+
+    :param s:
+    :param lower_bound:
+    :param upper_bound:
+    :return:
+    """
+    s = normalize_slice(s, lower_bound, upper_bound)
+    return range(s.start, s.stop, s.step)
+
+
+def slice_length(s, lower_bound, upper_bound):
+    """
+    Return the length of the sliced portion.
+
+    :param s:
+    :param lower_bound:
+    :param upper_bound:
+    :return:
+    """
+    return len(tuple(as_range(s, lower_bound, upper_bound)))
+
+
+def linearize_indices(shape, *idx):
+    """
+    From a given set of multi-dimensional indices, construct
+    the corresponding linear index.
+
+    :param shape:
+    :param idx:
+    :return:
+    """
+    return sum(i * s for i, s in zip((0, ) + idx, shape + (1, )))
+
+
 def underscore_to_camelcase(name):
     """
     Convert underscored_text to CamelCase text.
