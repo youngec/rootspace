@@ -678,7 +678,7 @@ class Matrix(object):
 
     def __matmul__(self, other):
         """
-        Perform a right-sided matrix multiplication.
+        Perform a left-sided matrix multiplication.
 
         :param other:
         :return:
