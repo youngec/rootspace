@@ -229,46 +229,6 @@ class Vector(object):
         """
         return math.sqrt(self @ self)
 
-    def __truediv__(self, other):
-        """
-        Perform a left-sided element-wise division.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Vector) and len(self) == len(other):
-            return Vector(s / o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return Vector(s / other for s in self)
-        else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(Vector, type(other)))
-
-    def __rtruediv__(self, other):
-        """
-        Perform a right-sided element wise division.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Vector) and len(self) == len(other):
-            return Vector(o / s for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return Vector(other / s for s in self)
-        else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(other), Vector))
-
-    def __matmul__(self, other):
-        """
-        Perform a dot-product.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Vector) and len(self) == len(other):
-            return sum(s * o for s, o in zip(self, other))
-        else:
-            raise TypeError("unsupported operand type(s) for @: '{}' and '{}'".format(Vector, type(other)))
-
 
 class Matrix(object):
     """
