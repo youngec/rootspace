@@ -119,6 +119,125 @@ class TestMatrix(object):
             0, 0, 0, 1
         )
 
+    def test_addition(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = 5
+        d = 5.0
+        assert a + b == Matrix(a.shape, (s + o for s, o in zip(a.data, b.data)))
+        assert a + c == Matrix(a.shape, (s + c for s in a.data))
+        assert a + d == Matrix(a.shape, (s + d for s in a.data))
+
+    def test_addition_neutral_element(self):
+        a = Matrix((2, 2), range(4))
+        assert a + Matrix(a.shape, 0, 0, 0, 0) == a
+        assert a + 0 == a
+        assert a + 0.0 == a
+
+    def test_addition_inverse(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        assert -a == Matrix(a.shape, (-s for s in a.data))
+        assert a + -b == a - b
+
+    def test_addition_commutativity(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = 5
+        d = 5.0
+
+        assert a + b == b + a
+        assert a + c == c + a
+        assert a + d == d + a
+
+    def test_addition_associativity(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = Matrix((2, 2), range(2, 6))
+        d = 5
+        e = 6
+        f = 5.0
+        g = 6.0
+
+        assert b + (a + c) == (b + a) + c
+        assert d + (a + e) == (d + a) + e
+        assert f + (a + g) == (f + a) + g
+
+    def test_subtraction(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = 5
+        d = 5.0
+        assert a - b == a + -b
+        assert a - b != b - a
+        assert a - c == a + -c
+        assert a - c != c - a
+        assert a - d == a + -d
+        assert a - d != d - a
+
+    def test_multiplication(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = 5
+        d = 5.0
+        assert a * b == Matrix(a.shape, (s * o for s, o in zip(a.data, b.data)))
+        assert a * c == Matrix(a.shape, (s * c for s in a.data))
+        assert a * d == Matrix(a.shape, (s * d for s in a.data))
+
+    def test_multiplication_neutral_element(self):
+        a = Matrix((2, 2), range(4))
+        assert a * Matrix(a.shape, 1, 1, 1, 1) == a
+        assert a * 1 == a
+        assert a * 1.0 == a
+
+    def test_multiplication_inverse(self):
+        a = Matrix((2, 2), range(1, 5))
+        b = Matrix((2, 2), range(2, 6))
+        assert Matrix((2, 2), 1, 1, 1, 1) / a == Matrix(a.shape, (1 / s for s in a.data))
+        assert 1 / a == Matrix(a.shape, (1 / s for s in a.data))
+        assert 1.0 / a == Matrix(a.shape, (1 / s for s in a.data))
+        assert a * (Matrix((2, 2), 1, 1, 1, 1) / b) == a / b
+        assert a * (1 / b) == a / b
+        assert a * (1.0 / b) == a / b
+
+    def test_multiplication_commutativity(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = 5
+        d = 5.0
+
+        assert a * b == b * a
+        assert a * c == c * a
+        assert a * d == d * a
+
+    def test_multiplication_associativity(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = Matrix((2, 2), range(2, 6))
+        d = 5
+        e = 6
+        f = 5.0
+        g = 6.0
+
+        assert b * (a * c) == (b * a) * c
+        assert d * (a * e) == (d * a) * e
+        assert f * (a * g) == (f * a) * g
+
+    def test_division(self):
+        a = Matrix((2, 2), range(1, 5))
+        b = Matrix((2, 2), range(2, 6))
+        c = 5
+        d = 5.0
+        assert a / b != b / a
+        assert a / c != c / a
+        assert a / d != d / a
+
+    def test_distributivity(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = Matrix((2, 2), range(2, 6))
+        assert a * (b + c) == a * b + a * c
+
 
 class TestQuaternion(object):
     def test_initialization(self):

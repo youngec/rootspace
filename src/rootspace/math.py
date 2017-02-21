@@ -229,80 +229,6 @@ class Vector(object):
         """
         return math.sqrt(self @ self)
 
-    def __add__(self, other):
-        """
-        Perform a left-sided element-wise addition.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Vector) and len(self) == len(other):
-            return Vector(s + o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return Vector(s + other for s in self)
-        else:
-            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(Vector, type(other)))
-
-    def __radd__(self, other):
-        """
-        Perform a right-sided element-wise addition. Equivalent to __add__.
-
-        :param other:
-        :return:
-        """
-        return self.__add__(other)
-
-    def __sub__(self, other):
-        """
-        Perform a left-sided element-wise subtraction.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Vector) and len(self) == len(other):
-            return Vector(s - o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return Vector(s - other for s in self)
-        else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(Vector, type(other)))
-
-    def __rsub__(self, other):
-        """
-        Perform a right-sided element-wise subtraction.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Vector) and len(self) == len(other):
-            return Vector(o - s for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return Vector(other - s for s in self)
-        else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(other), Vector))
-
-    def __mul__(self, other):
-        """
-        Perform a left-sided element-wise multiplication.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Vector) and len(self) == len(other):
-            return Vector(s * o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return Vector(s * other for s in self)
-        else:
-            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(Vector, type(other)))
-
-    def __rmul__(self, other):
-        """
-        Perform a right-sided element-wise multiplication. Equivalent to __mul__.
-
-        :param other:
-        :return:
-        """
-        return self.__mul__(other)
-
     def __truediv__(self, other):
         """
         Perform a left-sided element-wise division.
@@ -634,6 +560,112 @@ class Matrix(object):
                 raise ValueError("The shape/length of the value must equal the shape/length of the indexed range.")
         else:
             raise TypeError("Expected indices of type int, slice or tuple, not '{}'.".format(type(key)))
+
+    def __neg__(self):
+        """
+        Perform an element-wise negation.
+
+        :return:
+        """
+        return Matrix(self.shape, (-s for s in self.data))
+
+    def __add__(self, other):
+        """
+        Perform a left-sided element-wise addition.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Matrix) and self.shape == other.shape:
+            return Matrix(self.shape, (s + o for s, o in zip(self.data, other.data)))
+        elif isinstance(other, (int, float)):
+            return Matrix(self.shape, (s + other for s in self.data))
+        else:
+            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(Matrix, type(other)))
+
+    def __radd__(self, other):
+        """
+        Perform a right-sided element-wise addition. Equivalent to __add__.
+
+        :param other:
+        :return:
+        """
+        return self.__add__(other)
+
+    def __sub__(self, other):
+        """
+        Perform a left-sided element-wise subtraction.
+
+        :param other:
+        :return:
+        """
+        if (isinstance(other, Matrix) and self.shape == other.shape) or isinstance(other, (int, float)):
+            return self + -other
+        else:
+            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(Matrix, type(other)))
+
+    def __rsub__(self, other):
+        """
+        Perform a right-sided element-wise subtraction.
+
+        :param other:
+        :return:
+        """
+        if (isinstance(other, Matrix) and self.shape == other.shape) or isinstance(other, (int, float)):
+            return other + -self
+        else:
+            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(other), Matrix))
+
+    def __mul__(self, other):
+        """
+        Perform a left-sided element-wise multiplication.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Matrix) and self.shape == other.shape:
+            return Matrix(self.shape, (s * o for s, o in zip(self.data, other.data)))
+        elif isinstance(other, (int, float)):
+            return Matrix(self.shape, (s * other for s in self.data))
+        else:
+            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(Matrix, type(other)))
+
+    def __rmul__(self, other):
+        """
+        Perform a right-sided element-wise multiplication. Equivalent to __mul__.
+
+        :param other:
+        :return:
+        """
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        """
+        Perform a left-sided element-wise division.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Matrix) and self.shape == other.shape:
+            return Matrix(self.shape, (s / o for s, o in zip(self.data, other.data)))
+        elif isinstance(other, (int, float)):
+            return Matrix(self.shape, (s / other for s in self.data))
+        else:
+            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(Matrix, type(other)))
+
+    def __rtruediv__(self, other):
+        """
+        Perform a right-sided element wise division.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Matrix) and self.shape == other.shape:
+            return Matrix(self.shape, (o / s for s, o in zip(self.data, other.data)))
+        elif isinstance(other, (int, float)):
+            return Matrix(self.shape, (other / s for s in self.data))
+        else:
+            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(other), Matrix))
 
 
 class Quaternion(object):
