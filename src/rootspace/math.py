@@ -514,7 +514,7 @@ class Matrix(object):
         if isinstance(other, Matrix):
             return self.shape == other.shape and all(s == o for s, o in zip(self.data, other.data))
         else:
-            return False
+            return NotImplemented
 
     def __getitem__(self, key):
         """
@@ -581,7 +581,7 @@ class Matrix(object):
         elif isinstance(other, (int, float)):
             return Matrix(self.shape, (s + other for s in self.data))
         else:
-            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(Matrix, type(other)))
+            return NotImplemented
 
     def __radd__(self, other):
         """
@@ -602,7 +602,7 @@ class Matrix(object):
         if (isinstance(other, Matrix) and self.shape == other.shape) or isinstance(other, (int, float)):
             return self + -other
         else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(Matrix, type(other)))
+            return NotImplemented
 
     def __rsub__(self, other):
         """
@@ -614,7 +614,7 @@ class Matrix(object):
         if (isinstance(other, Matrix) and self.shape == other.shape) or isinstance(other, (int, float)):
             return other + -self
         else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(other), Matrix))
+            return NotImplemented
 
     def __mul__(self, other):
         """
@@ -628,7 +628,7 @@ class Matrix(object):
         elif isinstance(other, (int, float)):
             return Matrix(self.shape, (s * other for s in self.data))
         else:
-            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(Matrix, type(other)))
+            return NotImplemented
 
     def __rmul__(self, other):
         """
@@ -651,7 +651,7 @@ class Matrix(object):
         elif isinstance(other, (int, float)):
             return Matrix(self.shape, (s / other for s in self.data))
         else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(Matrix, type(other)))
+            return NotImplemented
 
     def __rtruediv__(self, other):
         """
@@ -665,7 +665,7 @@ class Matrix(object):
         elif isinstance(other, (int, float)):
             return Matrix(self.shape, (other / s for s in self.data))
         else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(other), Matrix))
+            return NotImplemented
 
 
 class Quaternion(object):
