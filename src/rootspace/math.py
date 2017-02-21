@@ -505,6 +505,15 @@ class Matrix(object):
         """
         return self.shape[0] * self.shape[1]
 
+    def __iter__(self):
+        """
+        Provide an iterator interface.
+
+        :return:
+        """
+        for d in self.data:
+            yield d
+
     def __eq__(self, other):
         """
 
@@ -664,6 +673,23 @@ class Matrix(object):
             return Matrix(self.shape, (o / s for s, o in zip(self.data, other.data)))
         elif isinstance(other, (int, float)):
             return Matrix(self.shape, (other / s for s in self.data))
+        else:
+            return NotImplemented
+
+    def __matmul__(self, other):
+        """
+        Perform a right-sided matrix multiplication.
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Matrix) and self.shape[-1] == other.shape[0]:
+            result = Matrix(self.shape[:-1] + other.shape[1:])
+            for i in range(result.shape[0]):
+                for j in range(result.shape[1]):
+                    result[i, j] = sum(a * b for a, b in zip(self[i, :], other[:, j]))
+
+            return result
         else:
             return NotImplemented
 

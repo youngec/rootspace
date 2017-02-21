@@ -59,6 +59,16 @@ class TestMatrix(object):
         m[:3, 0] = (5.0, 5.0, 5.0)
         assert m[:3, 0] == Matrix((3, 1), 5, 5, 5)
 
+    def test_identity(self):
+        assert Matrix.identity(4) == Matrix((4, 4))
+        assert Matrix.identity(4) == Matrix(
+            (4, 4),
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        )
+
     def test_translation(self):
         assert Matrix.translation(1, 1, 1) == Matrix(
             (4, 4),
@@ -237,6 +247,38 @@ class TestMatrix(object):
         b = Matrix((2, 2), range(1, 5))
         c = Matrix((2, 2), range(2, 6))
         assert a * (b + c) == a * b + a * c
+
+    def test_dot_product(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+
+        c = Matrix(a.shape[:-1] + b.shape[1:])
+        for i in range(c.shape[0]):
+            for j in range(c.shape[1]):
+                c[i, j] = sum(am * bm for am, bm in zip(a[i, :], b[:, j]))
+
+        assert a @ b == c
+
+    def test_dot_product_neutral_element(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix.identity(2)
+
+        assert a @ b == a
+        assert a @ b == b @ a
+
+    def test_dot_product_inverse(self):
+        a = Matrix((2, 2), 4, 3, 2, 1)
+        b = Matrix((2, 2), -0.5, 1.5, 1, -2)
+
+        assert a @ b == Matrix.identity(2)
+        assert b @ a == Matrix.identity(2)
+
+    def test_dot_product_associativity(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = Matrix((2, 2), range(2, 6))
+
+        assert b @ (a @ c) == (b @ a) @ c
 
 
 class TestQuaternion(object):
