@@ -232,7 +232,7 @@ class Vector(object):
 
 class Matrix(object):
     """
-    The base class for four-dimensional Matrices of real numbers. The internal data structure uses row-major ordering.
+    The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
     """
     @classmethod
     def identity(cls, d):
