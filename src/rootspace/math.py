@@ -501,7 +501,10 @@ class Matrix(object):
 
         :return:
         """
-        return Matrix(self.shape, (-s for s in self.data))
+        result = Matrix(self.shape)
+        for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+            result[i, j] = -self[i, j]
+        return result
 
     def __add__(self, other):
         """
@@ -511,9 +514,15 @@ class Matrix(object):
         :return:
         """
         if isinstance(other, Matrix) and self.shape == other.shape:
-            return Matrix(self.shape, (s + o for s, o in zip(self.data, other.data)))
+            result = Matrix(self.shape)
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = self[i, j] + other[i, j]
+            return result
         elif isinstance(other, (int, float)):
-            return Matrix(self.shape, (s + other for s in self.data))
+            result = Matrix(self.shape)
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = self[i, j] + other
+            return result
         else:
             return NotImplemented
 
@@ -558,9 +567,15 @@ class Matrix(object):
         :return:
         """
         if isinstance(other, Matrix) and self.shape == other.shape:
-            return Matrix(self.shape, (s * o for s, o in zip(self.data, other.data)))
+            result = Matrix(self.shape)
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = self[i, j] * other[i, j]
+            return result
         elif isinstance(other, (int, float)):
-            return Matrix(self.shape, (s * other for s in self.data))
+            result = Matrix(self.shape)
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = self[i, j] * other
+            return result
         else:
             return NotImplemented
 
@@ -581,9 +596,15 @@ class Matrix(object):
         :return:
         """
         if isinstance(other, Matrix) and self.shape == other.shape:
-            return Matrix(self.shape, (s / o for s, o in zip(self.data, other.data)))
+            result = Matrix(self.shape)
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = self[i, j] / other[i, j]
+            return result
         elif isinstance(other, (int, float)):
-            return Matrix(self.shape, (s / other for s in self.data))
+            result = Matrix(self.shape)
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = self[i, j] / other
+            return result
         else:
             return NotImplemented
 
@@ -595,9 +616,15 @@ class Matrix(object):
         :return:
         """
         if isinstance(other, Matrix) and self.shape == other.shape:
-            return Matrix(self.shape, (o / s for s, o in zip(self.data, other.data)))
+            result = Matrix(self.shape)
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = other[i, j] / self[i, j]
+            return result
         elif isinstance(other, (int, float)):
-            return Matrix(self.shape, (other / s for s in self.data))
+            result = Matrix(self.shape)
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = other / self[i, j]
+            return result
         else:
             return NotImplemented
 

@@ -142,15 +142,6 @@ class TestMatrix(object):
             0, 0, 0, 1
         )
 
-    def test_addition(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-        c = 5
-        d = 5.0
-        assert a + b == Matrix(a.shape, (s + o for s, o in zip(a.data, b.data)))
-        assert a + c == Matrix(a.shape, (s + c for s in a.data))
-        assert a + d == Matrix(a.shape, (s + d for s in a.data))
-
     def test_addition_neutral_element(self):
         a = Matrix((2, 2), range(4))
         assert a + Matrix(a.shape, 0, 0, 0, 0) == a
@@ -185,27 +176,6 @@ class TestMatrix(object):
         assert b + (a + c) == (b + a) + c
         assert d + (a + e) == (d + a) + e
         assert f + (a + g) == (f + a) + g
-
-    def test_subtraction(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-        c = 5
-        d = 5.0
-        assert a - b == a + -b
-        assert a - b != b - a
-        assert a - c == a + -c
-        assert a - c != c - a
-        assert a - d == a + -d
-        assert a - d != d - a
-
-    def test_multiplication(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-        c = 5
-        d = 5.0
-        assert a * b == Matrix(a.shape, (s * o for s, o in zip(a.data, b.data)))
-        assert a * c == Matrix(a.shape, (s * c for s in a.data))
-        assert a * d == Matrix(a.shape, (s * d for s in a.data))
 
     def test_multiplication_neutral_element(self):
         a = Matrix((2, 2), range(4))
@@ -246,31 +216,11 @@ class TestMatrix(object):
         assert d * (a * e) == (d * a) * e
         assert f * (a * g) == (f * a) * g
 
-    def test_division(self):
-        a = Matrix((2, 2), range(1, 5))
-        b = Matrix((2, 2), range(2, 6))
-        c = 5
-        d = 5.0
-        assert a / b != b / a
-        assert a / c != c / a
-        assert a / d != d / a
-
     def test_distributivity(self):
         a = Matrix((2, 2), range(4))
         b = Matrix((2, 2), range(1, 5))
         c = Matrix((2, 2), range(2, 6))
         assert a * (b + c) == a * b + a * c
-
-    def test_dot_product(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-
-        c = Matrix(a.shape[:-1] + b.shape[1:])
-        for i in range(c.shape[0]):
-            for j in range(c.shape[1]):
-                c[i, j] = sum(am * bm for am, bm in zip(a[i, :], b[:, j]))
-
-        assert a @ b == c
 
     def test_dot_product_neutral_element(self):
         a = Matrix((2, 2), range(4))
