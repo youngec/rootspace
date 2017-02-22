@@ -8,7 +8,7 @@ import operator
 
 import numpy
 
-from .utilities import linearize_indices, normalize_slice, slice_length
+from .utilities import linearize_indices, normalize_slice, slice_length, get_sub_shape
 
 
 def epsilon(*float_values, iterable=False):
@@ -368,28 +368,6 @@ class Matrix(object):
     def is_scalar(self):
         return len(self) == 1
 
-    def _get_shape(self, *indices):
-        """
-        For a given set of multi-dimensional indices,
-        return the shape of the resulting sub-matrix.
-
-        :param indices:
-        :return:
-        """
-        shape = list()
-        for i, k in enumerate(indices):
-            if isinstance(k, int):
-                shape.append(1)
-            elif isinstance(k, slice):
-                shape.append(slice_length(k, 0, self.shape[i]))
-            else:
-                raise TypeError("Expected the tuple indices to be either int or slice.")
-
-        if len(shape) == 1:
-            shape.append(1)
-
-        return tuple(shape)
-
     def _get_linear_index(self, i, j):
         """
         For given multi-dimensional indices, provide a linear index. This also works for sliced indices.
@@ -510,7 +488,7 @@ class Matrix(object):
             key = (key, slice(None))
 
         if isinstance(key, tuple):
-            shape = self._get_shape(*key)
+            shape = get_sub_shape(self.shape, *key)
             idx = self._get_linear_index(*key)
             if shape != (1, 1):
                 return Matrix(shape, self._data[idx])
@@ -531,7 +509,7 @@ class Matrix(object):
             key = (key, slice(None))
 
         if isinstance(key, tuple):
-            shape = self._get_shape(*key)
+            shape = get_sub_shape(self.shape, *key)
             idx = self._get_linear_index(*key)
             if isinstance(value, Matrix) and value.shape == shape:
                 self._data[idx] = value.data

@@ -49,16 +49,6 @@ class TestMatrix(object):
     def test_shape(self):
         assert Matrix((4, 4)).shape == (4, 4)
 
-    def test_get_shape(self):
-        m = Matrix((4, 4))
-        assert m._get_shape(4) == (1, 1)
-        assert m._get_shape(2, 2) == (1, 1)
-        assert m._get_shape(2, slice(4)) == (1, 4)
-        assert m._get_shape(slice(4), 2) == (4, 1)
-        assert m._get_shape(slice(1, 5), slice(4)) == (4, 4)
-        with pytest.raises(TypeError):
-            m._get_shape(None)
-
     def test_getitem(self):
         m = Matrix((4, 4), range(16))
         assert m[0] == Matrix((1, 4), 0, 1, 2, 3)

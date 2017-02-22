@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from rootspace.utilities import as_range, slice_length, linearize_indices, normalize_slice
+import pytest
+
+from rootspace.utilities import as_range, slice_length, linearize_indices, normalize_slice, get_sub_shape
 
 
 def test_as_range(mocker):
@@ -23,3 +25,14 @@ def test_linearize_indices():
 
 def test_normalize_slice():
     assert normalize_slice(slice(None), 0, 100) == slice(0, 100, 1)
+
+
+def test_get_sub_shape():
+    shape = (4, 4)
+    assert get_sub_shape(shape, 4) == (1, 1)
+    assert get_sub_shape(shape, 2, 2) == (1, 1)
+    assert get_sub_shape(shape, 2, slice(4)) == (1, 4)
+    assert get_sub_shape(shape, slice(4), 2) == (4, 1)
+    assert get_sub_shape(shape, slice(1, 5), slice(4)) == (4, 4)
+    with pytest.raises(TypeError):
+        get_sub_shape(shape, None)

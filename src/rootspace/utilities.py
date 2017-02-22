@@ -76,6 +76,30 @@ def linearize_indices(shape, *idx):
     return sum(i * s for i, s in zip((0, ) + idx, shape + (1, )))
 
 
+def get_sub_shape(shape, *indices):
+    """
+    For a given set of multi-dimensional indices,
+    return the shape of the resulting sub-matrix.
+
+    :param shape:
+    :param indices:
+    :return:
+    """
+    sub_shape = list()
+    for i, k in enumerate(indices):
+        if isinstance(k, int):
+            sub_shape.append(1)
+        elif isinstance(k, slice):
+            sub_shape.append(slice_length(k, 0, shape[i]))
+        else:
+            raise TypeError("Expected the tuple indices to be either int or slice.")
+
+    if len(sub_shape) == 1:
+        sub_shape.append(1)
+
+    return tuple(sub_shape)
+
+
 def underscore_to_camelcase(name):
     """
     Convert underscored_text to CamelCase text.
