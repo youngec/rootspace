@@ -369,7 +369,7 @@ class Matrix(object):
     def is_scalar(self):
         return len(self) == 1
 
-    def __init__(self, shape, *args, data_type="f"):
+    def __init__(self, shape, *args, data_type="f", transposed=False):
         """
         Create a Matrix instance from a shape and either an iterable, or positional arguments.
         Using only the shape creates an identity matrix if the shape is square.
@@ -377,7 +377,10 @@ class Matrix(object):
         :param shape:
         :param args:
         :param data_type:
+        :param transposed:
         """
+        self._transposed = transposed
+
         # Set the shape of the matrix
         if isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(s, int) for s in shape):
             self._shape = shape
@@ -412,7 +415,10 @@ class Matrix(object):
 
         :return:
         """
-        return self.__repr__()
+        lines = list()
+        for i in range(self.shape[0]):
+            lines.append("[{}]".format(", ".join(str(e) for e in self[i, :])))
+        return "[{}]".format("\n ".join(lines))
 
     def __repr__(self):
         """
@@ -420,7 +426,10 @@ class Matrix(object):
 
         :return:
         """
-        return "{}({})".format(self.__class__.__name__, ", ".join(str(e) for e in self.data))
+        return "{}({}, ({}), data_type={}, transposed={})".format(
+            self.__class__.__name__, self._shape, ", ".join(str(e) for e in self.data),
+            self.data.typecode, self._transposed
+        )
 
     def __len__(self):
         """
