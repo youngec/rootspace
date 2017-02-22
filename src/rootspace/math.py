@@ -427,7 +427,7 @@ class Matrix(object):
 
         :return:
         """
-        return self.shape[0] * self.shape[1]
+        return functools.reduce(operator.mul, self.shape)
 
     def __iter__(self):
         """
