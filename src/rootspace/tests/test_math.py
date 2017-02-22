@@ -14,8 +14,11 @@ class TestMatrix(object):
         Matrix((4, 4), range(16))
         Matrix((4, 4), *list(range(16)))
 
-    def test_data(self):
-        assert Matrix((4, 4), range(16))._data == array.array("f", range(16))
+    def test_data_property(self):
+        assert len(Matrix((4, 4)).data) == 16
+
+    def test_shape_propery(self):
+        assert Matrix((4, 4)).shape == (4, 4)
 
     def test_equality(self):
         assert Matrix((4, 4)) == Matrix((4, 4))
