@@ -20,6 +20,15 @@ class TestMatrix(object):
     def test_shape_propery(self):
         assert Matrix((4, 4)).shape == (4, 4)
 
+    def test_is_square_property(self):
+        assert Matrix((4, 4)).is_square is True
+        assert Matrix((4, 1)).is_square is False
+
+    def test_is_vector_property(self):
+        assert Matrix((4, 4)).is_vector is False
+        assert Matrix((4, 1)).is_vector is True
+        assert Matrix((1, 4)).is_vector is True
+
     def test_equality(self):
         assert Matrix((4, 4)) == Matrix((4, 4))
         assert Matrix((4, 4), range(16)) == Matrix((4, 4), *list(range(16)))

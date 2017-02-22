@@ -356,6 +356,14 @@ class Matrix(object):
     def data(self):
         return self._data
 
+    @property
+    def is_square(self):
+        return functools.reduce(operator.eq, self.shape)
+
+    @property
+    def is_vector(self):
+        return len([s > 1 for s in self.shape]) == 1
+
     def _get_shape(self, *indices):
         """
         For a given set of multi-dimensional indices,
