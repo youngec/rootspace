@@ -64,18 +64,6 @@ def slice_length(s, lower_bound, upper_bound):
     return len(tuple(as_range(s, lower_bound, upper_bound)))
 
 
-def linearize_indices(shape, *idx):
-    """
-    From a given set of multi-dimensional indices, construct
-    the corresponding linear index.
-
-    :param shape:
-    :param idx:
-    :return:
-    """
-    return sum(i * s for i, s in zip((0, ) + idx, shape + (1, )))
-
-
 def get_sub_shape(shape, *indices):
     """
     For a given set of multi-dimensional indices,
@@ -98,6 +86,55 @@ def get_sub_shape(shape, *indices):
         sub_shape.append(1)
 
     return tuple(sub_shape)
+
+
+def linearize_scalar_indices(shape, *idx):
+    """
+    From a given set of multi-dimensional indices, construct
+    the corresponding linear index.
+
+    :param shape:
+    :param idx:
+    :return:
+    """
+    return sum(i * s for i, s in zip((0, ) + idx, shape + (1, )))
+
+
+def linearize_indices(shape, i, j):
+    """
+    For given multi-dimensional indices, provide a linear index. This also works for sliced indices.
+
+    :param shape:
+    :param i:
+    :param j:
+    :return:
+    """
+    if isinstance(i, int) and isinstance(j, int):  # Single 2-index
+        return linearize_scalar_indices(shape, i, j)
+    elif isinstance(i, slice) and isinstance(j, slice):  # Full sliced 2-index
+        i = normalize_slice(i, 0, shape[0])
+        j = normalize_slice(j, 0, shape[1])
+        if i.step > 1:
+            raise NotImplementedError("Cannot currently deal with row strides, e.g. a[::2, :].")
+
+        start = linearize_scalar_indices(shape, i.start, j.start)
+        stop = linearize_scalar_indices(shape, i.stop - 1, j.stop)
+        step = j.step
+        return slice(start, stop, step)
+    elif isinstance(i, int) and isinstance(j, slice):  # Partial sliced 2-index
+        j = normalize_slice(j, 0, shape[1])
+        start = linearize_scalar_indices(shape, i, j.start)
+        stop = linearize_scalar_indices(shape, i, j.stop)
+        step = linearize_scalar_indices(shape, 0, j.step)
+        return slice(start, stop, step)
+    elif isinstance(i, slice) and isinstance(j, int):  # Partial sliced 2-index
+        i = normalize_slice(i, 0, shape[0])
+        start = linearize_scalar_indices(shape, i.start, j)
+        stop = linearize_scalar_indices(shape, i.stop - 1, j + 1)
+        step = linearize_scalar_indices(shape, i.step, 0)
+        return slice(start, stop, step)
+    else:
+        raise TypeError("Expected the tuple indices to be either int or slice, not '{}' and '{}'.".format(type(i), type(j)))
 
 
 def underscore_to_camelcase(name):

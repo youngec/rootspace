@@ -8,7 +8,7 @@ import operator
 
 import numpy
 
-from .utilities import linearize_indices, normalize_slice, slice_length, get_sub_shape
+from .utilities import get_sub_shape, linearize_indices
 
 
 def epsilon(*float_values, iterable=False):
@@ -368,41 +368,6 @@ class Matrix(object):
     def is_scalar(self):
         return len(self) == 1
 
-    def _get_linear_index(self, i, j):
-        """
-        For given multi-dimensional indices, provide a linear index. This also works for sliced indices.
-
-        :param i:
-        :param j:
-        :return:
-        """
-        if isinstance(i, int) and isinstance(j, int):  # Single 2-index
-            return linearize_indices(self.shape, i, j)
-        elif isinstance(i, slice) and isinstance(j, slice):  # Full sliced 2-index
-            i = normalize_slice(i, 0, self.shape[0])
-            j = normalize_slice(j, 0, self.shape[1])
-            if i.step != 1 and j.step != 1:
-                raise NotImplementedError("Cannot currently deal with multiple strides, e.g. a[::2, ::2].")
-
-            start = linearize_indices(self.shape, i.start, j.start)
-            stop = linearize_indices(self.shape, i.stop, j.stop)
-            step = j.step
-            return slice(start, stop, step)
-        elif isinstance(i, int) and isinstance(j, slice):  # Partial sliced 2-index
-            j = normalize_slice(j, 0, self.shape[1])
-            start = linearize_indices(self.shape, i, j.start)
-            stop = linearize_indices(self.shape, i, j.stop)
-            step = linearize_indices(self.shape, 0, j.step)
-            return slice(start, stop, step)
-        elif isinstance(i, slice) and isinstance(j, int):  # Partial sliced 2-index
-            i = normalize_slice(i, 0, self.shape[0])
-            start = linearize_indices(self.shape, i.start, j)
-            stop = linearize_indices(self.shape, i.stop, j)
-            step = linearize_indices(self.shape, i.step, 0)
-            return slice(start, stop, step)
-        else:
-            raise TypeError("Expected the tuple indices to be either int or slice, not '{}' and '{}'.".format(type(i), type(j)))
-
     def __init__(self, shape, *args, data_type="f"):
         """
         Create a Matrix instance from a shape and either an iterable, or positional arguments.
@@ -423,7 +388,7 @@ class Matrix(object):
         if len(args) == 1 and isinstance(args[0], collections.abc.Iterable):
             self._data = array.array(data_type, args[0])
             if len(self._data) != length:
-                raise ValueError("Expected an iterable of length '{0}' or '{0}' numeric positional arguments.".format(length))
+                raise ValueError("Expected an iterable of length '{0}' or '{0}' numeric positional arguments, got '{1}'.".format(length, len(self._data)))
         elif len(args) == 1 and isinstance(args[0], (int, float)):
             self._data = array.array(data_type, length * [args[0]])
         elif len(args) == length and all(isinstance(a, (int, float)) for a in args):
@@ -489,7 +454,7 @@ class Matrix(object):
 
         if isinstance(key, tuple):
             shape = get_sub_shape(self.shape, *key)
-            idx = self._get_linear_index(*key)
+            idx = linearize_indices(self.shape, *key)
             if shape != (1, 1):
                 return Matrix(shape, self._data[idx])
             else:
@@ -510,7 +475,7 @@ class Matrix(object):
 
         if isinstance(key, tuple):
             shape = get_sub_shape(self.shape, *key)
-            idx = self._get_linear_index(*key)
+            idx = linearize_indices(self.shape, *key)
             if isinstance(value, Matrix) and value.shape == shape:
                 self._data[idx] = value.data
             elif isinstance(value, collections.abc.Collection) and len(value) == functools.reduce(operator.mul, shape):

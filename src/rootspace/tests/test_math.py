@@ -66,10 +66,10 @@ class TestMatrix(object):
         assert m[0] == Matrix((1, 4), 2, 2, 2, 2)
         m[0, 0] = 3.0
         assert m[0, 0] == 3.0
-        m[0, :3] = (4.0, 4.0, 4.0)
-        assert m[0, :3] == Matrix((1, 3), 4, 4, 4)
-        m[:3, 0] = (5.0, 5.0, 5.0)
-        assert m[:3, 0] == Matrix((3, 1), 5, 5, 5)
+        m[0, :4] = (4.0, 4.0, 4.0, 4.0)
+        assert m[0, :4] == Matrix((1, 4), 4, 4, 4, 4)
+        m[:4, 0] = (5.0, 5.0, 5.0, 5.0)
+        assert m[:4, 0] == Matrix((4, 1), 5, 5, 5, 5)
 
     def test_identity(self):
         assert Matrix.identity(4) == Matrix((4, 4))
