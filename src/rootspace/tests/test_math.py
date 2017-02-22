@@ -2,6 +2,7 @@
 
 import array
 import math
+import itertools
 
 import pytest
 
@@ -242,6 +243,13 @@ class TestMatrix(object):
         c = Matrix((2, 2), range(2, 6))
 
         assert b @ (a @ c) == (b @ a) @ c
+
+    def test_transpose(self):
+        a = Matrix((2, 4), range(8))
+        assert a == a.t.t
+        assert a.shape == a.t.shape[::-1]
+        for i, j in itertools.product(range(a.shape[0]), range(a.shape[1])):
+            assert a[i, j] == a.t[j, i]
 
 
 class TestQuaternion(object):

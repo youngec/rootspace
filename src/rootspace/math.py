@@ -351,7 +351,7 @@ class Matrix(object):
 
     @property
     def shape(self):
-        return self._shape
+        return self._shape if not self._transposed else self._shape[::-1]
 
     @property
     def data(self):
@@ -368,6 +368,10 @@ class Matrix(object):
     @property
     def is_scalar(self):
         return len(self) == 1
+
+    @property
+    def t(self):
+        return Matrix(self._shape, self.data, transposed=(not self._transposed))
 
     def __init__(self, shape, *args, data_type="f", transposed=False):
         """
@@ -470,12 +474,13 @@ class Matrix(object):
             key = (key, slice(None))
 
         if isinstance(key, tuple):
-            shape = get_sub_shape(self.shape, *key)
-            idx = linearize_indices(self.shape, *key)
-            if shape != (1, 1):
-                return Matrix(shape, self._data[idx])
+            key = key if not self._transposed else key[::-1]
+            sub_shape = get_sub_shape(self._shape, *key)
+            sub_idx = linearize_indices(self._shape, *key)
+            if sub_shape != (1, 1):
+                return Matrix(sub_shape, self._data[sub_idx])
             else:
-                return self._data[idx]
+                return self._data[sub_idx]
         else:
             raise TypeError("Expected indices of type int, slice or tuple.")
 
@@ -491,14 +496,15 @@ class Matrix(object):
             key = (key, slice(None))
 
         if isinstance(key, tuple):
-            shape = get_sub_shape(self.shape, *key)
-            idx = linearize_indices(self.shape, *key)
-            if isinstance(value, Matrix) and value.shape == shape:
-                self._data[idx] = value.data
-            elif isinstance(value, collections.abc.Collection) and len(value) == functools.reduce(operator.mul, shape):
-                self._data[idx] = array.array(self.data.typecode, value)
-            elif isinstance(value, (int, float)) and shape == (1, 1):
-                self._data[idx] = value
+            key = key if not self._transposed else key[::-1]
+            sub_shape = get_sub_shape(self._shape, *key)
+            sub_idx = linearize_indices(self._shape, *key)
+            if isinstance(value, Matrix) and value.shape == sub_shape:
+                self._data[sub_idx] = value.data
+            elif isinstance(value, collections.abc.Collection) and len(value) == functools.reduce(operator.mul, sub_shape):
+                self._data[sub_idx] = array.array(self.data.typecode, value)
+            elif isinstance(value, (int, float)) and sub_shape == (1, 1):
+                self._data[sub_idx] = value
             else:
                 raise ValueError("The shape/length of the value must equal the shape/length of the indexed range.")
         else:
