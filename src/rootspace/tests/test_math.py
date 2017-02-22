@@ -15,6 +15,9 @@ class TestMatrix(object):
         Matrix((4, 4), range(16))
         Matrix((4, 4), *list(range(16)))
 
+        a = Matrix((4, 4))
+        assert id(Matrix((4, 4), a.data).data) == id(a.data)
+
     def test_data_property(self):
         assert len(Matrix((4, 4)).data) == 16
 

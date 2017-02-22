@@ -385,12 +385,19 @@ class Matrix(object):
 
         # Set the matrix data
         length = shape[0] * shape[1]
-        if len(args) == 1 and isinstance(args[0], collections.abc.Iterable):
-            self._data = array.array(data_type, args[0])
-            if len(self._data) != length:
-                raise ValueError("Expected an iterable of length '{0}' or '{0}' numeric positional arguments, got '{1}'.".format(length, len(self._data)))
-        elif len(args) == 1 and isinstance(args[0], (int, float)):
-            self._data = array.array(data_type, length * [args[0]])
+        if len(args) == 1:
+            if isinstance(args[0], array.ArrayType):
+                self._data = args[0]
+                if len(self._data) != length:
+                    raise ValueError("Expected an ArrayType of length '{}', got '{}'.".format(length, len(self._data)))
+            elif isinstance(args[0], collections.abc.Iterable):
+                self._data = array.array(data_type, args[0])
+                if len(self._data) != length:
+                    raise ValueError("Expected an iterable of length '{}', got '{}'.".format(length, len(self._data)))
+            elif isinstance(args[0], (int, float)):
+                self._data = array.array(data_type, length * [args[0]])
+            else:
+                raise TypeError("Expected either an ArrayType, an iterable or a scalar number as positional argument.")
         elif len(args) == length and all(isinstance(a, (int, float)) for a in args):
             self._data = array.array(data_type, args)
         elif len(args) == 0 and shape[0] == shape[1]:
