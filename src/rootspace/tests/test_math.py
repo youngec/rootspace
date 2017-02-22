@@ -11,6 +11,7 @@ from rootspace.math import Matrix, Quaternion
 class TestMatrix(object):
     def test_creation(self):
         Matrix((4, 4))
+        Matrix((4, 4), 2)
         Matrix((4, 4), range(16))
         Matrix((4, 4), *list(range(16)))
 
@@ -22,12 +23,21 @@ class TestMatrix(object):
 
     def test_is_square_property(self):
         assert Matrix((4, 4)).is_square is True
-        assert Matrix((4, 1)).is_square is False
+        assert Matrix((4, 1), 1).is_square is False
+        assert Matrix((1, 4), 1).is_square is False
+        assert Matrix((1, 1)).is_square is True
 
     def test_is_vector_property(self):
         assert Matrix((4, 4)).is_vector is False
-        assert Matrix((4, 1)).is_vector is True
-        assert Matrix((1, 4)).is_vector is True
+        assert Matrix((4, 1), 1).is_vector is True
+        assert Matrix((1, 4), 1).is_vector is True
+        assert Matrix((1, 1)).is_vector is False
+
+    def test_is_scalar_property(self):
+        assert Matrix((4, 4)).is_scalar is False
+        assert Matrix((4, 1), 1).is_scalar is False
+        assert Matrix((1, 4), 1).is_scalar is False
+        assert Matrix((1, 1)).is_scalar is True
 
     def test_equality(self):
         assert Matrix((4, 4)) == Matrix((4, 4))

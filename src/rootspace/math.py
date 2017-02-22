@@ -362,7 +362,11 @@ class Matrix(object):
 
     @property
     def is_vector(self):
-        return len([s > 1 for s in self.shape]) == 1
+        return len([None for s in self.shape if s > 1]) == 1
+
+    @property
+    def is_scalar(self):
+        return len(self) == 1
 
     def _get_shape(self, *indices):
         """
@@ -442,6 +446,8 @@ class Matrix(object):
             self._data = array.array(data_type, args[0])
             if len(self._data) != length:
                 raise ValueError("Expected an iterable of length '{0}' or '{0}' numeric positional arguments.".format(length))
+        elif len(args) == 1 and isinstance(args[0], (int, float)):
+            self._data = array.array(data_type, length * [args[0]])
         elif len(args) == length and all(isinstance(a, (int, float)) for a in args):
             self._data = array.array(data_type, args)
         elif len(args) == 0 and shape[0] == shape[1]:
