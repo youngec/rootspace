@@ -5,6 +5,7 @@ import math
 import array
 import functools
 import operator
+import itertools
 
 import numpy
 
@@ -609,9 +610,8 @@ class Matrix(object):
         """
         if isinstance(other, Matrix) and self.shape[-1] == other.shape[0]:
             result = Matrix(self.shape[:-1] + other.shape[1:])
-            for i in range(result.shape[0]):
-                for j in range(result.shape[1]):
-                    result[i, j] = sum(a * b for a, b in zip(self[i, :], other[:, j]))
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = sum(a * b for a, b in zip(self[i, :], other[:, j]))
 
             return result
         else:
