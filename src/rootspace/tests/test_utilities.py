@@ -43,4 +43,3 @@ def test_linearize_indices():
     assert linearize_indices((2, 4), 1, 3) == 7
     assert linearize_indices((2, 4), 1, slice(3)) == slice(4, 7, 1)
     assert linearize_indices((2, 4), slice(2), 1) == slice(1, 6, 4)
-    assert linearize_indices((2, 4), slice(None), slice(None)) == slice(0, 8, 1)

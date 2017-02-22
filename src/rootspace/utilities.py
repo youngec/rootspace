@@ -112,15 +112,7 @@ def linearize_indices(shape, i, j):
     if isinstance(i, int) and isinstance(j, int):  # Single 2-index
         return linearize_scalar_indices(shape, i, j)
     elif isinstance(i, slice) and isinstance(j, slice):  # Full sliced 2-index
-        i = normalize_slice(i, 0, shape[0])
-        j = normalize_slice(j, 0, shape[1])
-        if i.step > 1:
-            raise NotImplementedError("Cannot currently deal with row strides, e.g. a[::2, :].")
-
-        start = linearize_scalar_indices(shape, i.start, j.start)
-        stop = linearize_scalar_indices(shape, i.stop - 1, j.stop)
-        step = j.step
-        return slice(start, stop, step)
+        raise NotImplementedError("Cannot handle double slices currently, eg. a[:, :].")
     elif isinstance(i, int) and isinstance(j, slice):  # Partial sliced 2-index
         j = normalize_slice(j, 0, shape[1])
         start = linearize_scalar_indices(shape, i, j.start)

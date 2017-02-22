@@ -56,8 +56,6 @@ class TestMatrix(object):
         m = Matrix((4, 4), range(16))
         assert m[0] == Matrix((1, 4), 0, 1, 2, 3)
         assert m[0, 1] == 1.0
-        assert m[:4] == Matrix((4, 4), range(16))
-        assert m[:] == Matrix((4, 4), range(16))
         assert m[1, :4] == Matrix((1, 4), 4, 5, 6, 7)
         assert m[1, :] == Matrix((1, 4), 4, 5, 6, 7)
         assert m[:4, 1] == Matrix((4, 1), 1, 5, 9, 13)
