@@ -73,164 +73,6 @@ def perspective(field_of_view, viewport_ratio, near, far):
     ))
 
 
-class Vector(object):
-    """
-    The base class for vectors of real numbers.
-    """
-    def __init__(self, *args, data_type="f"):
-        """
-        Create a Vector instance from either a iterable, or positional arguments.
-
-        :param args:
-        :param data_type:
-        """
-        if len(args) == 1 and isinstance(args[0], collections.Iterable):
-            data = args[0]
-        elif len(args) > 0 and all(isinstance(a, (bool, int, float)) for a in args):
-            data = args
-        else:
-            raise ValueError("Expected an iterable as first argument, or scalar values as positional arguments.")
-
-        self._data = array.array(data_type, epsilon(*data, iterable=True))
-
-    @property
-    def data(self):
-        return self._data
-
-    def to_bytes(self):
-        """
-        Return a bytes-based representation of the Vector3.
-
-        :return:
-        """
-        return self._data.tobytes()
-
-    def normalize(self, inplace=True):
-        """
-        Normalize the vector. If inplace is false, return a new, normalized vector.
-
-        :param inplace:
-        :return:
-        """
-        n = self / abs(self)
-        if inplace:
-            self[:] = n[:]
-        else:
-            return n
-
-    def dot(self, other):
-        """
-        Calculate the dot product. This is equivalent to the @ operator.
-
-        :param other:
-        :return:
-        """
-        return self @ other
-
-    def cross(self, other):
-        """
-        Calculate the cross product.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Vector):
-            if len(self) == len(other):
-                if len(self) == 3:
-                    return Vector(
-                        self[1] * other[2] - self[2] * other[1],
-                        self[2] * other[0] - self[0] * other[2],
-                        self[0] * other[1] - self[1] * other[0]
-                    )
-                elif len(self) == 7:
-                    raise NotImplementedError("I have no idea how to calculate the seven-dimensional cross-product. :)")
-                else:
-                    raise ValueError("The cross product of vectors only exists for dimensionalities 3 and 7.")
-            else:
-                raise ValueError("Dimensionality mismatch between '{}' and '{}'.".format(self, other))
-        else:
-            raise TypeError("unsupported operand type(s) of cross(): '{}' and '{}'".format(Vector, type(other)))
-
-    def __getitem__(self, item):
-        """
-        Access the Vector components by index.
-
-        :param item:
-        :return:
-        """
-        selection = self._data[item]
-        if isinstance(selection, array.ArrayType):
-            return Vector(selection)
-        else:
-            return self._data[item]
-
-    def __setitem__(self, key, value):
-        """
-        Set the Vector components by index.
-
-        :param key:
-        :param value:
-        :return:
-        """
-        if isinstance(value, Vector):
-            self._data[key] = value.data
-        else:
-            self._data[key] = epsilon(value)
-
-    def __repr__(self):
-        """
-        Return a representation of a Vector that can be evaluated as code.
-
-        :return:
-        """
-        return "{}({})".format(self.__class__.__name__, ", ".join(str(e) for e in self._data))
-
-    def __str__(self):
-        """
-        Return a printable representation of a Vector.
-
-        :return:
-        """
-        return "({})".format(", ".join(str(e) for e in self._data))
-
-    def __iter__(self):
-        """
-        Iterate over the Vector.
-
-        :return:
-        """
-        for e in self._data:
-            yield e
-
-    def __len__(self):
-        """
-        Return the dimensionality of the Vector.
-
-        :return:
-        """
-        return len(self._data)
-
-    def __eq__(self, other):
-        """
-        Return equal if all elements of the Vector are equal.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Vector):
-            return len(self) == len(other) and all(s == o for s, o in zip(self, other))
-        else:
-            return False
-
-    def __abs__(self):
-        """
-        Return the L2 norm of the vector
-
-        :return:
-        """
-        return math.sqrt(self @ self)
-
-
 class Matrix(object):
     """
     The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
@@ -537,6 +379,17 @@ class Matrix(object):
         for d in self.data:
             yield d
 
+    def __abs__(self):
+        """
+        Return the L2 norm for vectors and the determinant for matrices.
+
+        :return:
+        """
+        if self.is_vector:
+            return math.sqrt(self.t @ self)
+        else:
+            return NotImplemented
+
     def __eq__(self, other):
         """
 
@@ -562,14 +415,11 @@ class Matrix(object):
             key = key if not self._transposed else key[::-1]
             sub_shape = get_sub_shape(self._shape, *key)
             sub_idx = linearize_indices(self._shape, *key)
-            if sub_shape != (1, 1):
-                return Matrix(sub_shape, self._data[sub_idx])
+            d = Matrix(sub_shape, self._data[sub_idx])
+            if d.is_scalar:
+                return d.data[0]
             else:
-                data = self._data[sub_idx]
-                if isinstance(data, array.ArrayType):
-                    return data[0]
-                else:
-                    return data
+                return d
         else:
             raise TypeError("Expected indices of type int, slice or tuple.")
 
@@ -739,12 +589,19 @@ class Matrix(object):
         :param other:
         :return:
         """
-        if isinstance(other, Matrix) and self.shape[-1] == other.shape[0]:
-            result = Matrix(self.shape[:-1] + other.shape[1:], 0)
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = sum(a * b for a, b in zip(self[i, :], other[:, j]))
+        if isinstance(other, Matrix):
+            if self.shape[-1] == other.shape[0] and self.shape[-1] > 1:
+                result_shape = self.shape[:-1] + other.shape[1:]
+                if result_shape == (1, 1):
+                    return sum(a * b for a, b in zip(self, other))
+                else:
+                    result = Matrix(result_shape, 0)
+                    for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                        result[i, j] = sum(a * b for a, b in zip(self[i, :], other[:, j]))
 
-            return result
+                    return result
+            else:
+                raise ValueError("Last dimension of '{}' and first dimension of '{}' do not match or are 1.".format(self.shape, other.shape))
         else:
             return NotImplemented
 

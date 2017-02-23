@@ -55,12 +55,15 @@ class TestMatrix(object):
         assert Matrix((1, 4), 1).is_scalar is False
         assert Matrix((1, 1)).is_scalar is True
 
+    def test_length(self):
+        assert len(Matrix((4, 4))) == 16
+
+    def test_abs(self):
+        assert abs(Matrix((3, 1), 1, 0, 0)) == 1
+
     def test_equality(self):
         assert Matrix((4, 4)) == Matrix((4, 4))
         assert Matrix((4, 4), range(16)) == Matrix((4, 4), *list(range(16)))
-
-    def test_length(self):
-        assert len(Matrix((4, 4))) == 16
 
     def test_shape(self):
         assert Matrix((4, 4)).shape == (4, 4)
@@ -292,6 +295,13 @@ class TestMatrix(object):
         assert a.shape == a.t.shape[::-1]
         for i, j in itertools.product(range(a.shape[0]), range(a.shape[1])):
             assert a[i, j] == a.t[j, i]
+
+    def test_dot_product_shapes(self):
+        with pytest.raises(ValueError):
+            Matrix((4, 3), 1) @ Matrix((2, 2), 1)
+
+    def test_dot_product_vectors(self):
+        assert Matrix((1, 3), 1) @ Matrix((3, 1), 1) == 3
 
 
 class TestQuaternion(object):
