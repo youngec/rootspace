@@ -37,6 +37,18 @@ class TestMatrix(object):
         assert Matrix((1, 4), 1).is_vector is True
         assert Matrix((1, 1)).is_vector is False
 
+    def test_is_column_vector_property(self):
+        assert Matrix((4, 4)).is_column_vector is False
+        assert Matrix((4, 1), 1).is_column_vector is True
+        assert Matrix((1, 4), 1).is_column_vector is False
+        assert Matrix((1, 1)).is_column_vector is False
+
+    def test_is_row_vector_property(self):
+        assert Matrix((4, 4)).is_row_vector is False
+        assert Matrix((4, 1), 1).is_row_vector is False
+        assert Matrix((1, 4), 1).is_row_vector is True
+        assert Matrix((1, 1)).is_row_vector is False
+
     def test_is_scalar_property(self):
         assert Matrix((4, 4)).is_scalar is False
         assert Matrix((4, 1), 1).is_scalar is False
@@ -72,6 +84,18 @@ class TestMatrix(object):
         assert m[0, :4] == Matrix((1, 4), 4, 4, 4, 4)
         m[:4, 0] = (5.0, 5.0, 5.0, 5.0)
         assert m[:4, 0] == Matrix((4, 1), 5, 5, 5, 5)
+
+    def test_cross(self):
+        a = Matrix((3, 1), 1, 0, 0)
+        b = Matrix((3, 1), 0, 1, 0)
+        c = Matrix((3, 1), 0, 0, 1)
+
+        assert a.cross(b) == c
+        assert b.cross(c) == a
+        assert c.cross(a) == b
+        assert b.cross(a) == -c
+        assert c.cross(b) == -a
+        assert a.cross(c) == -b
 
     def test_identity(self):
         assert Matrix.identity(4) == Matrix((4, 4))
