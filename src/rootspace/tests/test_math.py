@@ -143,6 +143,24 @@ class TestMatrix(object):
             0, 0, 0, 1
         )
 
+    def test_orthograohic(self):
+        assert Matrix.orthographic(-1 ,1, -1, 1, 0.1, 100) == Matrix(
+            (4, 4),
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, -2 / 99.9, -100.1 / 99.9,
+            0, 0, 0, 1
+        )
+
+    def test_perspective(self):
+        assert Matrix.perspective(math.pi/4, 1, 0.1, 100) == Matrix(
+            (4, 4),
+            1/math.tan(math.pi/8), 0, 0, 0,
+            0, 1/math.tan(math.pi/8), 0, 0,
+            0, 0, -100.1/99.9, -20/99.9,
+            0, 0, -1, 0
+        )
+
     def test_addition_neutral_element(self):
         a = Matrix((2, 2), range(4))
         assert a + Matrix(a.shape, 0, 0, 0, 0) == a

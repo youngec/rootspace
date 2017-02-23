@@ -349,6 +349,58 @@ class Matrix(object):
         h[i, j] = s
         return h
 
+    @classmethod
+    def orthographic(cls, left, right, bottom, top, near, far):
+        """
+        Create an orthographic projection matrix.
+
+        :param left:
+        :param right:
+        :param bottom:
+        :param top:
+        :param near:
+        :param far:
+        :return:
+        """
+        l = left
+        r = right
+        b = bottom
+        t = top
+        n = near
+        f = far
+        return cls(
+            (4, 4),
+            2 / (r - l), 0, 0, -(r + l) / (r - l),
+            0, 2 / (t - b), 0, -(t + b) / (t - b),
+            0, 0, -2 / (f - n), -(f + n) / (f - n),
+            0, 0, 0, 1
+        )
+
+    @classmethod
+    def perspective(cls, field_of_view, viewport_ratio, near, far):
+        """
+        Create a perspective projection matrix.
+
+        :param field_of_view:
+        :param viewport_ratio:
+        :param near:
+        :param far:
+        :return:
+        """
+        y_scale = 1 / math.tan(field_of_view / 2)
+        x_scale = y_scale / viewport_ratio
+        z_sum = near + far
+        z_diff = near - far
+        z_prod = near * far
+
+        return cls(
+            (4, 4),
+            x_scale, 0, 0, 0,
+            0, y_scale, 0, 0,
+            0, 0, z_sum / z_diff, 2 * z_prod / z_diff,
+            0, 0, -1, 0
+        )
+
     @property
     def shape(self):
         return self._shape if not self._transposed else self._shape[::-1]
