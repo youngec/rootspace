@@ -43,6 +43,12 @@ def test_linearize_scalar_indices():
 
 
 def test_linearize_indices():
-    assert linearize_indices((2, 4), 1, 3) == 7
-    assert linearize_indices((2, 4), 1, slice(3)) == slice(4, 7, 1)
-    assert linearize_indices((2, 4), slice(2), 1) == slice(1, 6, 4)
+    assert linearize_indices((2, 4), 1, 3) == (7, )
+    assert linearize_indices((2, 4), 1, (0, 1)) == (4, 5)
+    assert linearize_indices((2, 4), (0, 1), 1) == (1, 5)
+    assert linearize_indices((2, 4), (0, 1), (0, 1, 2)) == (0, 1, 2, 4, 5, 6)
+    assert linearize_indices((2, 4), 1, slice(3)) == (4, 5, 6)
+    assert linearize_indices((2, 4), slice(2), 1) == (1, 5)
+    assert linearize_indices((2, 4), slice(2), slice(3)) == (0, 1, 2, 4, 5, 6)
+    assert linearize_indices((2, 4), slice(2), (0, 1)) == (0, 1, 4, 5)
+    assert linearize_indices((2, 4), (0, 1), slice(3)) == (0, 1, 2, 4, 5, 6)

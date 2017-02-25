@@ -8,6 +8,7 @@ import uuid
 import warnings
 import weakref
 import sys
+import itertools
 
 import attr
 import click
@@ -100,7 +101,7 @@ def linearize_scalar_indices(shape, *idx):
 
 def linearize_indices(shape, i, j):
     """
-    For given multi-dimensional indices, provide a linear index. This also works for sliced indices.
+    For given multi-dimensional indices, provide a linear index. This also works for sliced and tuple indices.
 
     :param shape:
     :param i:
@@ -108,31 +109,23 @@ def linearize_indices(shape, i, j):
     :return:
     """
     if isinstance(i, int) and isinstance(j, int):  # Single 2-index
-        return linearize_scalar_indices(shape, i, j)
+        return (linearize_scalar_indices(shape, i, j), )
     elif isinstance(i, int) and isinstance(j, tuple):
-        raise NotImplementedError()
+        return tuple(linearize_scalar_indices(shape, i, e) for e in j)
     elif isinstance(i, tuple) and isinstance(j, int):
-        raise NotImplementedError()
+        return tuple(linearize_scalar_indices(shape, e, j) for e in i)
     elif isinstance(i, tuple) and isinstance(j, tuple):
-        raise NotImplementedError()
+        return tuple(linearize_scalar_indices(shape, e, f) for e, f in itertools.product(i, j))
     elif isinstance(i, int) and isinstance(j, slice):  # Partial sliced 2-index
-        j = normalize_slice(j, shape[1])
-        start = linearize_scalar_indices(shape, i, j.start)
-        stop = linearize_scalar_indices(shape, i, j.stop)
-        step = linearize_scalar_indices(shape, 0, j.step)
-        return slice(start, stop, step)
+        return tuple(linearize_scalar_indices(shape, i, e) for e in as_range(j, shape[1]))
     elif isinstance(i, slice) and isinstance(j, int):  # Partial sliced 2-index
-        i = normalize_slice(i, shape[0])
-        start = linearize_scalar_indices(shape, i.start, j)
-        stop = linearize_scalar_indices(shape, i.stop - 1, j + 1)
-        step = linearize_scalar_indices(shape, i.step, 0)
-        return slice(start, stop, step)
+        return tuple(linearize_scalar_indices(shape, e, j) for e in as_range(i, shape[0]))
     elif isinstance(i, slice) and isinstance(j, slice):  # Full sliced 2-index
-        raise NotImplementedError()
+        return tuple(linearize_scalar_indices(shape, e, f) for e, f in itertools.product(as_range(i, shape[0]), as_range(j, shape[1])))
     elif isinstance(i, slice) and isinstance(j, tuple):
-        raise NotImplementedError()
+        return tuple(linearize_scalar_indices(shape, e, f) for e, f in itertools.product(as_range(i, shape[0]), j))
     elif isinstance(i, tuple) and isinstance(j, slice):
-        raise NotImplementedError()
+        return tuple(linearize_scalar_indices(shape, e, f) for e, f in itertools.product(i, as_range(j, shape[1])))
     else:
         raise TypeError("Expected the tuple indices to be either int or slice, not '{}' and '{}'.".format(type(i), type(j)))
 
