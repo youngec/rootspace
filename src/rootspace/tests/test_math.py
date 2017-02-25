@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import array
 import math
 import itertools
 import functools
@@ -19,8 +18,10 @@ class TestMatrix(object):
             (4, 3),
             (4, 1),
             (1, 4),
+            (3, 3),
             (3, 1),
             (1, 3),
+            (2, 2),
             (1, 1)
     ))
     def shape(self, request):
@@ -124,6 +125,23 @@ class TestMatrix(object):
         assert m[0, :4] == Matrix((1, 4), (4, 4, 4, 4))
         m[:4, 0] = (5.0, 5.0, 5.0, 5.0)
         assert m[:4, 0] == Matrix((4, 1), (5, 5, 5, 5))
+
+    @pytest.mark.xfail
+    def test_determinant(self, shape):
+        a = Matrix(shape)
+        if a.is_square:
+            if a.shape[0] <= 4:
+                assert a.determinant() == 1
+            else:
+                with pytest.raises(NotImplementedError):
+                    a.determinant()
+        else:
+            with pytest.raises(ValueError):
+                a.determinant()
+
+    @pytest.mark.xfail
+    def test_norm(self, shape):
+        raise NotImplementedError()
 
     def test_cross(self, shape):
         if shape == (3, 1) or shape == (1, 3):
@@ -361,120 +379,3 @@ class TestMatrix(object):
 
     def test_dot_product_vectors(self):
         assert Matrix((1, 3), 1) @ Matrix((3, 1), 1) == 3
-
-
-class TestQuaternion(object):
-    def test_initialization(self):
-        for d in (1, 2, 3):
-            with pytest.raises(ValueError):
-                Quaternion(range(d))
-        Quaternion()
-        Quaternion([])
-        Quaternion(1, 2, 3, 4)
-
-    def test_direct_access_properties(self):
-        epsilon = 7/3 - 4/3 - 1
-        a = Quaternion(1, 2, 3, 4)
-
-        assert a.r == 1.0
-        assert a.i == 2.0
-        assert a.j == 3.0
-        assert a.k == 4.0
-
-        a.r = epsilon * 0.1
-        a.i = epsilon * 0.1
-        a.j = epsilon * 0.1
-        a.k = epsilon * 0.1
-
-        assert a.r == 0.0
-        assert a.i == 0.0
-        assert a.j == 0.0
-        assert a.k == 0.0
-
-    def test_conjugate(self):
-        assert Quaternion(1, 2, 3, 4).t == Quaternion(1, -2, -3, -4)
-
-    @pytest.mark.xfail
-    def test_matrix3(self):
-        raise NotImplementedError()
-
-    @pytest.mark.xfail
-    def test_matrix4(self):
-        raise NotImplementedError()
-
-    def test_to_bytes(self):
-        assert isinstance(Quaternion().to_bytes(), bytes)
-
-    @pytest.mark.xfail
-    def test_normalize(self):
-        assert Quaternion(1, 2, 3).normalize(inplace=False) == Quaternion(1, 2, 3) / abs(Quaternion(1, 2, 3))
-        a = Quaternion(1, 2, 3)
-        a.normalize()
-        assert a == Quaternion(1, 2, 3) / abs(Quaternion(1, 2, 3))
-
-    def test_getitem(self):
-        a = Quaternion(1, 2, 3, 4)
-        assert a[0] == 1
-        assert a[:2] == array.array("f", (1, 2))
-
-    @pytest.mark.xfail
-    def test_setitem(self):
-        a = Quaternion(1, 2, 3, 4)
-        a[0] = 100
-        assert a._data[0] == 100
-        a[:2] = 200
-        assert a._data[0] == 200 and a._data[1] == 200
-
-    def test_repr(self):
-        assert repr(Quaternion(1, 2, 3, 4)) == "Quaternion(1.0, 2.0, 3.0, 4.0)"
-
-    def test_str(self):
-        assert str(Quaternion(1, 2, 3, 4)) == "1.0 + 2.0i + 3.0j + 4.0k"
-
-    def test_iter(self):
-        assert 1 in Quaternion(1, 2, 3, 4)
-
-    def test_length(self):
-        assert len(Quaternion(1, 2, 3, 4)) == 4
-
-    def test_equality(self):
-        assert Quaternion(1, 2, 3, 4) == Quaternion(1, 2, 3, 4)
-        assert Quaternion(1, 2, 3, 4) != Quaternion()
-        assert Quaternion(1, 2, 3, 4) != Quaternion(1, 1, 1, 1)
-        assert Quaternion(1, 2, 3, 4) != 1
-
-    def test_absolute(self):
-        assert abs(Quaternion(1, 2, 3, 4)) == math.sqrt(30)
-
-    def test_addition(self):
-        assert Quaternion(1, 2, 3, 4) + Quaternion(2, 3, 4, 5) == Quaternion(3, 5, 7, 9)
-        assert Quaternion(1, 2, 3, 4) + 1 == Quaternion(2, 3, 4, 5)
-
-        assert Quaternion(2, 3, 4, 5) + Quaternion(1, 2, 3, 4) == Quaternion(3, 5, 7, 9)
-        assert 1 + Quaternion(1, 2, 3, 4) == Quaternion(2, 3, 4, 5)
-
-    def test_subtraction(self):
-        assert Quaternion(1, 2, 3, 4) - Quaternion(2, 3, 4, 5) == Quaternion(-1, -1, -1, -1)
-        assert Quaternion(1, 2, 3, 4) - 1 == Quaternion(0, 1, 2, 3)
-
-        assert Quaternion(2, 3, 4, 5) - Quaternion(1, 2, 3, 4) == Quaternion(1, 1, 1, 1)
-        assert 1 - Quaternion(1, 2, 3, 4) == Quaternion(0, -1, -2, -3)
-
-    def test_multiplication(self):
-        assert Quaternion(1, 2, 3, 4) * Quaternion(2, 3, 4, 5) == Quaternion(2, 6, 12, 20)
-        assert Quaternion(1, 2, 3, 4) * 1 == Quaternion(1, 2, 3, 4)
-
-        assert Quaternion(2, 3, 4, 5) * Quaternion(1, 2, 3, 4) == Quaternion(2, 6, 12, 20)
-        assert 1 * Quaternion(1, 2, 3, 4) == Quaternion(1, 2, 3, 4)
-
-    def test_truediv(self):
-        assert Quaternion(1, 2, 2, 10) / Quaternion(2, 6, 4, 2) == Quaternion(0.5, 1/3, 0.5, 5.0)
-        assert Quaternion(1, 2, 3, 4) / 1 == Quaternion(1, 2, 3, 4)
-
-        assert Quaternion(2, 6, 4, 10) / Quaternion(1, 2, 2, 2) == Quaternion(2, 3, 2, 5)
-        assert 1 / Quaternion(1, 2, 4, 5) == Quaternion(1, 0.5, 0.25, 0.2)
-
-    def test_matmul(self):
-        assert Quaternion(1, 2, 3, 4) @ Quaternion(2, 3, 4, 5) == Quaternion(-36, 6, 12, 12)
-        assert Quaternion(2, 3, 4, 5) @ Quaternion(1, 2, 3, 4) == Quaternion(-36, 8, 8, 14)
-        assert Quaternion(1, 2, 3, 4) @ Quaternion(1, -2, -3, -4) == Quaternion(30, 0, 0, 0)

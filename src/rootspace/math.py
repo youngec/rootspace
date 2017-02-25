@@ -198,6 +198,7 @@ class Matrix(object):
         t = top
         n = near
         f = far
+
         return cls((4, 4), (
             2 / (r - l), 0, 0, -(r + l) / (r - l),
             0, 2 / (t - b), 0, -(t + b) / (t - b),
@@ -297,13 +298,45 @@ class Matrix(object):
         """
         return all(self.is_close(other, rel_tol, abs_tol))
 
-    def norm(self):
+    def determinant(self):
         """
-        Rwturn the L2 norm for a vector.
+        Calculate the determinant.
 
         :return:
         """
-        return math.sqrt(self.t @ self)
+        def det2(a):
+            return a[0, 0] * a[1, 1] - a[0, 1] * a[1, 0]
+
+        def det3(a):
+            return a[0, 0] * det2(a[1:3, 1:3]) - \
+                   a[0, 1] * det2(a[1:3, 0:3:2]) + \
+                   a[0, 2] * det2(a[1:3, 0:2])
+
+        def det4(a):
+            return a[0, 0] * det3(a[1:4, 1:4]) - \
+                   a[0, 1] * det3(a[1:4, (0, 2, 3)]) + \
+                   a[0, 2] * det3(a[1:4, (0, 1, 3)]) - \
+                   a[0, 3] * det3(a[1:4, 0:3])
+
+        if self.is_square and not self.is_scalar:
+            if self.shape[0] == 2:
+                return det2(self)
+            elif self.shape[0] == 3:
+                return det3(self)
+            elif self.shape[0] == 4:
+                return det4(self)
+            else:
+                raise NotImplementedError("Cannot calculate the determinant for dimensions larger than 4x4.")
+        else:
+            raise ValueError("The determinant is not defined for non-square matrices or scalar matrices.")
+
+    def norm(self):
+        """
+        Return the L2 norm for a vector.
+
+        :return:
+        """
+        raise NotImplementedError()
 
     def cross(self, other):
         """
@@ -446,8 +479,12 @@ class Matrix(object):
             key = (key, slice(None))
 
         if isinstance(key, tuple):
+            # Flip the keys if the matrix is transposed
             key = key if not self._transposed else key[::-1]
+
+            # Calculate the shape of the resulting sub-matrix
             sub_shape = get_sub_shape(self._shape, *key)
+
             sub_idx = linearize_indices(self._shape, *key)
             d = Matrix(sub_shape, self._data[sub_idx])
             if d.is_scalar:
@@ -672,57 +709,6 @@ class Quaternion(object):
     """
     The Quaternion class provides a way to work with four-dimensional complex numbers.
     """
-    def __init__(self, *args, data_type="f"):
-        """
-        Create a Vector instance from either a iterable, or positional arguments.
-
-        :param args:
-        :param data_type:
-        """
-        if len(args) == 1 and isinstance(args[0], collections.abc.Iterable):
-            data = tuple(args[0])
-        else:
-            data = args
-
-        if len(data) == 0:
-            data = (1, 0, 0, 0)
-        elif len(data) != 4:
-            raise ValueError("Expected a four-element iterable as first argument, or four scalar values as positional arguments.")
-
-        self._data = array.array(data_type, epsilon(*data, iterable=True))
-
-    @property
-    def r(self):
-        return self._data[0]
-
-    @r.setter
-    def r(self, value):
-        self._data[0] = epsilon(value)
-
-    @property
-    def i(self):
-        return self._data[1]
-
-    @i.setter
-    def i(self, value):
-        self._data[1] = epsilon(value)
-
-    @property
-    def j(self):
-        return self._data[2]
-
-    @j.setter
-    def j(self, value):
-        self._data[2] = epsilon(value)
-
-    @property
-    def k(self):
-        return self._data[3]
-
-    @k.setter
-    def k(self, value):
-        self._data[3] = epsilon(value)
-
     @property
     def t(self):
         """
@@ -730,66 +716,37 @@ class Quaternion(object):
 
         :return:
         """
-        return Quaternion(self.r, -self.i, -self.j, -self.k)
+        return Quaternion(self.qr, -self.qi)
 
     @property
-    def matrix3(self):
-        r = self.r
-        i = self.i
-        j = self.j
-        k = self.k
-
-        return numpy.array((
-            (1 - 2 * (j**2 + k**2), 2 * (i*j - k*r), 2 * (i*k + j*r)),
-            (2 * (i*j + k*r), 1 - 2 * (i**2 + k**2), 2 * (j*k - i*r)),
-            (2 * (i*k - j*r), 2 * (j*k + i*r), 1 - 2 * (i**2 + j**2))
+    def matrix(self):
+        return Matrix((4, 4), (
+            1 - 2 * (j**2 + k**2), 2 * (i*j - k*r), 2 * (i*k + j*r),
+            2 * (i*j + k*r), 1 - 2 * (i**2 + k**2), 2 * (j*k - i*r),
+            2 * (i*k - j*r), 2 * (j*k + i*r), 1 - 2 * (i**2 + j**2),
+            0, 0, 0, 1
         ))
 
-    @property
-    def matrix4(self):
-        q = numpy.eye(4)
-        q[:3, :3] = self.matrix3
-        return q
-
-    def to_bytes(self):
+    def norm(self):
         """
-        Return a bytes-based representation of the Quaternion.
+        Return the L2 norm for a vector.
 
         :return:
         """
-        return self._data.tobytes()
+        return math.sqrt((self @ self.t).qr)
 
-    def normalize(self, inplace=True):
-        """
-        Normalize the Quaternion. If inplace is false, return a new, normalized Quaternion.
+    def inverse(self):
+        return 1 / (self @ self.t).qr * self.t
 
-        :param inplace:
-        :return:
+    def __init__(self, qr, qi):
         """
-        n = self / abs(self)
-        if inplace:
-            self[:] = n[:]
-        else:
-            return n
+        Create a Vector instance from either a iterable, or positional arguments.
 
-    def __getitem__(self, item):
+        :param qr:
+        :param qi:
         """
-        Access the Quaternion components by index.
-
-        :param item:
-        :return:
-        """
-        return self._data[item]
-
-    def __setitem__(self, key, value):
-        """
-        Set the Quaternion components by index.
-
-        :param key:
-        :param value:
-        :return:
-        """
-        self._data[key] = epsilon(value)
+        self.qr = qr
+        self.qi = Matrix((3, 1), qi)
 
     def __repr__(self):
         """
@@ -797,7 +754,7 @@ class Quaternion(object):
 
         :return:
         """
-        return "{}({})".format(self.__class__.__name__, ", ".join(str(e) for e in self._data))
+        return "{}({!r}, {!r})".format(self.__class__.__name__, self.qr, self.qi)
 
     def __str__(self):
         """
@@ -805,24 +762,7 @@ class Quaternion(object):
 
         :return:
         """
-        return "{} + {}i + {}j + {}k".format(*self._data)
-
-    def __iter__(self):
-        """
-        Iterate over the Vector.
-
-        :return:
-        """
-        for e in self._data:
-            yield e
-
-    def __len__(self):
-        """
-        Return the dimensionality of the Vector.
-
-        :return:
-        """
-        return len(self._data)
+        return "{} + {}i + {}j + {}k".format(self.qr, *self.qi)
 
     def __eq__(self, other):
         """
@@ -832,18 +772,25 @@ class Quaternion(object):
         :return:
         """
         if isinstance(other, Quaternion):
-            return len(self) == len(other) and all(s == o for s, o in zip(self, other))
+            return self.qr == other.qr and self.qi == other.qi
         else:
             return False
 
-    def __abs__(self):
+    def __neg__(self):
         """
-        Return the L2 norm of the Quaternion.
+        Perform a negation.
 
         :return:
         """
-        a = self @ self.t
-        return math.sqrt(a.r)
+        return Quaternion(-self.qr, -self.qi)
+
+    def __pos__(self):
+        """
+        Perform a unary positive operation.
+
+        :return:
+        """
+        return Quaternion(+self.qr, +self.qi)
 
     def __add__(self, other):
         """
@@ -853,11 +800,11 @@ class Quaternion(object):
         :return:
         """
         if isinstance(other, Quaternion):
-            return Quaternion(s + o for s, o in zip(self, other))
+            return Quaternion(self.qr + other.qr, self.qi + other.qi)
         elif isinstance(other, (int, float)):
-            return Quaternion(s + other for s in self)
+            return Quaternion(self.qr + other, self.qi + other)
         else:
-            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(Quaternion, type(other)))
+            return NotImplemented
 
     def __radd__(self, other):
         """
@@ -875,12 +822,7 @@ class Quaternion(object):
         :param other:
         :return:
         """
-        if isinstance(other, Quaternion):
-            return Quaternion(s - o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return Quaternion(s - other for s in self)
-        else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(Quaternion, type(other)))
+        return self + -other
 
     def __rsub__(self, other):
         """
@@ -889,12 +831,7 @@ class Quaternion(object):
         :param other:
         :return:
         """
-        if isinstance(other, Quaternion):
-            return Quaternion(o - s for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return Quaternion(other - s for s in self)
-        else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(other), Quaternion))
+        return other + -self
 
     def __mul__(self, other):
         """
@@ -904,11 +841,11 @@ class Quaternion(object):
         :return:
         """
         if isinstance(other, Quaternion):
-            return Quaternion(s * o for s, o in zip(self, other))
+            return Quaternion(self.qr * other.qr, self.qi * other.qi)
         elif isinstance(other, (int, float)):
-            return Quaternion(s * other for s in self)
+            return Quaternion(self.qr * other, self.qi * other)
         else:
-            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(Quaternion, type(other)))
+            return NotImplemented
 
     def __rmul__(self, other):
         """
@@ -927,11 +864,11 @@ class Quaternion(object):
         :return:
         """
         if isinstance(other, Quaternion):
-            return Quaternion(s / o for s, o in zip(self, other))
+            return Quaternion(self.qr / other.qr, self.qi / other.qi)
         elif isinstance(other, (int, float)):
-            return Quaternion(s / other for s in self)
+            return Quaternion(self.qr / other, self.qi / other)
         else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(Quaternion, type(other)))
+            return NotImplemented
 
     def __rtruediv__(self, other):
         """
@@ -941,11 +878,11 @@ class Quaternion(object):
         :return:
         """
         if isinstance(other, Quaternion):
-            return Quaternion(o / s for s, o in zip(self, other))
+            return Quaternion(other.qr / self.qr, other.qi / self.qi)
         elif isinstance(other, (int, float)):
-            return Quaternion(other / s for s in self)
+            return Quaternion(other / self.qr, other / self.qi)
         else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(other), Quaternion))
+            return NotImplemented
 
     def __matmul__(self, other):
         """
@@ -956,26 +893,23 @@ class Quaternion(object):
         """
         if isinstance(other, Quaternion):
             return Quaternion(
-                self.r * other.r - self.i * other.i - self.j * other.j - self.k * other.k,
-                self.r * other.i + self.i * other.r + self.j * other.k - self.k * other.j,
-                self.r * other.j - self.i * other.k + self.j * other.r + self.k * other.i,
-                self.r * other.k + self.i * other.j - self.j * other.i + self.k * other.r
+                self.qr * other.qr - self.qi.t @ other.qi,
+                self.qi.cross(other.qi) + other.qr * self.qi + self.qr * other.qi
             )
         else:
-            raise TypeError("unsupported operand type(s) for @: '{}' and '{}'".format(type(self), type(other)))
+            return NotImplemented
 
     @classmethod
     def from_axis(cls, axis, angle):
-        axis = numpy.array(axis)
-        axis /= numpy.linalg.norm(axis)
+        if not isinstance(axis, Matrix):
+            axis = Matrix((3, 1), axis)
+
+        axis /= axis.norm()
         angle %= 2 * math.pi
 
-        sin = math.sin(angle / 2)
         return cls(
             math.cos(angle / 2),
-            axis[0] * sin, 
-            axis[1] * sin, 
-            axis[2] * sin
+            math.sin(angle / 2) * axis
         )
 
     @classmethod
@@ -988,11 +922,20 @@ class Quaternion(object):
         :param up_direction:
         :return:
         """
-        difference = source - target
-        difference /= numpy.linalg.norm(difference)
+        if not isinstance(source, Matrix):
+            source = Matrix((3, 1), source)
 
-        right_direction = numpy.cross(up_direction, difference)
-        right_direction /= numpy.linalg.norm(right_direction)
+        if not isinstance(target, Matrix):
+            target = Matrix((3, 1), target)
+
+        if not isinstance(up_direction, Matrix):
+            up_direction = Matrix((3, 1), up_direction)
+
+        difference = source - target
+        difference /= difference.norm()
+
+        right_direction = up_direction.cross(difference)
+        right_direction /= right_direction.norm()
 
         angle = math.acos(up_direction @ difference)
 
