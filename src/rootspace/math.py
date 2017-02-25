@@ -12,22 +12,6 @@ import numpy
 from .utilities import get_sub_shape, linearize_indices
 
 
-def epsilon(*float_values, iterable=False):
-    """
-    Return the supplied numbers if their absolute value is greater or equal the machine epsilon, otherwise return 0.
-
-    :param float_values:
-    :param iterable:
-    :return:
-    """
-    threshold = 7/3 - 4/3 - 1
-    value = tuple(v if abs(v) >= threshold else 0.0 for v in float_values)
-    if len(value) == 1 and not iterable:
-        return value[0]
-    else:
-        return value
-
-
 def identity():
     return numpy.eye(4)
 
@@ -73,6 +57,15 @@ def perspective(field_of_view, viewport_ratio, near, far):
     ))
 
 
+def all_close(a, b, rel_tol=1e-05, abs_tol=1e-08):
+    if hasattr(a, "all_close"):
+        return a.all_close(b, rel_tol, abs_tol)
+    elif hasattr(b, "all_close"):
+        return b.all_close(a, rel_tol, abs_tol)
+    else:
+        raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
+
+
 class Matrix(object):
     """
     The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
@@ -97,13 +90,12 @@ class Matrix(object):
         :param t_z:
         :return:
         """
-        return cls(
-            (4, 4),
+        return cls((4, 4), (
             1, 0, 0, t_x,
             0, 1, 0, t_y,
             0, 0, 1, t_z,
             0, 0, 0, 1
-        )
+        ))
 
     @classmethod
     def rotation_x(cls, angle):
@@ -115,13 +107,12 @@ class Matrix(object):
         """
         c = math.cos(angle)
         s = math.sin(angle)
-        return cls(
-            (4, 4),
+        return cls((4, 4), (
             1, 0, 0, 0,
             0, c, -s, 0,
             0, s, c, 0,
             0, 0, 0, 1
-        )
+        ))
 
     @classmethod
     def rotation_y(cls, angle):
@@ -133,13 +124,12 @@ class Matrix(object):
         """
         c = math.cos(angle)
         s = math.sin(angle)
-        return cls(
-            (4, 4),
+        return cls((4, 4), (
             c, 0, s, 0,
             0, 1, 0, 0,
             -s, 0, c, 0,
             0, 0, 0, 1
-        )
+        ))
 
     @classmethod
     def rotation_z(cls, angle):
@@ -151,13 +141,12 @@ class Matrix(object):
         """
         c = math.cos(angle)
         s = math.sin(angle)
-        return cls(
-            (4, 4),
+        return cls((4, 4), (
             c, -s, 0, 0,
             s, c, 0, 0,
             0, 0, 1, 0,
             0, 0, 0, 1
-        )
+        ))
 
     @classmethod
     def scaling(cls, s_x, s_y, s_z):
@@ -169,13 +158,12 @@ class Matrix(object):
         :param s_z:
         :return:
         """
-        return cls(
-            (4, 4),
+        return cls((4, 4), (
             s_x, 0, 0, 0,
             0, s_y, 0, 0,
             0, 0, s_z, 0,
             0, 0, 0, 1
-        )
+        ))
 
     @classmethod
     def shearing(cls, s, i, j):
@@ -210,13 +198,12 @@ class Matrix(object):
         t = top
         n = near
         f = far
-        return cls(
-            (4, 4),
+        return cls((4, 4), (
             2 / (r - l), 0, 0, -(r + l) / (r - l),
             0, 2 / (t - b), 0, -(t + b) / (t - b),
             0, 0, -2 / (f - n), -(f + n) / (f - n),
             0, 0, 0, 1
-        )
+        ))
 
     @classmethod
     def perspective(cls, field_of_view, viewport_ratio, near, far):
@@ -235,13 +222,12 @@ class Matrix(object):
         z_diff = near - far
         z_prod = near * far
 
-        return cls(
-            (4, 4),
+        return cls((4, 4), (
             x_scale, 0, 0, 0,
             0, y_scale, 0, 0,
             0, 0, z_sum / z_diff, 2 * z_prod / z_diff,
             0, 0, -1, 0
-        )
+        ))
 
     @property
     def shape(self):
@@ -275,6 +261,50 @@ class Matrix(object):
     def t(self):
         return Matrix(self._shape, self.data, transposed=(not self._transposed))
 
+    def is_close(self, other, rel_tol=1e-05, abs_tol=1e-08):
+        """
+        Perform an element-wise approximate equality comparison.
+
+        :param other:
+        :param rel_tol:
+        :param abs_tol:
+        :return:
+        """
+        if isinstance(other, Matrix):
+            if self.shape == other.shape:
+                result = Matrix(self.shape, 0, data_type="B")
+                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                    result[i, j] = math.isclose(self[i, j], other[i, j], rel_tol=rel_tol, abs_tol=abs_tol)
+                return result
+            else:
+                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
+        elif isinstance(other, (int, float)):
+            result = Matrix(self.shape, 0, data_type="B")
+            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                result[i, j] = math.isclose(self[i, j], other, rel_tol=rel_tol, abs_tol=abs_tol)
+            return result
+        else:
+            raise TypeError("unsupported operand type(s) for is_close() '{}' and '{}'".format(type(self), type(other)))
+
+    def all_close(self, other, rel_tol=1e-05, abs_tol=1e-08):
+        """
+        Return True if all elements compare approximately equal, False otherwise.
+
+        :param other:
+        :param rel_tol:
+        :param abs_tol:
+        :return:
+        """
+        return all(self.is_close(other, rel_tol, abs_tol))
+
+    def norm(self):
+        """
+        Rwturn the L2 norm for a vector.
+
+        :return:
+        """
+        return math.sqrt(self.t @ self)
+
     def cross(self, other):
         """
         Calculate the cross-product of two vectors.
@@ -291,54 +321,54 @@ class Matrix(object):
             if self.is_row_vector:
                 o = other.t
 
-            return Matrix(
-                self.shape,
+            return Matrix(self.shape, (
                 s[1] * o[2] - s[2] * o[1],
                 s[2] * o[0] - s[0] * o[2],
                 s[0] * o[1] - s[1] * o[0]
-            )
+            ))
         else:
             raise TypeError("unsupported operand type(s) for cross() '{}' and '{}'".format(type(self), type(other)))
 
-    def __init__(self, shape, *args, data_type="f", transposed=False):
+    def __init__(self, shape, data=None, data_type="f", transposed=False):
         """
-        Create a Matrix instance from a shape and either an iterable, or positional arguments.
+        Create a Matrix instance from a shape and either an iterable, a scalar number, or no arguments.
         Using only the shape creates an identity matrix if the shape is square.
 
         :param shape:
-        :param args:
+        :param data:
         :param data_type:
         :param transposed:
         """
         self._transposed = transposed
 
         # Set the shape of the matrix
-        if isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(s, int) for s in shape):
+        if isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(s, int) and s > 0 for s in shape):
             self._shape = shape
         else:
-            raise ValueError("The parameter 'shape' must be a 2-tuple of integers.")
+            raise ValueError("The parameter 'shape' must be a 2-tuple of positive integers.")
 
         # Set the matrix data
         length = shape[0] * shape[1]
-        if len(args) == 1:
-            if isinstance(args[0], array.ArrayType):
-                self._data = args[0]
+        if data is not None:
+            if isinstance(data, array.ArrayType):
+                self._data = data
                 if len(self._data) != length:
                     raise ValueError("Expected an ArrayType of length '{}', got '{}'.".format(length, len(self._data)))
-            elif isinstance(args[0], collections.abc.Iterable):
-                self._data = array.array(data_type, args[0])
+            elif isinstance(data, collections.abc.Iterable):
+                self._data = array.array(data_type, data)
                 if len(self._data) != length:
                     raise ValueError("Expected an iterable of length '{}', got '{}'.".format(length, len(self._data)))
-            elif isinstance(args[0], (int, float)):
-                self._data = array.array(data_type, length * [args[0]])
+            elif isinstance(data, (int, float)):
+                self._data = array.array(data_type, length * [data])
             else:
                 raise TypeError("Expected either an ArrayType, an iterable or a scalar number as positional argument.")
-        elif len(args) == length and all(isinstance(a, (int, float)) for a in args):
-            self._data = array.array(data_type, args)
-        elif len(args) == 0 and shape[0] == shape[1]:
-            self._data = array.array(data_type, (1 if i in range(0, length, shape[0] + 1) else 0 for i in range(length)))
+        elif data is None:
+            if shape[0] == shape[1]:
+                self._data = array.array(data_type, (1 if i in range(0, length, shape[0] + 1) else 0 for i in range(length)))
+            else:
+                self._data = array.array(data_type, (0 for _ in range(length)))
         else:
-            raise ValueError("Expected an iterable of length '{0}' or '{0}' numeric positional arguments.".format(length))
+            raise ValueError("Expected an iterable of length '{0}' or a scalar number.".format(length))
 
     def __str__(self):
         """
@@ -358,9 +388,17 @@ class Matrix(object):
         :return:
         """
         return "{}({}, ({}), data_type={}, transposed={})".format(
-            self.__class__.__name__, self._shape, ", ".join(str(e) for e in self.data),
-            self.data.typecode, self._transposed
+            self.__class__.__name__, self._shape, ", ".join(str(e) for e in self),
+            self._data.typecode, self._transposed
         )
+
+    def __bytes__(self):
+        """
+        Return a bytes representation of the matrix.
+
+        :return:
+        """
+        return self._data.tobytes()
 
     def __len__(self):
         """
@@ -368,7 +406,7 @@ class Matrix(object):
 
         :return:
         """
-        return functools.reduce(operator.mul, self.shape)
+        return functools.reduce(operator.mul, self._shape)
 
     def __iter__(self):
         """
@@ -376,30 +414,26 @@ class Matrix(object):
 
         :return:
         """
-        for d in self.data:
+        for d in self._data:
             yield d
 
-    def __abs__(self):
+    def __reversed__(self):
         """
-        Return the L2 norm for vectors and the determinant for matrices.
+        Provide a reverse iterator.
 
         :return:
         """
-        if self.is_vector:
-            return math.sqrt(self.t @ self)
-        else:
-            return NotImplemented
+        for d in reversed(self._data):
+            yield d
 
-    def __eq__(self, other):
+    def __contains__(self, item):
         """
+        Provide the contains interface.
 
-        :param other:
+        :param item:
         :return:
         """
-        if isinstance(other, Matrix):
-            return self.shape == other.shape and all(s == o for s, o in zip(self.data, other.data))
-        else:
-            return NotImplemented
+        return item in self._data
 
     def __getitem__(self, key):
         """
@@ -449,6 +483,17 @@ class Matrix(object):
         else:
             raise TypeError("Expected indices of type int, slice or tuple, not '{}'.".format(type(key)))
 
+    def __eq__(self, other):
+        """
+
+        :param other:
+        :return:
+        """
+        if isinstance(other, Matrix):
+            return self.shape == other.shape and all(s == o for s, o in zip(self, other))
+        else:
+            return NotImplemented
+
     def __neg__(self):
         """
         Perform an element-wise negation.
@@ -460,6 +505,17 @@ class Matrix(object):
             result[i, j] = -self[i, j]
         return result
 
+    def __pos__(self):
+        """
+        Perform an element-wise positive unary operation.
+
+        :return:
+        """
+        result = Matrix(self.shape, 0)
+        for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+            result[i, j] = +self[i, j]
+        return result
+
     def __add__(self, other):
         """
         Perform a left-sided element-wise addition.
@@ -467,11 +523,14 @@ class Matrix(object):
         :param other:
         :return:
         """
-        if isinstance(other, Matrix) and self.shape == other.shape:
-            result = Matrix(self.shape, 0)
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = self[i, j] + other[i, j]
-            return result
+        if isinstance(other, Matrix):
+            if self.shape == other.shape:
+                result = Matrix(self.shape, 0)
+                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                    result[i, j] = self[i, j] + other[i, j]
+                return result
+            else:
+                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
         elif isinstance(other, (int, float)):
             result = Matrix(self.shape, 0)
             for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
@@ -496,10 +555,7 @@ class Matrix(object):
         :param other:
         :return:
         """
-        if (isinstance(other, Matrix) and self.shape == other.shape) or isinstance(other, (int, float)):
-            return self + -other
-        else:
-            return NotImplemented
+        return self + -other
 
     def __rsub__(self, other):
         """
@@ -508,10 +564,7 @@ class Matrix(object):
         :param other:
         :return:
         """
-        if (isinstance(other, Matrix) and self.shape == other.shape) or isinstance(other, (int, float)):
-            return other + -self
-        else:
-            return NotImplemented
+        return other + -self
 
     def __mul__(self, other):
         """
@@ -520,11 +573,14 @@ class Matrix(object):
         :param other:
         :return:
         """
-        if isinstance(other, Matrix) and self.shape == other.shape:
-            result = Matrix(self.shape, 0)
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = self[i, j] * other[i, j]
-            return result
+        if isinstance(other, Matrix):
+            if self.shape == other.shape:
+                result = Matrix(self.shape, 0)
+                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                    result[i, j] = self[i, j] * other[i, j]
+                return result
+            else:
+                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
         elif isinstance(other, (int, float)):
             result = Matrix(self.shape, 0)
             for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
@@ -549,11 +605,14 @@ class Matrix(object):
         :param other:
         :return:
         """
-        if isinstance(other, Matrix) and self.shape == other.shape:
-            result = Matrix(self.shape, 0)
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = self[i, j] / other[i, j]
-            return result
+        if isinstance(other, Matrix):
+            if self.shape == other.shape:
+                result = Matrix(self.shape, 0)
+                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                    result[i, j] = self[i, j] / other[i, j]
+                return result
+            else:
+                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
         elif isinstance(other, (int, float)):
             result = Matrix(self.shape, 0)
             for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
@@ -569,11 +628,14 @@ class Matrix(object):
         :param other:
         :return:
         """
-        if isinstance(other, Matrix) and self.shape == other.shape:
-            result = Matrix(self.shape, 0)
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = other[i, j] / self[i, j]
-            return result
+        if isinstance(other, Matrix):
+            if self.shape == other.shape:
+                result = Matrix(self.shape, 0)
+                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+                    result[i, j] = other[i, j] / self[i, j]
+                return result
+            else:
+                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
         elif isinstance(other, (int, float)):
             result = Matrix(self.shape, 0)
             for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):

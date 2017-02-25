@@ -3,206 +3,251 @@
 import array
 import math
 import itertools
+import functools
+import operator
+import collections.abc
 
 import pytest
 
-from rootspace.math import Matrix, Quaternion
+from rootspace.math import all_close, Matrix, Quaternion
 
 
 class TestMatrix(object):
-    def test_creation(self):
-        Matrix((4, 4))
-        Matrix((4, 4), 2)
-        Matrix((4, 4), range(16))
-        Matrix((4, 4), *list(range(16)))
+    @pytest.fixture("class", params=(
+            (4, 4),
+            (3, 4),
+            (4, 3),
+            (4, 1),
+            (1, 4),
+            (3, 1),
+            (1, 3),
+            (1, 1)
+    ))
+    def shape(self, request):
+        return request.param
 
-        a = Matrix((4, 4))
-        assert id(Matrix((4, 4), a.data).data) == id(a.data)
+    def test_instantiation(self, shape):
+        Matrix(shape)
+        Matrix(shape, data_type="f", transposed=False)
+        Matrix(shape, 2)
+        Matrix(shape, range(shape[0] * shape[1]))
+        Matrix(shape, list(range(shape[0] * shape[1])))
 
-    def test_data_property(self):
-        assert len(Matrix((4, 4)).data) == 16
+        a = Matrix(shape)
+        assert Matrix(shape, a._data)._data is a._data
 
-    def test_shape_propery(self):
-        assert Matrix((4, 4)).shape == (4, 4)
+    @pytest.mark.xfail
+    def test_traits(self):
+        assert isinstance(self, collections.abc.Iterable)
+        assert isinstance(self, collections.abc.Reversible)
+        assert isinstance(self, collections.abc.Sized)
+        assert isinstance(self, collections.abc.Container)
 
-    def test_is_square_property(self):
+    def test_shape(self, shape):
+        assert Matrix(shape).shape == shape
+        assert Matrix(shape, transposed=True).shape == shape[::-1]
+
+    def test_length(self, shape):
+        assert len(Matrix(shape)) == functools.reduce(operator.mul, shape)
+
+    def test_is_square(self):
         assert Matrix((4, 4)).is_square is True
-        assert Matrix((4, 1), 1).is_square is False
-        assert Matrix((1, 4), 1).is_square is False
+        assert Matrix((4, 1)).is_square is False
+        assert Matrix((1, 4)).is_square is False
         assert Matrix((1, 1)).is_square is True
 
-    def test_is_vector_property(self):
+    def test_is_vector(self):
         assert Matrix((4, 4)).is_vector is False
-        assert Matrix((4, 1), 1).is_vector is True
-        assert Matrix((1, 4), 1).is_vector is True
+        assert Matrix((4, 1)).is_vector is True
+        assert Matrix((1, 4)).is_vector is True
         assert Matrix((1, 1)).is_vector is False
 
-    def test_is_column_vector_property(self):
+    def test_is_column_vector(self):
         assert Matrix((4, 4)).is_column_vector is False
-        assert Matrix((4, 1), 1).is_column_vector is True
-        assert Matrix((1, 4), 1).is_column_vector is False
+        assert Matrix((4, 1)).is_column_vector is True
+        assert Matrix((1, 4)).is_column_vector is False
         assert Matrix((1, 1)).is_column_vector is False
 
-    def test_is_row_vector_property(self):
+    def test_is_row_vector(self):
         assert Matrix((4, 4)).is_row_vector is False
-        assert Matrix((4, 1), 1).is_row_vector is False
-        assert Matrix((1, 4), 1).is_row_vector is True
+        assert Matrix((4, 1)).is_row_vector is False
+        assert Matrix((1, 4)).is_row_vector is True
         assert Matrix((1, 1)).is_row_vector is False
 
-    def test_is_scalar_property(self):
+    def test_is_scalar(self):
         assert Matrix((4, 4)).is_scalar is False
-        assert Matrix((4, 1), 1).is_scalar is False
-        assert Matrix((1, 4), 1).is_scalar is False
+        assert Matrix((4, 1)).is_scalar is False
+        assert Matrix((1, 4)).is_scalar is False
         assert Matrix((1, 1)).is_scalar is True
 
-    def test_length(self):
-        assert len(Matrix((4, 4))) == 16
+    def test_equality(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        assert Matrix(shape) == Matrix(shape)
+        assert Matrix(shape, range(length)) == Matrix(shape, list(range(length)))
 
-    def test_abs(self):
-        assert abs(Matrix((3, 1), 1, 0, 0)) == 1
+    def test_is_close(self, shape):
+        epsilon = 7/3 - 4/3 - 1
+        a = Matrix(shape, epsilon)
+        b = Matrix(shape, 0)
+        c = 0
+        d = 0.0
+        assert a.is_close(b) == Matrix(shape, 1, data_type="B")
+        assert a.is_close(c) == Matrix(shape, 1, data_type="B")
+        assert a.is_close(d) == Matrix(shape, 1, data_type="B")
 
-    def test_equality(self):
-        assert Matrix((4, 4)) == Matrix((4, 4))
-        assert Matrix((4, 4), range(16)) == Matrix((4, 4), *list(range(16)))
-
-    def test_shape(self):
-        assert Matrix((4, 4)).shape == (4, 4)
+    def test_all_close(self, shape):
+        epsilon = 7/3 - 4/3 - 1
+        a = Matrix(shape, epsilon)
+        b = Matrix(shape, 0)
+        c = 0
+        d = 0.0
+        assert a.all_close(b) is True
+        assert a.all_close(c) is True
+        assert a.all_close(d) is True
 
     def test_getitem(self):
         m = Matrix((4, 4), range(16))
-        assert m[0] == Matrix((1, 4), 0, 1, 2, 3)
+        assert m[0] == Matrix((1, 4), (0, 1, 2, 3))
         assert m[0, 1] == 1.0
-        assert m[1, :4] == Matrix((1, 4), 4, 5, 6, 7)
-        assert m[1, :] == Matrix((1, 4), 4, 5, 6, 7)
-        assert m[:4, 1] == Matrix((4, 1), 1, 5, 9, 13)
-        assert m[:, 1] == Matrix((4, 1), 1, 5, 9, 13)
+        assert m[1, :4] == Matrix((1, 4), (4, 5, 6, 7))
+        assert m[1, :] == Matrix((1, 4), (4, 5, 6, 7))
+        assert m[:4, 1] == Matrix((4, 1), (1, 5, 9, 13))
+        assert m[:, 1] == Matrix((4, 1), (1, 5, 9, 13))
 
     def test_setitem(self):
         m = Matrix((4, 4))
         m[0] = (2, 2, 2, 2)
-        assert m[0] == Matrix((1, 4), 2, 2, 2, 2)
+        assert m[0] == Matrix((1, 4), (2, 2, 2, 2))
         m[0, 0] = 3.0
         assert m[0, 0] == 3.0
         m[0, :4] = (4.0, 4.0, 4.0, 4.0)
-        assert m[0, :4] == Matrix((1, 4), 4, 4, 4, 4)
+        assert m[0, :4] == Matrix((1, 4), (4, 4, 4, 4))
         m[:4, 0] = (5.0, 5.0, 5.0, 5.0)
-        assert m[:4, 0] == Matrix((4, 1), 5, 5, 5, 5)
+        assert m[:4, 0] == Matrix((4, 1), (5, 5, 5, 5))
 
-    def test_cross(self):
-        a = Matrix((3, 1), 1, 0, 0)
-        b = Matrix((3, 1), 0, 1, 0)
-        c = Matrix((3, 1), 0, 0, 1)
+    def test_cross(self, shape):
+        if shape == (3, 1) or shape == (1, 3):
+            a = Matrix(shape, (1, 0, 0))
+            b = Matrix(shape, (0, 1, 0))
+            c = Matrix(shape, (0, 0, 1))
 
-        assert a.cross(b) == c
-        assert b.cross(c) == a
-        assert c.cross(a) == b
-        assert b.cross(a) == -c
-        assert c.cross(b) == -a
-        assert a.cross(c) == -b
+            assert a.cross(b) == c
+            assert b.cross(c) == a
+            assert c.cross(a) == b
+            assert b.cross(a) == -c
+            assert c.cross(b) == -a
+            assert a.cross(c) == -b
+        else:
+            with pytest.raises(TypeError):
+                Matrix(shape).cross(Matrix(shape))
+
+    def test_transpose(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        assert a == a.t.t
+        assert a.shape == a.t.shape[::-1]
+        for i, j in itertools.product(range(a.shape[0]), range(a.shape[1])):
+            assert a[i, j] == a.t[j, i]
 
     def test_identity(self):
         assert Matrix.identity(4) == Matrix((4, 4))
-        assert Matrix.identity(4) == Matrix(
-            (4, 4),
+        assert Matrix.identity(4) == Matrix((4, 4), (
             1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
             0, 0, 0, 1
-        )
+        ))
 
     def test_translation(self):
-        assert Matrix.translation(1, 1, 1) == Matrix(
-            (4, 4),
-            1, 0, 0, 1,
-            0, 1, 0, 1,
-            0, 0, 1, 1,
+        assert Matrix.translation(2, 2, 2) == Matrix((4, 4), (
+            1, 0, 0, 2,
+            0, 1, 0, 2,
+            0, 0, 1, 2,
             0, 0, 0, 1
-        )
+        ))
 
     def test_rotation_x(self):
         c = math.cos(math.pi)
         s = math.sin(math.pi)
-        assert Matrix.rotation_x(math.pi) == Matrix(
-            (4, 4),
+        assert Matrix.rotation_x(math.pi) == Matrix((4, 4), (
             1, 0, 0, 0,
             0, c, -s, 0,
             0, s, c, 0,
             0, 0, 0, 1
-        )
+        ))
 
     def test_rotation_y(self):
         c = math.cos(math.pi)
         s = math.sin(math.pi)
-        assert Matrix.rotation_y(math.pi) == Matrix(
-            (4, 4),
+        assert Matrix.rotation_y(math.pi) == Matrix((4, 4), (
             c, 0, s, 0,
             0, 1, 0, 0,
             -s, 0, c, 0,
             0, 0, 0, 1
-        )
+        ))
 
     def test_rotation_z(self):
         c = math.cos(math.pi)
         s = math.sin(math.pi)
-        assert Matrix.rotation_z(math.pi) == Matrix(
-            (4, 4),
+        assert Matrix.rotation_z(math.pi) == Matrix((4, 4), (
             c, -s, 0, 0,
             s, c, 0, 0,
             0, 0, 1, 0,
             0, 0, 0, 1
-        )
+        ))
 
     def test_scaling(self):
-        assert Matrix.scaling(2, 2, 2) == Matrix(
-            (4, 4),
+        assert Matrix.scaling(2, 2, 2) == Matrix((4, 4), (
             2, 0, 0, 0,
             0, 2, 0, 0,
             0, 0, 2, 0,
             0, 0, 0, 1
-        )
+        ))
 
     def test_shearing(self):
-        assert Matrix.shearing(2, 0, 2) == Matrix(
-            (4, 4),
+        assert Matrix.shearing(2, 0, 2) == Matrix((4, 4), (
             1, 0, 2, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
             0, 0, 0, 1
-        )
+        ))
 
     def test_orthograohic(self):
-        assert Matrix.orthographic(-1 ,1, -1, 1, 0.1, 100) == Matrix(
-            (4, 4),
+        assert Matrix.orthographic(-1 , 1, -1, 1, 0.1, 100) == Matrix((4, 4), (
             1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, -2 / 99.9, -100.1 / 99.9,
             0, 0, 0, 1
-        )
+        ))
 
     def test_perspective(self):
-        assert Matrix.perspective(math.pi/4, 1, 0.1, 100) == Matrix(
-            (4, 4),
+        assert Matrix.perspective(math.pi/4, 1, 0.1, 100) == Matrix((4, 4), (
             1/math.tan(math.pi/8), 0, 0, 0,
             0, 1/math.tan(math.pi/8), 0, 0,
             0, 0, -100.1/99.9, -20/99.9,
             0, 0, -1, 0
-        )
+        ))
 
-    def test_addition_neutral_element(self):
-        a = Matrix((2, 2), range(4))
-        assert a + Matrix(a.shape, 0, 0, 0, 0) == a
+    def test_addition_neutral_element(self, shape):
+        a = Matrix(shape, range(functools.reduce(operator.mul, shape)))
+
+        assert a + Matrix(a.shape, 0) == a
         assert a + 0 == a
         assert a + 0.0 == a
 
-    def test_addition_inverse(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-        assert -a == Matrix(a.shape, (-s for s in a.data))
-        assert a + -b == a - b
+    def test_addition_inverse(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        b = Matrix(shape, range(1, length + 1))
 
-    def test_addition_commutativity(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
+        assert -a == Matrix(a.shape, (-s for s in a))
+        assert a + -b == a - b
+        assert a + +b == a + b
+
+    def test_addition_commutativity(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        b = Matrix(shape, range(1, length + 1))
         c = 5
         d = 5.0
 
@@ -210,10 +255,11 @@ class TestMatrix(object):
         assert a + c == c + a
         assert a + d == d + a
 
-    def test_addition_associativity(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-        c = Matrix((2, 2), range(2, 6))
+    def test_addition_associativity(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        b = Matrix(shape, range(1, length + 1))
+        c = Matrix(shape, range(2, length + 2))
         d = 5
         e = 6
         f = 5.0
@@ -223,25 +269,36 @@ class TestMatrix(object):
         assert d + (a + e) == (d + a) + e
         assert f + (a + g) == (f + a) + g
 
-    def test_multiplication_neutral_element(self):
-        a = Matrix((2, 2), range(4))
-        assert a * Matrix(a.shape, 1, 1, 1, 1) == a
+    def test_addition_shapes(self):
+        with pytest.raises(ValueError):
+            Matrix((2, 2)) + Matrix((3, 3))
+        with pytest.raises(ValueError):
+            Matrix((2, 2)) - Matrix((3, 3))
+
+    def test_multiplication_neutral_element(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+
+        assert a * Matrix(shape, 1) == a
         assert a * 1 == a
         assert a * 1.0 == a
 
-    def test_multiplication_inverse(self):
-        a = Matrix((2, 2), range(1, 5))
-        b = Matrix((2, 2), range(2, 6))
-        assert Matrix((2, 2), 1, 1, 1, 1) / a == Matrix(a.shape, (1 / s for s in a.data))
-        assert 1 / a == Matrix(a.shape, (1 / s for s in a.data))
-        assert 1.0 / a == Matrix(a.shape, (1 / s for s in a.data))
-        assert a * (Matrix((2, 2), 1, 1, 1, 1) / b) == a / b
-        assert a * (1 / b) == a / b
-        assert a * (1.0 / b) == a / b
+    def test_multiplication_inverse(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(1, length + 1))
+        b = Matrix(shape, range(4, length + 4))
 
-    def test_multiplication_commutativity(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
+        assert all_close(Matrix(shape, 1) / a, Matrix(a.shape, (1 / s for s in a)))
+        assert all_close(1 / a, Matrix(a.shape, (1 / s for s in a)))
+        assert all_close(1.0 / a, Matrix(a.shape, (1 / s for s in a)))
+        assert all_close(a * (Matrix(shape, 1) / b), a / b)
+        assert all_close(a * (1 / b), a / b)
+        assert all_close(a * (1.0 / b), a / b)
+
+    def test_multiplication_commutativity(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(1, length + 1))
+        b = Matrix(shape, range(4, length + 4))
         c = 5
         d = 5.0
 
@@ -249,10 +306,11 @@ class TestMatrix(object):
         assert a * c == c * a
         assert a * d == d * a
 
-    def test_multiplication_associativity(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-        c = Matrix((2, 2), range(2, 6))
+    def test_multiplication_associativity(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        b = Matrix(shape, range(1, length + 1))
+        c = Matrix(shape, range(2, length + 2))
         d = 5
         e = 6
         f = 5.0
@@ -262,11 +320,19 @@ class TestMatrix(object):
         assert d * (a * e) == (d * a) * e
         assert f * (a * g) == (f * a) * g
 
-    def test_distributivity(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-        c = Matrix((2, 2), range(2, 6))
+    def test_distributivity(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        b = Matrix(shape, range(1, length + 1))
+        c = Matrix(shape, range(2, length + 2))
+
         assert a * (b + c) == a * b + a * c
+
+    def test_multiplication_shapes(self):
+        with pytest.raises(ValueError):
+            Matrix((2, 2)) * Matrix((3, 3))
+        with pytest.raises(ValueError):
+            Matrix((2, 2)) / Matrix((3, 3))
 
     def test_dot_product_neutral_element(self):
         a = Matrix((2, 2), range(4))
@@ -276,8 +342,8 @@ class TestMatrix(object):
         assert a @ b == b @ a
 
     def test_dot_product_inverse(self):
-        a = Matrix((2, 2), 4, 3, 2, 1)
-        b = Matrix((2, 2), -0.5, 1.5, 1, -2)
+        a = Matrix((2, 2), (4, 3, 2, 1))
+        b = Matrix((2, 2), (-0.5, 1.5, 1, -2))
 
         assert a @ b == Matrix.identity(2)
         assert b @ a == Matrix.identity(2)
@@ -289,16 +355,9 @@ class TestMatrix(object):
 
         assert b @ (a @ c) == (b @ a) @ c
 
-    def test_transpose(self):
-        a = Matrix((2, 4), range(8))
-        assert a == a.t.t
-        assert a.shape == a.t.shape[::-1]
-        for i, j in itertools.product(range(a.shape[0]), range(a.shape[1])):
-            assert a[i, j] == a.t[j, i]
-
     def test_dot_product_shapes(self):
         with pytest.raises(ValueError):
-            Matrix((4, 3), 1) @ Matrix((2, 2), 1)
+            Matrix((4, 3)) @ Matrix((2, 2))
 
     def test_dot_product_vectors(self):
         assert Matrix((1, 3), 1) @ Matrix((3, 1), 1) == 3
