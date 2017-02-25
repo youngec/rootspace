@@ -108,28 +108,46 @@ class TestMatrix(object):
 
     def test_getitem(self):
         m = Matrix((4, 4), range(16))
-        assert m[0] == Matrix((1, 4), (0, 1, 2, 3))
+
         assert m[0, 1] == 1.0
-        assert m[1, :4] == Matrix((1, 4), (4, 5, 6, 7))
+
+        assert m[1, :3] == Matrix((1, 3), (4, 5, 6))
         assert m[1, :] == Matrix((1, 4), (4, 5, 6, 7))
-        assert m[:4, 1] == Matrix((4, 1), (1, 5, 9, 13))
+        assert m[:3, 1] == Matrix((3, 1), (1, 5, 9))
         assert m[:, 1] == Matrix((4, 1), (1, 5, 9, 13))
+        assert m[:3, :3] == Matrix((3, 3), (0, 1, 2, 4, 5, 6, 8, 9, 10))
+
+        assert m[1, (0, 1)] == Matrix((1, 2), (4, 5))
+        assert m[(0, 1), 1] == Matrix((2, 1), (1, 5))
+        assert m[(0, 1), (0, 1)] == Matrix((2, 2), (0, 1, 4, 5))
+
+        assert m[:, (0, 1)] == Matrix((4, 2), (0, 1, 4, 5, 8, 9, 12, 13))
+        assert m[(0, 1), :] == Matrix((2, 4), (0, 1, 2, 3, 4, 5, 6, 7))
+
+        assert m[0] == Matrix((1, 4), (0, 1, 2, 3))
+        assert m[(0, 1), ] == Matrix((2, 4), (0, 1, 2, 3, 4, 5, 6, 7))
+        assert m[:] == m
 
     def test_setitem(self):
-        m = Matrix((4, 4))
-        m[0] = (2, 2, 2, 2)
-        assert m[0] == Matrix((1, 4), (2, 2, 2, 2))
-        m[0, 0] = 3.0
-        assert m[0, 0] == 3.0
-        m[0, :4] = (4.0, 4.0, 4.0, 4.0)
-        assert m[0, :4] == Matrix((1, 4), (4, 4, 4, 4))
-        m[:4, 0] = (5.0, 5.0, 5.0, 5.0)
-        assert m[:4, 0] == Matrix((4, 1), (5, 5, 5, 5))
+        m = Matrix((4, 4), range(16))
+        m[0, 1] = 100
+        assert m[0, 1] == 100
 
-    @pytest.mark.xfail
+        m = Matrix((4, 4), range(16))
+        m[1, :3] = Matrix((1, 3), 100)
+        assert m[1, :3] == Matrix((1, 3), 100)
+
+        m = Matrix((4, 4), range(16))
+        m[:2, :2] = (100, 100, 100, 100)
+        assert m[:2, :2] == Matrix((2, 2), 100)
+
+        m = Matrix((4, 4), range(16))
+        m[0, (0, 1, 3)] = 100
+        assert m[0, (0, 1, 3)] == Matrix((1, 3), 100)
+
     def test_determinant(self, shape):
         a = Matrix(shape)
-        if a.is_square:
+        if a.is_square and not a.is_scalar:
             if a.shape[0] <= 4:
                 assert a.determinant() == 1
             else:
