@@ -37,12 +37,12 @@ class TestMatrix(object):
         a = Matrix(shape)
         assert Matrix(shape, a._data)._data is a._data
 
-    @pytest.mark.xfail
     def test_traits(self):
-        assert isinstance(self, collections.abc.Iterable)
-        assert isinstance(self, collections.abc.Reversible)
-        assert isinstance(self, collections.abc.Sized)
-        assert isinstance(self, collections.abc.Container)
+        a = Matrix((4, 4))
+        assert isinstance(a, collections.abc.Iterable)
+        assert isinstance(a, collections.abc.Reversible)
+        assert isinstance(a, collections.abc.Sized)
+        assert isinstance(a, collections.abc.Container)
 
     def test_shape(self, shape):
         assert Matrix(shape).shape == shape
