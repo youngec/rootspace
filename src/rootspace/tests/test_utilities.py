@@ -6,31 +6,34 @@ from rootspace.utilities import as_range, slice_length, linearize_scalar_indices
     linearize_indices
 
 
-def test_as_range(mocker):
-    mocker_normalize_slice = mocker.patch("rootspace.utilities.normalize_slice")
-    as_range(slice(None), 0, 100)
-    mocker_normalize_slice.assert_called_once_with(slice(None), 0, 100)
+def test_normalize_slice():
+    assert normalize_slice(slice(None), 100) == slice(0, 100, 1)
+
+
+def test_as_range():
+    assert as_range(slice(None), 100) == range(100)
 
 
 def test_slice_length(mocker):
-    assert slice_length(slice(None), 0, 100) == 100
+    assert slice_length(slice(None), 100) == 100
 
     mock_as_range = mocker.patch("rootspace.utilities.as_range")
-    slice_length(slice(1, 5, 1), 0, 6)
-    mock_as_range.assert_called_once_with(slice(1, 5, 1), 0, 6)
-
-
-def test_normalize_slice():
-    assert normalize_slice(slice(None), 0, 100) == slice(0, 100, 1)
+    slice_length(slice(1, 5, 1), 6)
+    mock_as_range.assert_called_once_with(slice(1, 5, 1), 6)
 
 
 def test_get_sub_shape():
     shape = (4, 4)
     assert get_sub_shape(shape, 4) == (1, 1)
     assert get_sub_shape(shape, 2, 2) == (1, 1)
-    assert get_sub_shape(shape, 2, slice(4)) == (1, 4)
-    assert get_sub_shape(shape, slice(4), 2) == (4, 1)
-    assert get_sub_shape(shape, slice(4), slice(4)) == (4, 4)
+    assert get_sub_shape(shape, 2, (0, 1)) == (1, 2)
+    assert get_sub_shape(shape, (0, 1), 2) == (2, 1)
+    assert get_sub_shape(shape, (0, 1), (0, 1)) == (2, 2)
+    assert get_sub_shape(shape, 2, slice(3)) == (1, 3)
+    assert get_sub_shape(shape, slice(3), 2) == (3, 1)
+    assert get_sub_shape(shape, slice(3), slice(3)) == (3, 3)
+    assert get_sub_shape(shape, slice(3), (0, 1)) == (3, 2)
+    assert get_sub_shape(shape, (0, 1), slice(3)) == (2, 3)
     with pytest.raises(TypeError):
         get_sub_shape(shape, None)
 

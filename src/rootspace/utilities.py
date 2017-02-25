@@ -20,48 +20,44 @@ FIRST_CAP_RE = re.compile(r"(.)([A-Z][a-z]+)")
 ALL_CAP_RE = re.compile(r"([a-z0-9])([A-Z])")
 
 
-def normalize_slice(s, lower_bound, upper_bound):
+def normalize_slice(s, sequence_length):
     """
     Normalize a given slice. That is, convert a slice with
     None attributes to contain the specified bounds:
 
     slice(None, None, None) becomes
-    slice(lower_bound, upper_bound, 1)
+    slice(0, sequence_length, 1)
 
     :param s:
-    :param lower_bound:
-    :param upper_bound:
+    :param sequence_length:
     :return:
     """
-    start = s.start if s.start is not None else lower_bound
-    stop = s.stop if s.stop is not None else upper_bound
-    step = s.step if s.step is not None else 1
-    return slice(start, stop, step)
+    return slice(*s.indices(sequence_length))
 
 
-def as_range(s, lower_bound, upper_bound):
+def as_range(s, sequence_length):
     """
     Convert a slice to a range.
 
+    slice(None, None, None) becomes
+    range(0, sequence_length, 1)
+
     :param s:
-    :param lower_bound:
-    :param upper_bound:
+    :param sequence_length:
     :return:
     """
-    s = normalize_slice(s, lower_bound, upper_bound)
-    return range(s.start, s.stop, s.step)
+    return range(*s.indices(sequence_length))
 
 
-def slice_length(s, lower_bound, upper_bound):
+def slice_length(s, sequence_length):
     """
     Return the length of the sliced portion.
 
     :param s:
-    :param lower_bound:
-    :param upper_bound:
+    :param sequence_length:
     :return:
     """
-    return len(tuple(as_range(s, lower_bound, upper_bound)))
+    return len(tuple(as_range(s, sequence_length)))
 
 
 def get_sub_shape(shape, *indices):
@@ -77,10 +73,12 @@ def get_sub_shape(shape, *indices):
     for i, k in enumerate(indices):
         if isinstance(k, int):
             sub_shape.append(1)
+        elif isinstance(k, tuple):
+            sub_shape.append(len(k))
         elif isinstance(k, slice):
-            sub_shape.append(slice_length(k, 0, shape[i]))
+            sub_shape.append(slice_length(k, shape[i]))
         else:
-            raise TypeError("Expected the tuple indices to be either int or slice.")
+            raise TypeError("Expected the tuple indices to be either int, tuple, or slice.")
 
     if len(sub_shape) == 1:
         sub_shape.append(1)
@@ -111,20 +109,30 @@ def linearize_indices(shape, i, j):
     """
     if isinstance(i, int) and isinstance(j, int):  # Single 2-index
         return linearize_scalar_indices(shape, i, j)
-    elif isinstance(i, slice) and isinstance(j, slice):  # Full sliced 2-index
-        raise NotImplementedError("Cannot handle double slices currently, eg. a[:, :].")
+    elif isinstance(i, int) and isinstance(j, tuple):
+        raise NotImplementedError()
+    elif isinstance(i, tuple) and isinstance(j, int):
+        raise NotImplementedError()
+    elif isinstance(i, tuple) and isinstance(j, tuple):
+        raise NotImplementedError()
     elif isinstance(i, int) and isinstance(j, slice):  # Partial sliced 2-index
-        j = normalize_slice(j, 0, shape[1])
+        j = normalize_slice(j, shape[1])
         start = linearize_scalar_indices(shape, i, j.start)
         stop = linearize_scalar_indices(shape, i, j.stop)
         step = linearize_scalar_indices(shape, 0, j.step)
         return slice(start, stop, step)
     elif isinstance(i, slice) and isinstance(j, int):  # Partial sliced 2-index
-        i = normalize_slice(i, 0, shape[0])
+        i = normalize_slice(i, shape[0])
         start = linearize_scalar_indices(shape, i.start, j)
         stop = linearize_scalar_indices(shape, i.stop - 1, j + 1)
         step = linearize_scalar_indices(shape, i.step, 0)
         return slice(start, stop, step)
+    elif isinstance(i, slice) and isinstance(j, slice):  # Full sliced 2-index
+        raise NotImplementedError()
+    elif isinstance(i, slice) and isinstance(j, tuple):
+        raise NotImplementedError()
+    elif isinstance(i, tuple) and isinstance(j, slice):
+        raise NotImplementedError()
     else:
         raise TypeError("Expected the tuple indices to be either int or slice, not '{}' and '{}'.".format(type(i), type(j)))
 
