@@ -387,6 +387,13 @@ class TestMatrix(object):
 
         assert b @ (a @ c) == (b @ a) @ c
 
+    def test_dot_distributivity(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = Matrix((2, 2), range(2, 6))
+
+        assert a @ (b + c) == a @ b + a @ c
+
     def test_dot_product_shapes(self):
         with pytest.raises(ValueError):
             Matrix((4, 3)) @ Matrix((2, 2))
@@ -521,9 +528,16 @@ class TestQuaternion(object):
         assert a @ b == Quaternion()
         assert b @ a == Quaternion()
 
-    def test_dot_product_associativity(self):
+    def test_quaternion_product_associativity(self):
         a = Quaternion(1, 2, 3, 4)
         b = Quaternion(2, 3, 4, 5)
         c = Quaternion(3, 4, 5, 6)
 
         assert b @ (a @ c) == (b @ a) @ c
+
+    def test_quaternion_distributivity(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion(2, 3, 4, 5)
+        c = Quaternion(3, 4, 5, 6)
+
+        assert a @ (b + c) == a @ b + a @ c
