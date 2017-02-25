@@ -38,11 +38,8 @@ class TestMatrix(object):
         assert Matrix(shape, a._data)._data is a._data
 
     def test_traits(self):
-        a = Matrix((4, 4))
-        assert isinstance(a, collections.abc.Iterable)
-        assert isinstance(a, collections.abc.Reversible)
-        assert isinstance(a, collections.abc.Sized)
-        assert isinstance(a, collections.abc.Container)
+        assert issubclass(Matrix, collections.abc.Reversible)
+        assert issubclass(Matrix, collections.abc.Collection)
 
     def test_shape(self, shape):
         assert Matrix(shape).shape == shape
@@ -157,9 +154,8 @@ class TestMatrix(object):
             with pytest.raises(ValueError):
                 a.determinant()
 
-    @pytest.mark.xfail
     def test_norm(self, shape):
-        raise NotImplementedError()
+        assert Matrix(shape, 1).norm() == math.pow(sum(functools.reduce(operator.mul, shape) * [math.pow(abs(1), 2)]), 0.5)
 
     def test_cross(self, shape):
         if shape == (3, 1) or shape == (1, 3):

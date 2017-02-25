@@ -330,13 +330,14 @@ class Matrix(object):
         else:
             raise ValueError("The determinant is not defined for non-square matrices or scalar matrices.")
 
-    def norm(self):
+    def norm(self, p=2):
         """
-        Return the L2 norm for a vector.
+        Calculate the norm of the Matrix.
 
+        :param p:
         :return:
         """
-        raise NotImplementedError()
+        return math.pow(sum(math.pow(abs(d), p) for d in self), 1/p)
 
     def cross(self, other):
         """
@@ -395,13 +396,11 @@ class Matrix(object):
                 self._data = array.array(data_type, length * [data])
             else:
                 raise TypeError("Expected either an ArrayType, an iterable or a scalar number as positional argument.")
-        elif data is None:
+        else:
             if shape[0] == shape[1]:
                 self._data = array.array(data_type, (1 if i in range(0, length, shape[0] + 1) else 0 for i in range(length)))
             else:
                 self._data = array.array(data_type, (0 for _ in range(length)))
-        else:
-            raise ValueError("Expected an iterable of length '{0}' or a scalar number.".format(length))
 
     def __str__(self):
         """
