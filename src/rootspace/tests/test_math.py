@@ -393,3 +393,137 @@ class TestMatrix(object):
 
     def test_dot_product_vectors(self):
         assert Matrix((1, 3), 1) @ Matrix((3, 1), 1) == 3
+
+
+class TestQuaternion(object):
+    def test_instantiation(self):
+        Quaternion()
+        Quaternion(qi=0, qj=0, qk=0, qr=1, data_type="f")
+
+    def test_properties(self):
+        a = Quaternion(1, 2, 3, 4)
+        assert a.qi == 1
+        assert a.qj == 2
+        assert a.qk == 3
+        assert a.qr == 4
+
+    def test_conjugate(self):
+        assert Quaternion(1, 2, 3, 4).t == Quaternion(-1, -2, -3, 4)
+
+    def test_matrix(self):
+        assert Quaternion().matrix == Matrix.identity(4)
+
+    def test_equality(self):
+        assert Quaternion() == Quaternion()
+        assert Quaternion(1, 2, 3, 4) == Quaternion(1, 2, 3, 4)
+
+    def test_norm(self):
+        assert Quaternion().norm() == 1
+        assert Quaternion(1, 1, 1, 1).norm() == 2
+
+    def test_addition_neutral_element(self):
+        a = Quaternion(1, 2, 3, 4)
+
+        assert a + Quaternion(0, 0, 0, 0) == a
+        assert a + 0 == a
+        assert a + 0.0 == a
+
+    def test_addition_inverse(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion(2, 3, 4, 5)
+
+        assert -a == Quaternion(-1, -2, -3, -4)
+        assert a + -b == a - b
+        assert a + +b == a + b
+
+    def test_addition_commutativity(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion(2, 3, 4, 5)
+        c = 5
+        d = 5.0
+
+        assert a + b == b + a
+        assert a + c == c + a
+        assert a + d == d + a
+
+    def test_addition_associativity(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion(2, 3, 4, 5)
+        c = Quaternion(3, 4, 5, 6)
+        d = 5
+        e = 6
+        f = 5.0
+        g = 6.0
+
+        assert b + (a + c) == (b + a) + c
+        assert d + (a + e) == (d + a) + e
+        assert f + (a + g) == (f + a) + g
+
+    def test_multiplication_neutral_element(self):
+        a = Quaternion(1, 2, 3, 4)
+
+        assert a * Quaternion(1, 1, 1, 1) == a
+        assert a * 1 == a
+        assert a * 1.0 == a
+
+    def test_multiplication_inverse(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion(2, 3, 4, 5)
+
+        assert all_close(Quaternion(1, 1, 1, 1) / a, Quaternion(1/a.qi, 1/a.qj, 1/a.qk, 1/a.qr))
+        assert all_close(1 / a, Quaternion(1/a.qi, 1/a.qj, 1/a.qk, 1/a.qr))
+        assert all_close(1.0 / a, Quaternion(1/a.qi, 1/a.qj, 1/a.qk, 1/a.qr))
+        assert all_close(a * (Quaternion(1, 1, 1, 1) / b), a / b)
+        assert all_close(a * (1 / b), a / b)
+        assert all_close(a * (1.0 / b), a / b)
+
+    def test_multiplication_commutativity(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion(2, 3, 4, 5)
+        c = 5
+        d = 5.0
+
+        assert a * b == b * a
+        assert a * c == c * a
+        assert a * d == d * a
+
+    def test_multiplication_associativity(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion(2, 3, 4, 5)
+        c = Quaternion(3, 4, 5, 6)
+        d = 5
+        e = 6
+        f = 5.0
+        g = 6.0
+
+        assert b * (a * c) == (b * a) * c
+        assert d * (a * e) == (d * a) * e
+        assert f * (a * g) == (f * a) * g
+
+    def test_distributivity(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion(2, 3, 4, 5)
+        c = Quaternion(3, 4, 5, 6)
+
+        assert a * (b + c) == a * b + a * c
+
+    def test_quaternion_product_neutral_element(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion()
+
+        assert a @ b == a
+        assert a @ b == b @ a
+
+    def test_quaternion_product_inverse(self):
+        a = Quaternion(2, 2, 2, 2)
+        b = a.inverse()
+
+        assert a @ b == Quaternion()
+        assert b @ a == Quaternion()
+
+    def test_dot_product_associativity(self):
+        a = Quaternion(1, 2, 3, 4)
+        b = Quaternion(2, 3, 4, 5)
+        c = Quaternion(3, 4, 5, 6)
+
+        assert b @ (a @ c) == (b @ a) @ c

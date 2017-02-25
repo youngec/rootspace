@@ -7,57 +7,19 @@ import functools
 import operator
 import itertools
 
-import numpy
-
 from .utilities import get_sub_shape, linearize_indices
 
 
-def identity():
-    return numpy.eye(4)
-
-
-def translation(vect):
-    tra = numpy.eye(4)
-    tra[:3, 3] = vect
-    return tra
-
-
-def orthographic(left, right, bottom, top, near, far):
-    l = left
-    r = right
-    b = bottom
-    t = top
-    n = near
-    f = far
-
-    return numpy.array((
-        (2 / (r - l),           0,            0, -(r + l) / (r - l)),
-        (          0, 2 / (t - b),            0, -(t + b) / (t - b)),
-        (          0,           0, -2 / (f - n), -(f + n) / (f - n)),
-        (          0,           0,            0,                  1)
-    ))
-
-
-def perspective(field_of_view, viewport_ratio, near, far):
-    a = viewport_ratio
-    t = math.tanh(field_of_view / 2)
-    n = near
-    f = far
-    y_scale = 1 / math.tan(field_of_view / 2)
-    x_scale = y_scale / viewport_ratio
-    z_sum = near + far
-    z_diff = near - far
-    z_prod = near * far
-
-    return numpy.array((
-        (x_scale, 0, 0, 0),
-        (0, y_scale, 0, 0),
-        (0, 0, z_sum / z_diff, 2 * z_prod / z_diff),
-        (0, 0, -1, 0)
-    ))
-
-
 def all_close(a, b, rel_tol=1e-05, abs_tol=1e-08):
+    """
+    Return true if objects a and b are approximately equal.
+
+    :param a:
+    :param b:
+    :param rel_tol:
+    :param abs_tol:
+    :return:
+    """
     if hasattr(a, "all_close"):
         return a.all_close(b, rel_tol, abs_tol)
     elif hasattr(b, "all_close"):
@@ -535,6 +497,7 @@ class Matrix(object):
 
     def __eq__(self, other):
         """
+        Return True if all elements of two matrices are equal.
 
         :param other:
         :return:
@@ -722,6 +685,45 @@ class Quaternion(object):
     """
     The Quaternion class provides a way to work with four-dimensional complex numbers.
     """
+    @classmethod
+    def from_axis(cls, axis, angle):
+        """
+        Create a Quaternion from an axis and an angle.
+
+        :param axis:
+        :param angle:
+        :return:
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def look_at(cls, source, target, up_direction):
+        """
+        Construct a Quaternion from a source position, a target position, and a locked up position.
+
+        :param source:
+        :param target:
+        :param up_direction:
+        :return:
+        """
+        raise NotImplementedError()
+
+    @property
+    def qi(self):
+        return self._data[0]
+
+    @property
+    def qj(self):
+        return self._data[1]
+
+    @property
+    def qk(self):
+        return self._data[2]
+
+    @property
+    def qr(self):
+        return self._data[3]
+
     @property
     def t(self):
         """
@@ -729,45 +731,65 @@ class Quaternion(object):
 
         :return:
         """
-        return Quaternion(self.qr, -self.qi)
+        return Quaternion(-self.qi, -self.qj, -self.qk, self.qr)
 
     @property
     def matrix(self):
+        i = self.qi
+        j = self.qj
+        k = self.qk
+        r = self.qr
+
         return Matrix((4, 4), (
-            1 - 2 * (j**2 + k**2), 2 * (i*j - k*r), 2 * (i*k + j*r),
-            2 * (i*j + k*r), 1 - 2 * (i**2 + k**2), 2 * (j*k - i*r),
-            2 * (i*k - j*r), 2 * (j*k + i*r), 1 - 2 * (i**2 + j**2),
+            1 - 2 * (j**2 + k**2), 2 * (i*j - k*r), 2 * (i*k + j*r), 0,
+            2 * (i*j + k*r), 1 - 2 * (i**2 + k**2), 2 * (j*k - i*r), 0,
+            2 * (i*k - j*r), 2 * (j*k + i*r), 1 - 2 * (i**2 + j**2), 0,
             0, 0, 0, 1
         ))
 
+    def all_close(self, other, rel_tol=1e-05, abs_tol=1e-08):
+        """
+        Return True if all elements compare approximately equal, False otherwise.
+
+        :param other:
+        :param rel_tol:
+        :param abs_tol:
+        :return:
+        """
+        if isinstance(other, Quaternion):
+            return all(math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol) for a, b in zip(self, other))
+        else:
+            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(self), type(other)))
+
     def norm(self):
         """
-        Return the L2 norm for a vector.
+        Calculate the L2 norm of the Matrix.
 
         :return:
         """
-        return math.sqrt((self @ self.t).qr)
+        return math.sqrt(sum(abs(d)**2 for d in self))
 
     def inverse(self):
-        return 1 / (self @ self.t).qr * self.t
-
-    def __init__(self, qr, qi):
         """
-        Create a Vector instance from either a iterable, or positional arguments.
-
-        :param qr:
-        :param qi:
-        """
-        self.qr = qr
-        self.qi = Matrix((3, 1), qi)
-
-    def __repr__(self):
-        """
-        Return a representation of a Quaternion that can be evaluated as code.
+        Calculate the inverse of the Quaternion.
 
         :return:
         """
-        return "{}({!r}, {!r})".format(self.__class__.__name__, self.qr, self.qi)
+        return 1 / (self @ self.t).qr * self.t
+
+    def __init__(self, qi=0, qj=0, qk=0, qr=1, data_type="f"):
+        """
+        Create a Quaternion from the four components:
+
+        Q = qr + qi * i + qj * j + qk * k
+
+        :param qi:
+        :param qj:
+        :param qk:
+        :param qr:
+        :param data_type:
+        """
+        self._data = array.array(data_type, (qi, qj, qk, qr))
 
     def __str__(self):
         """
@@ -775,19 +797,45 @@ class Quaternion(object):
 
         :return:
         """
-        return "{} + {}i + {}j + {}k".format(self.qr, *self.qi)
+        return "{}i + {}j + {}k + {}".format(self.qi, self.qj, self.qk, self.qr)
+
+    def __repr__(self):
+        """
+        Return a representation of a Quaternion that can be evaluated as code.
+
+        :return:
+        """
+        return "{}(qi={}, qj={}, qk={}, qr={})".format(self.__class__.__name__, self.qi, self.qj, self.qk, self.qr)
+
+    def __iter__(self):
+        """
+        Provide an iterator interface.
+
+        :return:
+        """
+        for d in self._data:
+            yield d
+
+    def __reversed__(self):
+        """
+        Provide a reverse iterator interface.
+
+        :return:
+        """
+        for d in reversed(self._data):
+            yield d
 
     def __eq__(self, other):
         """
-        Return equal if all elements of the Quaternion are equal.
+        Return True if the Quaternions are equal.
 
         :param other:
         :return:
         """
         if isinstance(other, Quaternion):
-            return self.qr == other.qr and self.qi == other.qi
+            return self.qi == other.qi and self.qj == other.qj and self.qk == other.qk and self.qr == other.qr
         else:
-            return False
+            return NotImplemented
 
     def __neg__(self):
         """
@@ -795,7 +843,7 @@ class Quaternion(object):
 
         :return:
         """
-        return Quaternion(-self.qr, -self.qi)
+        return Quaternion(-self.qi, -self.qj, -self.qk, -self.qr)
 
     def __pos__(self):
         """
@@ -803,7 +851,7 @@ class Quaternion(object):
 
         :return:
         """
-        return Quaternion(+self.qr, +self.qi)
+        return Quaternion(+self.qi, +self.qj, +self.qk, +self.qr)
 
     def __add__(self, other):
         """
@@ -813,9 +861,9 @@ class Quaternion(object):
         :return:
         """
         if isinstance(other, Quaternion):
-            return Quaternion(self.qr + other.qr, self.qi + other.qi)
+            return Quaternion(self.qi + other.qi, self.qj + other.qj, self.qk + other.qk, self.qr + other.qr)
         elif isinstance(other, (int, float)):
-            return Quaternion(self.qr + other, self.qi + other)
+            return Quaternion(self.qi + other, self.qj + other, self.qk + other, self.qr + other)
         else:
             return NotImplemented
 
@@ -854,9 +902,9 @@ class Quaternion(object):
         :return:
         """
         if isinstance(other, Quaternion):
-            return Quaternion(self.qr * other.qr, self.qi * other.qi)
+            return Quaternion(self.qi * other.qi, self.qj * other.qj, self.qk * other.qk, self.qr * other.qr)
         elif isinstance(other, (int, float)):
-            return Quaternion(self.qr * other, self.qi * other)
+            return Quaternion(self.qi * other, self.qj * other, self.qk * other, self.qr * other)
         else:
             return NotImplemented
 
@@ -877,9 +925,9 @@ class Quaternion(object):
         :return:
         """
         if isinstance(other, Quaternion):
-            return Quaternion(self.qr / other.qr, self.qi / other.qi)
+            return Quaternion(self.qi / other.qi, self.qj / other.qj, self.qk / other.qk, self.qr / other.qr)
         elif isinstance(other, (int, float)):
-            return Quaternion(self.qr / other, self.qi / other)
+            return Quaternion(self.qi / other, self.qj / other, self.qk / other, self.qr / other)
         else:
             return NotImplemented
 
@@ -891,9 +939,9 @@ class Quaternion(object):
         :return:
         """
         if isinstance(other, Quaternion):
-            return Quaternion(other.qr / self.qr, other.qi / self.qi)
+            return Quaternion(other.qi / self.qi, other.qj / self.qj, other.qk / self.qk, other.qr / self.qr)
         elif isinstance(other, (int, float)):
-            return Quaternion(other / self.qr, other / self.qi)
+            return Quaternion(other / self.qi, other / self.qj, other / self.qk, other / self.qr)
         else:
             return NotImplemented
 
@@ -906,50 +954,10 @@ class Quaternion(object):
         """
         if isinstance(other, Quaternion):
             return Quaternion(
-                self.qr * other.qr - self.qi.t @ other.qi,
-                self.qi.cross(other.qi) + other.qr * self.qi + self.qr * other.qi
+                self.qr * other.qi + self.qi * other.qr + self.qj * other.qk - self.qk * other.qj,
+                self.qr * other.qj - self.qi * other.qk + self.qj * other.qr + self.qk * other.qi,
+                self.qr * other.qk + self.qi * other.qj - self.qj * other.qi + self.qk * other.qr,
+                self.qr * other.qr - self.qi * other.qi - self.qj * other.qj - self.qk * other.qk
             )
         else:
             return NotImplemented
-
-    @classmethod
-    def from_axis(cls, axis, angle):
-        if not isinstance(axis, Matrix):
-            axis = Matrix((3, 1), axis)
-
-        axis /= axis.norm()
-        angle %= 2 * math.pi
-
-        return cls(
-            math.cos(angle / 2),
-            math.sin(angle / 2) * axis
-        )
-
-    @classmethod
-    def look_at(cls, source, target, up_direction):
-        """
-        Construct a Quaternion from a source position, a target position, and a locked up position.
-
-        :param source:
-        :param target:
-        :param up_direction:
-        :return:
-        """
-        if not isinstance(source, Matrix):
-            source = Matrix((3, 1), source)
-
-        if not isinstance(target, Matrix):
-            target = Matrix((3, 1), target)
-
-        if not isinstance(up_direction, Matrix):
-            up_direction = Matrix((3, 1), up_direction)
-
-        difference = source - target
-        difference /= difference.norm()
-
-        right_direction = up_direction.cross(difference)
-        right_direction /= right_direction.norm()
-
-        angle = math.acos(up_direction @ difference)
-
-        return cls.from_axis(right_direction, angle)
