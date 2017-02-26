@@ -217,8 +217,8 @@ class TestMatrix(object):
         assert Matrix.zeros((4, 4)) == Matrix((4, 4), 0)
 
     def test_ones(self):
-        assert Matrix.zeros(4) == Matrix((4, 1), 1)
-        assert Matrix.zeros((4, 4)) == Matrix((4, 4), 1)
+        assert Matrix.ones(4) == Matrix((4, 1), 1)
+        assert Matrix.ones((4, 4)) == Matrix((4, 4), 1)
 
     def test_translation(self):
         assert Matrix.translation(2, 2, 2) == Matrix((4, 4), (
