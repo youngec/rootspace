@@ -6,11 +6,16 @@ import array
 import functools
 import operator
 import itertools
+from typing import Any, Union, Tuple, NewType
 
 from .utilities import get_sub_shape, linearize_indices
 
 
-def all_close(a, b, rel_tol=1e-05, abs_tol=1e-08):
+MatrixType = NewType("Matrix", object)
+QuaternionType = NewType("Quaternion", object)
+
+
+def all_close(a: Any, b: Any, rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> bool:
     """
     Return true if objects a and b are approximately equal.
 
@@ -18,6 +23,7 @@ def all_close(a, b, rel_tol=1e-05, abs_tol=1e-08):
     :param b:
     :param rel_tol:
     :param abs_tol:
+    :raise TypeError:
     :return:
     """
     if hasattr(a, "all_close"):
@@ -33,7 +39,7 @@ class Matrix(object):
     The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
     """
     @classmethod
-    def identity(cls, d):
+    def identity(cls, d: int) -> MatrixType:
         """
         Return an identity matrix of shape d x d.
 
@@ -43,7 +49,7 @@ class Matrix(object):
         return cls((d, d))
 
     @classmethod
-    def translation(cls, t_x, t_y, t_z):
+    def translation(cls, t_x: Union[int, float], t_y: Union[int, float], t_z: Union[int, float]) -> MatrixType:
         """
         Return an affine translation Matrix.
 
@@ -60,7 +66,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def rotation_x(cls, angle):
+    def rotation_x(cls, angle: Union[int, float]) -> MatrixType:
         """
         Return an affine rotation matrix about the x-axis.
 
@@ -77,7 +83,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def rotation_y(cls, angle):
+    def rotation_y(cls, angle: Union[int, float]) -> MatrixType:
         """
         Return an affine rotation matrix about the y-axis.
 
@@ -94,7 +100,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def rotation_z(cls, angle):
+    def rotation_z(cls, angle: Union[int, float]) -> MatrixType:
         """
         Return an affine rotation matrix about the z-axis.
 
@@ -111,7 +117,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def scaling(cls, s_x, s_y, s_z):
+    def scaling(cls, s_x: Union[int, float], s_y: Union[int, float], s_z: Union[int, float]) -> MatrixType:
         """
         Return an affine scaling matrix.
 
@@ -128,7 +134,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def shearing(cls, s, i, j):
+    def shearing(cls, s: Union[int, float], i: int, j: int) -> MatrixType:
         """
         Return an affine shearing matrix.
 
@@ -142,7 +148,9 @@ class Matrix(object):
         return h
 
     @classmethod
-    def orthographic(cls, left, right, bottom, top, near, far):
+    def orthographic(cls, left: Union[int, float], right: Union[int, float],
+                     bottom: Union[int, float], top: Union[int, float],
+                     near: Union[int, float], far: Union[int, float]) -> MatrixType:
         """
         Create an orthographic projection matrix.
 
@@ -169,7 +177,8 @@ class Matrix(object):
         ))
 
     @classmethod
-    def perspective(cls, field_of_view, viewport_ratio, near, far):
+    def perspective(cls, field_of_view: Union[int, float], viewport_ratio: Union[int, float],
+                    near: Union[int, float], far: Union[int, float]) -> MatrixType:
         """
         Create a perspective projection matrix.
 
@@ -193,44 +202,54 @@ class Matrix(object):
         ))
 
     @property
-    def shape(self):
+    def shape(self) -> Tuple[int]:
         return self._shape if not self._transposed else self._shape[::-1]
 
     @property
-    def data(self):
+    def data(self) -> array.ArrayType:
         return self._data
 
     @property
-    def is_square(self):
+    def is_square(self) -> bool:
         return functools.reduce(operator.eq, self.shape)
 
     @property
-    def is_vector(self):
+    def is_vector(self) -> bool:
         return len([None for s in self.shape if s > 1]) == 1
 
     @property
-    def is_column_vector(self):
+    def is_column_vector(self) -> bool:
         return self.is_vector and self.shape[0] > 1
 
     @property
-    def is_row_vector(self):
+    def is_row_vector(self) -> bool:
         return self.is_vector and self.shape[0] == 1
 
     @property
-    def is_scalar(self):
+    def is_4d_vector(self) -> bool:
+        return self.is_vector and self.shape == (4, 1) or self.shape == (1, 4)
+
+    @property
+    def is_3d_vector(self) -> bool:
+        return self.is_vector and self.shape == (3, 1) or self.shape == (1, 3)
+
+    @property
+    def is_scalar(self) -> bool:
         return len(self) == 1
 
     @property
-    def t(self):
+    def t(self) -> MatrixType:
         return Matrix(self._shape, self.data, transposed=(not self._transposed))
 
-    def is_close(self, other, rel_tol=1e-05, abs_tol=1e-08):
+    def is_close(self, other: Union[MatrixType, int, float],
+                 rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> MatrixType:
         """
         Perform an element-wise approximate equality comparison.
 
         :param other:
         :param rel_tol:
         :param abs_tol:
+        :raise TypeError:
         :return:
         """
         if isinstance(other, Matrix):
@@ -249,7 +268,7 @@ class Matrix(object):
         else:
             raise TypeError("unsupported operand type(s) for is_close() '{}' and '{}'".format(type(self), type(other)))
 
-    def all_close(self, other, rel_tol=1e-05, abs_tol=1e-08):
+    def all_close(self, other: Any, rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> bool:
         """
         Return True if all elements compare approximately equal, False otherwise.
 
@@ -260,10 +279,12 @@ class Matrix(object):
         """
         return all(self.is_close(other, rel_tol, abs_tol))
 
-    def determinant(self):
+    def determinant(self) -> float:
         """
         Calculate the determinant.
 
+        :raise NotImplementedError:
+        :raise ValueError:
         :return:
         """
         def det2(a):
@@ -292,7 +313,7 @@ class Matrix(object):
         else:
             raise ValueError("The determinant is not defined for non-square matrices or scalar matrices.")
 
-    def norm(self, p=2):
+    def norm(self, p: int = 2) -> float:
         """
         Calculate the norm of the Matrix.
 
@@ -301,46 +322,37 @@ class Matrix(object):
         """
         return math.pow(sum(math.pow(abs(d), p) for d in self), 1/p)
 
-    def normalize(self, p=2, inplace=True):
-        """
-        Perform Matrix normalization.
-
-        :param p:
-        :param inplace:
-        :return:
-        """
-        n = self / self.norm(p)
-
-        if inplace:
-            self._data = n.data
-        else:
-            return n
-
-    def cross(self, other):
+    def cross(self, other: MatrixType) -> MatrixType:
         """
         Calculate the cross-product of two vectors.
 
         :param other:
+        :raise ValueError:
+        :raise TypeError:
         :return:
         """
-        if isinstance(other, Matrix) and self.is_vector and other.is_vector and len(self) == 3 and len(other) == 3:
-            s = self
-            if self.is_row_vector:
-                s = self.t
+        if isinstance(other, Matrix):
+            if self.is_vector and other.is_vector and len(self) == 3 and len(other) == 3:
+                s = self
+                if self.is_row_vector:
+                    s = self.t
 
-            o = other
-            if self.is_row_vector:
-                o = other.t
+                o = other
+                if self.is_row_vector:
+                    o = other.t
 
-            return Matrix(self.shape, (
-                s[1] * o[2] - s[2] * o[1],
-                s[2] * o[0] - s[0] * o[2],
-                s[0] * o[1] - s[1] * o[0]
-            ))
+                return Matrix(self.shape, (
+                    s[1] * o[2] - s[2] * o[1],
+                    s[2] * o[0] - s[0] * o[2],
+                    s[0] * o[1] - s[1] * o[0]
+                ))
+            else:
+                raise ValueError("Expected a vector with three dimensions, got '{}'.".format(other))
         else:
             raise TypeError("unsupported operand type(s) for cross() '{}' and '{}'".format(type(self), type(other)))
 
-    def __init__(self, shape, data=None, data_type="f", transposed=False):
+    def __init__(self, shape: Tuple[int], data: Union[None, array.ArrayType, collections.abc.Iterable, int, float] = None,
+                 data_type: str = "f", transposed: bool = False) -> MatrixType:
         """
         Create a Matrix instance from a shape and either an iterable, a scalar number, or no arguments.
         Using only the shape creates an identity matrix if the shape is square.
@@ -379,7 +391,7 @@ class Matrix(object):
             else:
                 self._data = array.array(data_type, (0 for _ in range(length)))
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return a human-readable representation.
 
@@ -387,10 +399,15 @@ class Matrix(object):
         """
         lines = list()
         for i in range(self.shape[0]):
-            lines.append("[{}]".format(", ".join(str(e) for e in self[i, :])))
+            d = self[i, :]
+            if isinstance(d, Matrix):
+                lines.append("[{}]".format(", ".join(str(e) for e in d)))
+            else:
+                lines.append("[{}]".format(d))
+
         return "[{}]".format("\n ".join(lines))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Return a eval-compatible representation.
 
@@ -401,7 +418,7 @@ class Matrix(object):
             self._data.typecode, self._transposed
         )
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         """
         Return a bytes representation of the matrix.
 
@@ -409,7 +426,7 @@ class Matrix(object):
         """
         return self._data.tobytes()
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Return the number of matrix elements.
 
@@ -435,7 +452,7 @@ class Matrix(object):
         for d in reversed(self._data):
             yield d
 
-    def __contains__(self, item):
+    def __contains__(self, item) -> bool:
         """
         Provide the contains interface.
 
@@ -444,17 +461,21 @@ class Matrix(object):
         """
         return item in self._data
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int]]]) -> Union[int, float, MatrixType]:
         """
         Provide angle-bracket element access to the matrix.
 
         :param key:
+        :raise TypeError:
         :return:
         """
         if isinstance(key, (int, slice)):
+            # noinspection PyTypeChecker
             key = (key, slice(None))
-        elif isinstance(key, tuple) and len(key) == 1:
-            key = (key[0], slice(None))
+        elif isinstance(key, tuple):
+            if len(key) == 1:
+                # noinspection PyTypeChecker
+                key = (key[0], slice(None))
 
         if isinstance(key, tuple):
             # Flip the keys if the matrix is transposed
@@ -473,17 +494,22 @@ class Matrix(object):
         else:
             raise TypeError("Expected indices of type int, slice or tuple.")
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int]]],
+                    value: Union[int, float, MatrixType, collections.abc.Sequence]):
         """
         Provide angle-bracket element setting to the matrix.
 
         :param key:
         :param value:
+        :raise ValueError:
+        :raise TypeError:
         :return:
         """
         if isinstance(key, (int, slice)):
+            # noinspection PyTypeChecker
             key = (key, slice(None))
         elif isinstance(key, tuple) and len(key) == 1:
+            # noinspection PyTypeChecker
             key = (key[0], slice(None))
 
         if isinstance(key, tuple):
@@ -510,7 +536,7 @@ class Matrix(object):
         else:
             raise TypeError("Expected indices of type int, slice or tuple, not '{}'.".format(type(key)))
 
-    def __eq__(self, other):
+    def __eq__(self, other: MatrixType) -> bool:
         """
         Return True if all elements of two matrices are equal.
 
@@ -522,7 +548,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __neg__(self):
+    def __neg__(self) -> MatrixType:
         """
         Perform an element-wise negation.
 
@@ -533,7 +559,7 @@ class Matrix(object):
             result[i, j] = -self[i, j]
         return result
 
-    def __pos__(self):
+    def __pos__(self) -> MatrixType:
         """
         Perform an element-wise positive unary operation.
 
@@ -544,11 +570,12 @@ class Matrix(object):
             result[i, j] = +self[i, j]
         return result
 
-    def __add__(self, other):
+    def __add__(self, other: Union[int, float, MatrixType]) -> MatrixType:
         """
         Perform a left-sided element-wise addition.
 
         :param other:
+        :raise ValueError:
         :return:
         """
         if isinstance(other, Matrix):
@@ -567,7 +594,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __radd__(self, other):
+    def __radd__(self, other: Union[int, float, MatrixType]) -> MatrixType:
         """
         Perform a right-sided element-wise addition. Equivalent to __add__.
 
@@ -576,7 +603,7 @@ class Matrix(object):
         """
         return self.__add__(other)
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[int, float, MatrixType]) -> MatrixType:
         """
         Perform a left-sided element-wise subtraction.
 
@@ -585,7 +612,7 @@ class Matrix(object):
         """
         return self + -other
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: Union[int, float, MatrixType]) -> MatrixType:
         """
         Perform a right-sided element-wise subtraction.
 
@@ -594,11 +621,12 @@ class Matrix(object):
         """
         return other + -self
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union[int, float, MatrixType]) -> MatrixType:
         """
         Perform a left-sided element-wise multiplication.
 
         :param other:
+        :raise ValueError:
         :return:
         """
         if isinstance(other, Matrix):
@@ -617,7 +645,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Union[int, float, MatrixType]) -> MatrixType:
         """
         Perform a right-sided element-wise multiplication. Equivalent to __mul__.
 
@@ -626,11 +654,12 @@ class Matrix(object):
         """
         return self.__mul__(other)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union[int, float, MatrixType]) -> MatrixType:
         """
         Perform a left-sided element-wise division.
 
         :param other:
+        :raise ValueError:
         :return:
         """
         if isinstance(other, Matrix):
@@ -649,11 +678,12 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: Union[int, float, MatrixType]) -> MatrixType:
         """
         Perform a right-sided element wise division.
 
         :param other:
+        :raise ValueError:
         :return:
         """
         if isinstance(other, Matrix):
@@ -672,11 +702,12 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __matmul__(self, other):
+    def __matmul__(self, other: MatrixType) -> MatrixType:
         """
         Perform a left-sided matrix multiplication.
 
         :param other:
+        :raise ValueError:
         :return:
         """
         if isinstance(other, Matrix):
@@ -802,20 +833,6 @@ class Quaternion(object):
         :return:
         """
         return math.sqrt(sum(abs(d)**2 for d in self))
-
-    def normalize(self, inplace=True):
-        """
-        Perform Quaternion normalization.
-
-        :param inplace:
-        :return:
-        """
-        n = self / self.norm()
-
-        if inplace:
-            self._data = n.data
-        else:
-            return n
 
     def inverse(self):
         """

@@ -157,12 +157,6 @@ class TestMatrix(object):
     def test_norm(self, shape):
         assert Matrix(shape, 1).norm() == math.pow(sum(functools.reduce(operator.mul, shape) * [math.pow(abs(1), 2)]), 0.5)
 
-    def test_normalize(self, shape):
-        a = Matrix(shape, range(2, functools.reduce(operator.mul, shape) + 2))
-        assert a.norm() > 1
-        a.normalize()
-        assert math.isclose(a.norm(), 1, rel_tol=1e-05, abs_tol=1e-08)
-
     def test_cross(self, shape):
         if shape == (3, 1) or shape == (1, 3):
             a = Matrix(shape, (1, 0, 0))
@@ -176,7 +170,7 @@ class TestMatrix(object):
             assert c.cross(b) == -a
             assert a.cross(c) == -b
         else:
-            with pytest.raises(TypeError):
+            with pytest.raises(ValueError):
                 Matrix(shape).cross(Matrix(shape))
 
     def test_transpose(self, shape):
@@ -433,12 +427,6 @@ class TestQuaternion(object):
     def test_norm(self):
         assert Quaternion().norm() == 1
         assert Quaternion(1, 1, 1, 1).norm() == 2
-
-    def test_normalize(self):
-        a = Quaternion(2, 3, 4, 5)
-        assert a.norm() > 1
-        a.normalize()
-        assert math.isclose(a.norm(), 1, rel_tol=1e-05, abs_tol=1e-08)
 
     def test_transform(self):
         a = Quaternion(0, 0, 0, 1)
