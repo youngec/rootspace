@@ -157,6 +157,12 @@ class TestMatrix(object):
     def test_norm(self, shape):
         assert Matrix(shape, 1).norm() == math.pow(sum(functools.reduce(operator.mul, shape) * [math.pow(abs(1), 2)]), 0.5)
 
+    def test_normalize(self, shape):
+        a = Matrix(shape, range(2, functools.reduce(operator.mul, shape) + 2))
+        assert a.norm() > 1
+        a.normalize()
+        assert math.isclose(a.norm(), 1, rel_tol=1e-05, abs_tol=1e-08)
+
     def test_cross(self, shape):
         if shape == (3, 1) or shape == (1, 3):
             a = Matrix(shape, (1, 0, 0))
@@ -428,6 +434,18 @@ class TestQuaternion(object):
         assert Quaternion().norm() == 1
         assert Quaternion(1, 1, 1, 1).norm() == 2
 
+    def test_normalize(self):
+        a = Quaternion(2, 3, 4, 5)
+        assert a.norm() > 1
+        a.normalize()
+        assert math.isclose(a.norm(), 1, rel_tol=1e-05, abs_tol=1e-08)
+
+    def test_transform(self):
+        a = Quaternion(0, 0, 0, 1)
+        b = Matrix((4, 1), (1, 2, 3, 4))
+
+        assert a.transform(b) == b
+
     def test_addition_neutral_element(self):
         a = Quaternion(1, 2, 3, 4)
 
@@ -541,3 +559,9 @@ class TestQuaternion(object):
         c = Quaternion(3, 4, 5, 6)
 
         assert a @ (b + c) == a @ b + a @ c
+
+    def test_quaternion_vectors(self):
+        a = Quaternion(0, 0, 0, 1)
+        b = Matrix((4, 1), (1, 2, 3, 4))
+
+        assert a @ b @ a.t == Quaternion(1, 2, 3, 4)

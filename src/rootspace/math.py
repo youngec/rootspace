@@ -301,6 +301,21 @@ class Matrix(object):
         """
         return math.pow(sum(math.pow(abs(d), p) for d in self), 1/p)
 
+    def normalize(self, p=2, inplace=True):
+        """
+        Perform Matrix normalization.
+
+        :param p:
+        :param inplace:
+        :return:
+        """
+        n = self / self.norm(p)
+
+        if inplace:
+            self._data = n.data
+        else:
+            return n
+
     def cross(self, other):
         """
         Calculate the cross-product of two vectors.
@@ -725,6 +740,10 @@ class Quaternion(object):
         return self._data[3]
 
     @property
+    def data(self):
+        return self._data
+
+    @property
     def t(self):
         """
         Return the conjugate of the Quaternion.
@@ -739,11 +758,12 @@ class Quaternion(object):
         j = self.qj
         k = self.qk
         r = self.qr
+        s = 2 / self.norm()
 
         return Matrix((4, 4), (
-            1 - 2 * (j**2 + k**2), 2 * (i*j - k*r), 2 * (i*k + j*r), 0,
-            2 * (i*j + k*r), 1 - 2 * (i**2 + k**2), 2 * (j*k - i*r), 0,
-            2 * (i*k - j*r), 2 * (j*k + i*r), 1 - 2 * (i**2 + j**2), 0,
+            1 - s * (j**2 + k**2), s * (i*j - k*r), s * (i*k + j*r), 0,
+            s * (i*j + k*r), 1 - s * (i**2 + k**2), s * (j*k - i*r), 0,
+            s * (i*k - j*r), s * (j*k + i*r), 1 - s * (i**2 + j**2), 0,
             0, 0, 0, 1
         ))
 
@@ -769,6 +789,20 @@ class Quaternion(object):
         """
         return math.sqrt(sum(abs(d)**2 for d in self))
 
+    def normalize(self, inplace=True):
+        """
+        Perform Quaternion normalization.
+
+        :param inplace:
+        :return:
+        """
+        n = self / self.norm()
+
+        if inplace:
+            self._data = n.data
+        else:
+            return n
+
     def inverse(self):
         """
         Calculate the inverse of the Quaternion.
@@ -776,6 +810,17 @@ class Quaternion(object):
         :return:
         """
         return 1 / (self @ self.t).qr * self.t
+
+    def transform(self, other):
+        """
+        Transform the 4D vector by the current quaternion.
+
+        :param other:
+        :return:
+        """
+        v = self @ other @ self.t
+
+        return Matrix(other.shape, (v.qi, v.qj, v.qk, v.qr))
 
     def __init__(self, qi=0, qj=0, qk=0, qr=1, data_type="f"):
         """
@@ -959,5 +1004,18 @@ class Quaternion(object):
                 self.qr * other.qk + self.qi * other.qj - self.qj * other.qi + self.qk * other.qr,
                 self.qr * other.qr - self.qi * other.qi - self.qj * other.qj - self.qk * other.qk
             )
+        elif isinstance(other, Matrix) and other.shape == (4, 1) or other.shape == (1, 4):
+            if other.shape == (1, 4):
+                other = other.t
+
+            if other.shape == (4, 1):
+                return Quaternion(
+                    self.qr * other[0] + self.qi * other[3] + self.qj * other[2] - self.qk * other[1],
+                    self.qr * other[1] - self.qi * other[2] + self.qj * other[3] + self.qk * other[0],
+                    self.qr * other[2] + self.qi * other[1] - self.qj * other[0] + self.qk * other[3],
+                    self.qr * other[3] - self.qi * other[0] - self.qj * other[1] - self.qk * other[2]
+                )
+            else:
+                raise ValueError("Expected a four-dimensional vector as operand, got '{}'.".format(other))
         else:
             return NotImplemented
