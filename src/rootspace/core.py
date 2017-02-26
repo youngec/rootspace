@@ -408,7 +408,6 @@ class World(object):
         glfw.set_key_callback(window, None)
         glfw.set_cursor_pos_callback(window, None)
 
-
     def callback_resize(self, window, width, height):
         for camera in self.get_entities(Camera):
             camera.shape = (width, height)
