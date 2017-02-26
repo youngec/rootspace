@@ -434,6 +434,17 @@ class TestQuaternion(object):
 
         assert a.transform(b) == b
 
+    @pytest.mark.xfail
+    def test_from_axis(self):
+        raise NotImplementedError()
+
+    def test_slerp(self):
+        a = Quaternion(1, 0, 0, 1)
+        b = Quaternion(0, 1, 0, 1)
+
+        assert Quaternion.slerp(a, b, 0.0) == a / a.norm()
+        assert Quaternion.slerp(a, b, 1.0) == b / b.norm()
+
     def test_addition_neutral_element(self):
         a = Quaternion(1, 2, 3, 4)
 

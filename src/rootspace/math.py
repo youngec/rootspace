@@ -29,9 +29,17 @@ def all_close(a: Any, b: Any, rel_tol: float = 1e-05, abs_tol: float = 1e-08) ->
     :return:
     """
     if hasattr(a, "all_close"):
-        return a.all_close(b, rel_tol, abs_tol)
+        r = a.all_close(b, rel_tol, abs_tol)
+        if r is NotImplemented:
+            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
+        else:
+            return r
     elif hasattr(b, "all_close"):
-        return b.all_close(a, rel_tol, abs_tol)
+        r = b.all_close(a, rel_tol, abs_tol)
+        if r is NotImplemented:
+            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
+        else:
+            return r
     else:
         raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
 
@@ -268,7 +276,7 @@ class Matrix(object):
                 result[i, j] = math.isclose(self[i, j], other, rel_tol=rel_tol, abs_tol=abs_tol)
             return result
         else:
-            raise TypeError("unsupported operand type(s) for is_close() '{}' and '{}'".format(type(self), type(other)))
+            return NotImplemented
 
     def all_close(self, other: Any, rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> bool:
         """
@@ -738,41 +746,74 @@ class Quaternion(object):
     The Quaternion class provides a way to work with four-dimensional complex numbers.
     """
     @classmethod
-    def from_axis(cls, axis: GenericMatrix, angle: Number) -> QuaternionType:
+    def from_axis(cls, axis: MatrixType, angle: Number) -> QuaternionType:
         """
         Create a Quaternion from an axis and an angle.
 
         :param axis:
         :param angle:
+        :raise ValueError:
         :return:
         """
-        if not isinstance(axis, Matrix):
-            axis = Matrix((3, 1), axis)
+        if axis.is_3d_vector:
+            axis /= axis.norm()
+            angle %= 2 * math.pi
 
-        axis /= axis.norm()
-        angle %= 2 * math.pi
+            c = math.cos(angle / 2)
+            s = math.sin(angle / 2)
 
-        c = math.cos(angle / 2)
-        s = math.sin(angle / 2)
-
-        return Quaternion(
-            s * axis[0],
-            s * axis[1],
-            s * axis[2],
-            c
-        )
+            return Quaternion(
+                s * axis[0],
+                s * axis[1],
+                s * axis[2],
+                c
+            )
+        else:
+            raise ValueError("Expected a three-dimensional vector as axis, got '{}'.".format(axis))
 
     @classmethod
-    def look_at(cls, source: GenericMatrix, target: GenericMatrix, up_direction: GenericMatrix) -> QuaternionType:
+    def from_vectors(cls, s: MatrixType, t: MatrixType) -> QuaternionType:
         """
-        Construct a Quaternion from a source position, a target position, and a locked up position.
+        Create a Quaternion from two 3D vectors. The Quaternion describes the rotation from source to target.
 
-        :param source:
-        :param target:
-        :param up_direction:
+        :param s:
+        :param t:
+        :raise ValueError:
         :return:
         """
-        raise NotImplementedError()
+        if s.is_3d_vector and t.is_3d_vector:
+            s /= s.norm()
+            t /= t.norm()
+
+            a = s.cross(t)
+            b = math.sqrt(2 * (1 + math.e))
+
+            return Quaternion(
+                1/b * a[0],
+                1/b * a[1],
+                1/b * a[2],
+                b/2
+            )
+        else:
+            raise ValueError("Expected three-dimensional vectors, got '{}' and '{}'.".format(s, t))
+
+    @classmethod
+    def slerp(cls, s: QuaternionType, t: QuaternionType, x: float) -> QuaternionType:
+        """
+
+        :param s:
+        :param t:
+        :param x:
+        :return:
+        """
+        s /= s.norm()
+        t /= t.norm()
+
+        phi = math.acos(sum(s * t))
+        a = math.sin(phi * (1 - x)) / math.sin(phi)
+        b = math.sin(phi * x) / math.sin(phi)
+
+        return a * s + b * t
 
     @property
     def qi(self) -> Number:
@@ -804,6 +845,15 @@ class Quaternion(object):
         return Quaternion(-self.qi, -self.qj, -self.qk, self.qr)
 
     @property
+    def vector(self) -> MatrixType:
+        return Matrix((4, 1), (
+            self.qi,
+            self.qj,
+            self.qk,
+            self.qr
+        ))
+
+    @property
     def matrix(self) -> MatrixType:
         i = self.qi
         j = self.qj
@@ -831,7 +881,7 @@ class Quaternion(object):
         if isinstance(other, Quaternion):
             return all(math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol) for a, b in zip(self, other))
         else:
-            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(self), type(other)))
+            return NotImplemented
 
     def norm(self) -> float:
         """
@@ -856,9 +906,7 @@ class Quaternion(object):
         :param other:
         :return:
         """
-        v = self @ other @ self.inverse()
-
-        return Matrix(other.shape, (v.qi, v.qj, v.qk, v.qr))
+        return (self @ other @ self.inverse()).vector
 
     def __init__(self, qi: Number = 0.0, qj: Number = 0.0, qk: Number = 0.0, qr: Number = 1.0, data_type: str = "f"):
         """
