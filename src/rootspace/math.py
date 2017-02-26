@@ -300,6 +300,30 @@ class Matrix(object):
         return len(self) == 1
 
     @property
+    def right(self):
+        return Matrix((3, 1), (1, 0, 0))
+
+    @property
+    def left(self):
+        return -self.right
+
+    @property
+    def up(self):
+        return Matrix((3, 1), (0, 1, 0))
+
+    @property
+    def down(self):
+        return -self.up
+
+    @property
+    def forward(self):
+        return Matrix((3, 1), (0, 0, -1))
+
+    @property
+    def backward(self):
+        return -self.forward
+
+    @property
     def t(self) -> MatrixType:
         return Matrix(self._shape, self.data, transposed=(not self._transposed))
 
