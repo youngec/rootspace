@@ -256,14 +256,13 @@ class World(object):
         :return:
         """
         if system not in self.systems:
-            if self._is_valid_system(system):
-                self._log.debug("Adding System '{}'.".format(system))
-                if self._is_update_system(system):
-                    self._update_systems.append(system)
-                elif self._is_render_system(system):
-                    self._render_systems.append(system)
-                elif self._is_event_system(system):
-                    self._event_systems.append(system)
+            self._log.debug("Adding System '{}'.".format(system))
+            if isinstance(system, UpdateSystem):
+                self._update_systems.append(system)
+            elif isinstance(system, RenderSystem):
+                self._render_systems.append(system)
+            elif isinstance(system, EventSystem):
+                self._event_systems.append(system)
             else:
                 raise TypeError("The specified system cannot be used as such.")
         else:
@@ -593,42 +592,6 @@ class World(object):
 
         self.set_entities(*entities.values())
         self.set_systems(*systems)
-
-    def _is_update_system(self, system):
-        """
-        Determine if a supplied system is an update system.
-
-        :param system:
-        :return:
-        """
-        return isinstance(system, UpdateSystem)
-
-    def _is_render_system(self, system):
-        """
-        Determine if a supplied system is a render system.
-
-        :param system:
-        :return:
-        """
-        return isinstance(system, RenderSystem)
-
-    def _is_event_system(self, system):
-        """
-        Determine if a supplied system is an event system.
-
-        :param system:
-        :return:
-        """
-        return isinstance(system, EventSystem)
-
-    def _is_valid_system(self, system):
-        """
-        Determine if a supplied system can be used as such.
-
-        :param system:
-        :return:
-        """
-        return self._is_update_system(system) or self._is_render_system(system) or self._is_event_system(system)
 
 
 @attr.s
