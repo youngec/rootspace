@@ -709,7 +709,21 @@ class Quaternion(object):
         :param angle:
         :return:
         """
-        raise NotImplementedError()
+        if not isinstance(axis, Matrix):
+            axis = Matrix((3, 1), axis)
+
+        axis /= axis.norm()
+        angle %= 2 * math.pi
+
+        c = math.cos(angle / 2)
+        s = math.sin(angle / 2)
+
+        return Quaternion(
+            s * axis[0],
+            s * axis[1],
+            s * axis[2],
+            c
+        )
 
     @classmethod
     def look_at(cls, source, target, up_direction):
@@ -822,7 +836,7 @@ class Quaternion(object):
 
         return Matrix(other.shape, (v.qi, v.qj, v.qk, v.qr))
 
-    def __init__(self, qi=0, qj=0, qk=0, qr=1, data_type="f"):
+    def __init__(self, qi=0.0, qj=0.0, qk=0.0, qr=1.0, data_type="f"):
         """
         Create a Quaternion from the four components:
 
