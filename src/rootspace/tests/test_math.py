@@ -564,4 +564,4 @@ class TestQuaternion(object):
         a = Quaternion(0, 0, 0, 1)
         b = Matrix((4, 1), (1, 2, 3, 4))
 
-        assert a @ b @ a.t == Quaternion(1, 2, 3, 4)
+        assert a @ b @ a.inverse() == Quaternion(1, 2, 3, 4)

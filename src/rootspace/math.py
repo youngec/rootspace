@@ -818,7 +818,7 @@ class Quaternion(object):
         :param other:
         :return:
         """
-        v = self @ other @ self.t
+        v = self @ other @ self.inverse()
 
         return Matrix(other.shape, (v.qi, v.qj, v.qk, v.qr))
 
