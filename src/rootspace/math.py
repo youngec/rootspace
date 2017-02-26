@@ -6,7 +6,7 @@ import array
 import functools
 import operator
 import itertools
-from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional
+from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional, Collection
 
 from .utilities import get_sub_shape, linearize_indices
 
@@ -49,6 +49,28 @@ class Matrix(object):
     The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
     """
     @classmethod
+    def from_iterable(cls, data) -> MatrixType:
+        """
+        Return a matrix from a collection with shape information.
+
+        :param data:
+        :return:
+        """
+        if isinstance(data, collections.abc.Collection):
+            if all(isinstance(row, (int, float)) for row in data):
+                return Matrix((len(data), 1), data)
+            elif all(isinstance(row, collections.abc.Collection) for row in data):
+                if functools.reduce(operator.eq, (len(row) for row in data)):
+                    shape = (len(data), len(data[0]))
+                    return Matrix(shape, (column for row in data for column in row))
+                else:
+                    raise ValueError("Elements of data do not have the same length.")
+            else:
+                raise TypeError("Expected integers, floats or collections as elements of data.")
+        else:
+            raise TypeError("Expected a collection, got '{}'.".format(data))
+
+    @classmethod
     def identity(cls, d: int) -> MatrixType:
         """
         Return an identity matrix of shape d x d.
@@ -57,6 +79,36 @@ class Matrix(object):
         :return:
         """
         return cls((d, d))
+
+    @classmethod
+    def zeros(cls, shape: Union[int, Tuple[int, ...]]) -> MatrixType:
+        """
+        Create a matrix with zeros.
+
+        :param shape:
+        :return:
+        """
+        if isinstance(shape, int):
+            return Matrix((shape, 1), 0)
+        elif isinstance(shape, tuple):
+            return Matrix(shape, 0)
+        else:
+            raise TypeError("Expected an integer or a tuple of integers.")
+
+    @classmethod
+    def ones(cls, shape: Union[int, Tuple[int, ...]]) -> MatrixType:
+        """
+        Create a matrix with ones.
+
+        :param shape:
+        :return:
+        """
+        if isinstance(shape, int):
+            return Matrix((shape, 1), 1)
+        elif isinstance(shape, tuple):
+            return Matrix(shape, 1)
+        else:
+            raise TypeError("Expected an integer or a tuple of integers.")
 
     @classmethod
     def translation(cls, t_x: Number, t_y: Number, t_z: Number) -> MatrixType:

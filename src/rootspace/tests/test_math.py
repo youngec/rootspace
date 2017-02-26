@@ -181,6 +181,28 @@ class TestMatrix(object):
         for i, j in itertools.product(range(a.shape[0]), range(a.shape[1])):
             assert a[i, j] == a.t[j, i]
 
+    def test_from_iterable(self):
+        data = (
+            (0, 1),
+            (2, 3)
+        )
+
+        assert Matrix.from_iterable(data) == Matrix((2, 2), range(4))
+
+        data = (
+            0, 1, 2, 3
+        )
+
+        assert Matrix.from_iterable(data) == Matrix((4, 1), range(4))
+
+        data = (
+            (0, 1),
+            (0, 1, 2)
+        )
+
+        with pytest.raises(ValueError):
+            Matrix.from_iterable(data)
+
     def test_identity(self):
         assert Matrix.identity(4) == Matrix((4, 4))
         assert Matrix.identity(4) == Matrix((4, 4), (
@@ -189,6 +211,14 @@ class TestMatrix(object):
             0, 0, 1, 0,
             0, 0, 0, 1
         ))
+
+    def test_zeros(self):
+        assert Matrix.zeros(4) == Matrix((4, 1), 0)
+        assert Matrix.zeros((4, 4)) == Matrix((4, 4), 0)
+
+    def test_ones(self):
+        assert Matrix.zeros(4) == Matrix((4, 1), 1)
+        assert Matrix.zeros((4, 4)) == Matrix((4, 4), 1)
 
     def test_translation(self):
         assert Matrix.translation(2, 2, 2) == Matrix((4, 4), (
