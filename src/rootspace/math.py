@@ -204,7 +204,7 @@ class Matrix(object):
         ))
 
     @property
-    def shape(self) -> Tuple[int]:
+    def shape(self) -> Tuple[int, ...]:
         return self._shape if not self._transposed else self._shape[::-1]
 
     @property
