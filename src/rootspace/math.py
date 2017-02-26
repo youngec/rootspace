@@ -6,12 +6,14 @@ import array
 import functools
 import operator
 import itertools
-from typing import Any, Union, Tuple, NewType
+from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional
 
 from .utilities import get_sub_shape, linearize_indices
 
 
+Number = NewType("Number", Union[int, float])
 MatrixType = NewType("Matrix", object)
+GenericMatrix = NewType("GenericMatrix", Union[Iterable[Number], MatrixType])
 QuaternionType = NewType("Quaternion", object)
 
 
@@ -49,7 +51,7 @@ class Matrix(object):
         return cls((d, d))
 
     @classmethod
-    def translation(cls, t_x: Union[int, float], t_y: Union[int, float], t_z: Union[int, float]) -> MatrixType:
+    def translation(cls, t_x: Number, t_y: Number, t_z: Number) -> MatrixType:
         """
         Return an affine translation Matrix.
 
@@ -66,7 +68,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def rotation_x(cls, angle: Union[int, float]) -> MatrixType:
+    def rotation_x(cls, angle: Number) -> MatrixType:
         """
         Return an affine rotation matrix about the x-axis.
 
@@ -83,7 +85,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def rotation_y(cls, angle: Union[int, float]) -> MatrixType:
+    def rotation_y(cls, angle: Number) -> MatrixType:
         """
         Return an affine rotation matrix about the y-axis.
 
@@ -100,7 +102,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def rotation_z(cls, angle: Union[int, float]) -> MatrixType:
+    def rotation_z(cls, angle: Number) -> MatrixType:
         """
         Return an affine rotation matrix about the z-axis.
 
@@ -117,7 +119,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def scaling(cls, s_x: Union[int, float], s_y: Union[int, float], s_z: Union[int, float]) -> MatrixType:
+    def scaling(cls, s_x: Number, s_y: Number, s_z: Number) -> MatrixType:
         """
         Return an affine scaling matrix.
 
@@ -134,7 +136,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def shearing(cls, s: Union[int, float], i: int, j: int) -> MatrixType:
+    def shearing(cls, s: Number, i: int, j: int) -> MatrixType:
         """
         Return an affine shearing matrix.
 
@@ -148,9 +150,9 @@ class Matrix(object):
         return h
 
     @classmethod
-    def orthographic(cls, left: Union[int, float], right: Union[int, float],
-                     bottom: Union[int, float], top: Union[int, float],
-                     near: Union[int, float], far: Union[int, float]) -> MatrixType:
+    def orthographic(cls, left: Number, right: Number,
+                     bottom: Number, top: Number,
+                     near: Number, far: Number) -> MatrixType:
         """
         Create an orthographic projection matrix.
 
@@ -177,8 +179,8 @@ class Matrix(object):
         ))
 
     @classmethod
-    def perspective(cls, field_of_view: Union[int, float], viewport_ratio: Union[int, float],
-                    near: Union[int, float], far: Union[int, float]) -> MatrixType:
+    def perspective(cls, field_of_view: Number, viewport_ratio: Number,
+                    near: Number, far: Number) -> MatrixType:
         """
         Create a perspective projection matrix.
 
@@ -332,7 +334,7 @@ class Matrix(object):
         :return:
         """
         if isinstance(other, Matrix):
-            if self.is_vector and other.is_vector and len(self) == 3 and len(other) == 3:
+            if self.is_3d_vector and other.is_3d_vector:
                 s = self
                 if self.is_row_vector:
                     s = self.t
@@ -351,8 +353,12 @@ class Matrix(object):
         else:
             raise TypeError("unsupported operand type(s) for cross() '{}' and '{}'".format(type(self), type(other)))
 
-    def __init__(self, shape: Tuple[int], data: Union[None, array.ArrayType, collections.abc.Iterable, int, float] = None,
-                 data_type: str = "f", transposed: bool = False) -> MatrixType:
+    def __init__(self,
+                 shape: Tuple[int, ...],
+                 data: Optional[Union[Iterable[Number], int, float]] = None,
+                 data_type: str = "f",
+                 transposed: bool = False
+                 ):
         """
         Create a Matrix instance from a shape and either an iterable, a scalar number, or no arguments.
         Using only the shape creates an identity matrix if the shape is square.
@@ -461,7 +467,7 @@ class Matrix(object):
         """
         return item in self._data
 
-    def __getitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int]]]) -> Union[int, float, MatrixType]:
+    def __getitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int, ...]]]) -> Union[int, float, MatrixType]:
         """
         Provide angle-bracket element access to the matrix.
 
@@ -494,8 +500,8 @@ class Matrix(object):
         else:
             raise TypeError("Expected indices of type int, slice or tuple.")
 
-    def __setitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int]]],
-                    value: Union[int, float, MatrixType, collections.abc.Sequence]):
+    def __setitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int, ...]]],
+                    value: Union[int, float, MatrixType, Sequence[Number]]):
         """
         Provide angle-bracket element setting to the matrix.
 
@@ -732,7 +738,7 @@ class Quaternion(object):
     The Quaternion class provides a way to work with four-dimensional complex numbers.
     """
     @classmethod
-    def from_axis(cls, axis, angle):
+    def from_axis(cls, axis: GenericMatrix, angle: Number) -> QuaternionType:
         """
         Create a Quaternion from an axis and an angle.
 
@@ -757,7 +763,7 @@ class Quaternion(object):
         )
 
     @classmethod
-    def look_at(cls, source, target, up_direction):
+    def look_at(cls, source: GenericMatrix, target: GenericMatrix, up_direction: GenericMatrix) -> QuaternionType:
         """
         Construct a Quaternion from a source position, a target position, and a locked up position.
 
@@ -769,27 +775,27 @@ class Quaternion(object):
         raise NotImplementedError()
 
     @property
-    def qi(self):
+    def qi(self) -> Number:
         return self._data[0]
 
     @property
-    def qj(self):
+    def qj(self) -> Number:
         return self._data[1]
 
     @property
-    def qk(self):
+    def qk(self) -> Number:
         return self._data[2]
 
     @property
-    def qr(self):
+    def qr(self) -> Number:
         return self._data[3]
 
     @property
-    def data(self):
+    def data(self) -> array.ArrayType:
         return self._data
 
     @property
-    def t(self):
+    def t(self) -> QuaternionType:
         """
         Return the conjugate of the Quaternion.
 
@@ -798,7 +804,7 @@ class Quaternion(object):
         return Quaternion(-self.qi, -self.qj, -self.qk, self.qr)
 
     @property
-    def matrix(self):
+    def matrix(self) -> MatrixType:
         i = self.qi
         j = self.qj
         k = self.qk
@@ -812,13 +818,14 @@ class Quaternion(object):
             0, 0, 0, 1
         ))
 
-    def all_close(self, other, rel_tol=1e-05, abs_tol=1e-08):
+    def all_close(self, other: QuaternionType, rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> bool:
         """
         Return True if all elements compare approximately equal, False otherwise.
 
         :param other:
         :param rel_tol:
         :param abs_tol:
+        :raise TypeError:
         :return:
         """
         if isinstance(other, Quaternion):
@@ -826,7 +833,7 @@ class Quaternion(object):
         else:
             raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(self), type(other)))
 
-    def norm(self):
+    def norm(self) -> float:
         """
         Calculate the L2 norm of the Matrix.
 
@@ -834,7 +841,7 @@ class Quaternion(object):
         """
         return math.sqrt(sum(abs(d)**2 for d in self))
 
-    def inverse(self):
+    def inverse(self) -> QuaternionType:
         """
         Calculate the inverse of the Quaternion.
 
@@ -842,7 +849,7 @@ class Quaternion(object):
         """
         return 1 / (self @ self.t).qr * self.t
 
-    def transform(self, other):
+    def transform(self, other: MatrixType) -> MatrixType:
         """
         Transform the 4D vector by the current quaternion.
 
@@ -853,7 +860,7 @@ class Quaternion(object):
 
         return Matrix(other.shape, (v.qi, v.qj, v.qk, v.qr))
 
-    def __init__(self, qi=0.0, qj=0.0, qk=0.0, qr=1.0, data_type="f"):
+    def __init__(self, qi: Number = 0.0, qj: Number = 0.0, qk: Number = 0.0, qr: Number = 1.0, data_type: str = "f"):
         """
         Create a Quaternion from the four components:
 
@@ -867,7 +874,7 @@ class Quaternion(object):
         """
         self._data = array.array(data_type, (qi, qj, qk, qr))
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return a printable representation of a Quaternion.
 
@@ -875,7 +882,7 @@ class Quaternion(object):
         """
         return "{}i + {}j + {}k + {}".format(self.qi, self.qj, self.qk, self.qr)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Return a representation of a Quaternion that can be evaluated as code.
 
@@ -901,7 +908,7 @@ class Quaternion(object):
         for d in reversed(self._data):
             yield d
 
-    def __eq__(self, other):
+    def __eq__(self, other: QuaternionType) -> bool:
         """
         Return True if the Quaternions are equal.
 
@@ -913,7 +920,7 @@ class Quaternion(object):
         else:
             return NotImplemented
 
-    def __neg__(self):
+    def __neg__(self) -> QuaternionType:
         """
         Perform a negation.
 
@@ -921,7 +928,7 @@ class Quaternion(object):
         """
         return Quaternion(-self.qi, -self.qj, -self.qk, -self.qr)
 
-    def __pos__(self):
+    def __pos__(self) -> QuaternionType:
         """
         Perform a unary positive operation.
 
@@ -929,7 +936,7 @@ class Quaternion(object):
         """
         return Quaternion(+self.qi, +self.qj, +self.qk, +self.qr)
 
-    def __add__(self, other):
+    def __add__(self, other: Union[int, float, QuaternionType]) -> QuaternionType:
         """
         Perform an addition.
 
@@ -943,7 +950,7 @@ class Quaternion(object):
         else:
             return NotImplemented
 
-    def __radd__(self, other):
+    def __radd__(self, other: Union[int, float, QuaternionType]) -> QuaternionType:
         """
         Perform a right-sided addition. Equivalent to left-sided.
 
@@ -952,7 +959,7 @@ class Quaternion(object):
         """
         return self.__add__(other)
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[int, float, QuaternionType]) -> QuaternionType:
         """
         Perform a subtraction.
 
@@ -961,7 +968,7 @@ class Quaternion(object):
         """
         return self + -other
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: Union[int, float, QuaternionType]) -> QuaternionType:
         """
         Perform a right-sided subtraction.
 
@@ -970,7 +977,7 @@ class Quaternion(object):
         """
         return other + -self
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union[int, float, QuaternionType]) -> QuaternionType:
         """
         Perform an element-wise multiplication.
 
@@ -984,7 +991,7 @@ class Quaternion(object):
         else:
             return NotImplemented
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Union[int, float, QuaternionType]) -> QuaternionType:
         """
         Perform a right-sided element-wise multiplication. Equivalent to left-sided.
 
@@ -993,7 +1000,7 @@ class Quaternion(object):
         """
         return self.__mul__(other)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union[int, float, QuaternionType]) -> QuaternionType:
         """
         Perform an element-wise division.
 
@@ -1007,7 +1014,7 @@ class Quaternion(object):
         else:
             return NotImplemented
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: Union[int, float, QuaternionType]) -> QuaternionType:
         """
         Perform a right-sided element-wise division.
 
@@ -1021,11 +1028,12 @@ class Quaternion(object):
         else:
             return NotImplemented
 
-    def __matmul__(self, other):
+    def __matmul__(self, other: Union[int, float, QuaternionType]) -> QuaternionType:
         """
         Perform a quaternion multiplication.
 
         :param other:
+        :raise ValueError:
         :return:
         """
         if isinstance(other, Quaternion):
@@ -1035,11 +1043,11 @@ class Quaternion(object):
                 self.qr * other.qk + self.qi * other.qj - self.qj * other.qi + self.qk * other.qr,
                 self.qr * other.qr - self.qi * other.qi - self.qj * other.qj - self.qk * other.qk
             )
-        elif isinstance(other, Matrix) and other.shape == (4, 1) or other.shape == (1, 4):
-            if other.shape == (1, 4):
+        elif isinstance(other, Matrix) and other.is_4d_vector:
+            if other.is_row_vector:
                 other = other.t
 
-            if other.shape == (4, 1):
+            if other.is_column_vector:
                 return Quaternion(
                     self.qr * other[0] + self.qi * other[3] + self.qj * other[2] - self.qk * other[1],
                     self.qr * other[1] - self.qi * other[2] + self.qj * other[3] + self.qk * other[0],
