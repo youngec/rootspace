@@ -9,10 +9,10 @@ import warnings
 import PIL.Image
 import OpenGL.GL as gl
 import attr
-import numpy
 from attr.validators import instance_of
 
 from .exceptions import OpenGLError, FixmeWarning
+from .math import Matrix
 
 
 @attr.s
@@ -267,9 +267,9 @@ class OpenGlProgram(object):
 
     def uniform(self, name, value):
         loc = self.uniform_location(name)
-        if isinstance(value, numpy.ndarray):
+        if isinstance(value, Matrix):
             if value.shape == (4, 4):
-                gl.glUniformMatrix4fv(loc, 1, True, value)
+                gl.glUniformMatrix4fv(loc, 1, True, bytes(value))
             else:
                 raise NotImplementedError("Cannot set any other matrix shapes yet.")
         elif isinstance(value, int):
