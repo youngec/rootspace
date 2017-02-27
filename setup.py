@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 # Install dependencies from a "[metadata] setup-requires = ..." section in
 # setup.cfg, then run real-setup.py (or inline setup.py)
 # From https://bitbucket.org/dholth/setup-requires
@@ -85,7 +86,6 @@ if __name__ == "__main__":
             "click",
             "colorlog",
             "attrs",
-            "numpy",
             "glfw",
             "pyopengl",
             "xxhash",
