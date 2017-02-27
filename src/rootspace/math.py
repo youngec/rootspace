@@ -6,7 +6,7 @@ import array
 import functools
 import operator
 import itertools
-from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional, Collection
+from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional
 
 from .utilities import get_sub_shape, linearize_indices
 
@@ -49,17 +49,17 @@ class Matrix(object):
     The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
     """
     @classmethod
-    def from_iterable(cls, data) -> MatrixType:
+    def from_iterable(cls, data: Sequence[Union[Number, Sequence[Number]]]) -> MatrixType:
         """
         Return a matrix from a collection with shape information.
 
         :param data:
         :return:
         """
-        if isinstance(data, collections.abc.Collection):
+        if isinstance(data, collections.abc.Sequence):
             if all(isinstance(row, (int, float)) for row in data):
                 return Matrix((len(data), 1), data)
-            elif all(isinstance(row, collections.abc.Collection) for row in data):
+            elif all(isinstance(row, collections.abc.Sequence) for row in data):
                 if functools.reduce(operator.eq, (len(row) for row in data)):
                     shape = (len(data), len(data[0]))
                     return Matrix(shape, (column for row in data for column in row))
@@ -264,6 +264,34 @@ class Matrix(object):
         ))
 
     @property
+    def is_scalar(self) -> bool:
+        return len(self) == 1
+
+    @classmethod
+    def right(cls):
+        return cls((3, 1), (1, 0, 0))
+
+    @classmethod
+    def left(cls):
+        return cls((3, 1), (-1, 0, 0))
+
+    @classmethod
+    def up(cls):
+        return cls((3, 1), (0, 1, 0))
+
+    @classmethod
+    def down(cls):
+        return cls((3, 1), (0, -1, 0))
+
+    @classmethod
+    def forward(cls):
+        return cls((3, 1), (0, 0, -1))
+
+    @classmethod
+    def backward(cls):
+        return cls((3, 1), (0, 0, 1))
+
+    @property
     def shape(self) -> Tuple[int, ...]:
         return self._shape if not self._transposed else self._shape[::-1]
 
@@ -294,34 +322,6 @@ class Matrix(object):
     @property
     def is_3d_vector(self) -> bool:
         return self.is_vector and self.shape == (3, 1) or self.shape == (1, 3)
-
-    @property
-    def is_scalar(self) -> bool:
-        return len(self) == 1
-
-    @property
-    def right(self):
-        return Matrix((3, 1), (1, 0, 0))
-
-    @property
-    def left(self):
-        return -self.right
-
-    @property
-    def up(self):
-        return Matrix((3, 1), (0, 1, 0))
-
-    @property
-    def down(self):
-        return -self.up
-
-    @property
-    def forward(self):
-        return Matrix((3, 1), (0, 0, -1))
-
-    @property
-    def backward(self):
-        return -self.forward
 
     @property
     def t(self) -> MatrixType:
