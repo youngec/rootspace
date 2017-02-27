@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """The engine core holds the entry point into the game execution."""
@@ -10,7 +9,6 @@ import shutil
 import weakref
 import collections
 import os
-import warnings
 
 import OpenGL.GL as gl
 import attr
@@ -21,7 +19,7 @@ from .systems import SystemMeta, UpdateSystem, RenderSystem, EventSystem
 from .entities import EntityMeta, Camera
 from .components import ComponentMeta
 from .events import KeyEvent, CharEvent, CursorEvent, SceneEvent
-from .exceptions import GLFWError, FixmeWarning
+from .exceptions import GLFWError
 from .utilities import subclass_of
 from .data_abstractions import KeyMap, ContextData, Scene
 
