@@ -32,7 +32,7 @@
     "cam_phys_prop": {"class": "physics_properties", "args": []},
     "cam_phys_state": {"class": "physics_state", "args": []},
     "cam_proj": {"class": "projection", "args": ["field_of_view", "window_shape", "near_plane", "far_plane"]},
-    "te_trf": {"class": "transform", "args": [[0.0, 0.0, -10.0], [0.1, 0.1, 0.1]]},
+    "te_trf": {"class": "transform", "args": [[0.0, 0.0, -10.0], [0, 0, 0, 1], [0.1, 0.1, 0.1]]},
     "cube": {
       "class": "model",
       "args": [
