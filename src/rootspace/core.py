@@ -507,26 +507,11 @@ class World(object):
         :param reference_tree:
         :return:
         """
-        warnings.warn("Loading objects is terribly ugly.", FixmeWarning)
         if isinstance(object_tree, dict):
             objects = dict()
             for k, v in object_tree.items():
                 cls = class_registry[v["class"]]
-                kwargs = dict()
-                for name, arg in v["kwargs"].items():
-                    if isinstance(arg, str):
-                        if arg in scene:
-                            kwargs[name] = scene[arg]
-                        elif arg in self.ctx.data:
-                            kwargs[name] = self.ctx.data[arg]
-                        elif reference_tree is not None and arg in reference_tree:
-                            kwargs[name] = reference_tree[arg]
-                        elif any(p in arg for p in (os.path.sep, "/", "\\")):
-                            kwargs[name] = self.ctx.resources / arg
-                        else:
-                            kwargs[name] = arg
-                    else:
-                        kwargs[name] = arg
+                kwargs = self._parse_arguments(scene, v, reference_tree)
 
                 if hasattr(cls, "create"):
                     objects[k] = cls.create(**kwargs)
@@ -536,21 +521,7 @@ class World(object):
             objects = list()
             for v in object_tree:
                 cls = class_registry[v["class"]]
-                kwargs = dict()
-                for name, arg in v["kwargs"].items():
-                    if isinstance(arg, str):
-                        if arg in scene:
-                            kwargs[name] = scene[arg]
-                        elif arg in self.ctx.data:
-                            kwargs[name] = self.ctx.data[arg]
-                        elif reference_tree is not None and arg in reference_tree:
-                            kwargs[name] = reference_tree[arg]
-                        elif any(p in arg for p in (os.path.sep, "/", "\\")):
-                            kwargs[name] = self.ctx.resources / arg
-                        else:
-                            kwargs[name] = arg
-                    else:
-                        kwargs[name] = arg
+                kwargs = self._parse_arguments(scene, v, reference_tree)
 
                 if hasattr(cls, "create"):
                     objects.append(cls.create(**kwargs))
@@ -558,6 +529,34 @@ class World(object):
                     objects.append(cls(**kwargs))
 
         return objects
+
+    def _parse_arguments(self, scene, obj, reference_tree=None):
+        """
+        Parse the arguments attached to the object serialization
+        and return a dictionary of keyword arguments.
+
+        :param scene:
+        :param obj:
+        :param reference_tree:
+        :return:
+        """
+        kwargs = dict()
+        for name, arg in obj["kwargs"].items():
+            if isinstance(arg, str):
+                if arg in scene:
+                    kwargs[name] = scene[arg]
+                elif arg in self.ctx.data:
+                    kwargs[name] = self.ctx.data[arg]
+                elif reference_tree is not None and arg in reference_tree:
+                    kwargs[name] = reference_tree[arg]
+                elif any(p in arg for p in (os.path.sep, "/", "\\")):
+                    kwargs[name] = self.ctx.resources / arg
+                else:
+                    kwargs[name] = arg
+            else:
+                kwargs[name] = arg
+
+        return kwargs
 
     def _update_world(self, old_scene, new_scene):
         """
