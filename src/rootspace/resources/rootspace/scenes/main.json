@@ -13,33 +13,56 @@
   "near_plane": 0.1,
   "far_plane": 1000.0,
   "systems": [
-    {"class": "player_movement_system", "args": []},
-    {"class": "physics_system", "args": []},
-    {"class": "open_gl_renderer", "args": []}
+    {"class": "player_movement_system", "kwargs": {}},
+    {"class": "physics_system", "kwargs": {}},
+    {"class": "open_gl_renderer", "kwargs": {}}
   ],
   "entities": {
     "camera": {
       "class": "camera",
-      "args": ["cam_trf", "cam_phys_prop", "cam_phys_state", "cam_proj"]
+      "kwargs": {
+        "transform": "cam_trf",
+        "physics_properties": "cam_phys_prop",
+        "physics_state": "cam_phys_state",
+        "projection": "cam_proj"
+      }
     },
     "test_entity": {
       "class": "static_object",
-      "args": ["te_trf", "cube"]
+      "kwargs": {
+        "transform": "te_trf",
+        "model": "cube"
+      }
     }
   },
   "components": {
-    "cam_trf": {"class": "transform", "args": []},
-    "cam_phys_prop": {"class": "physics_properties", "args": []},
-    "cam_phys_state": {"class": "physics_state", "args": []},
-    "cam_proj": {"class": "projection", "args": ["field_of_view", "window_shape", "near_plane", "far_plane"]},
-    "te_trf": {"class": "transform", "args": [[0.0, 0.0, -10.0], [0, 0, 0, 1], [0.1, 0.1, 0.1]]},
+    "cam_trf": {"class": "transform", "kwargs": {}},
+    "cam_phys_prop": {"class": "physics_properties", "kwargs": {}},
+    "cam_phys_state": {"class": "physics_state", "kwargs": {}},
+    "cam_proj": {
+      "class": "projection",
+      "kwargs": {
+        "field_of_view": "field_of_view",
+        "window_shape": "window_shape",
+        "near_plane": "near_plane",
+        "far_plane": "far_plane"
+      }
+    },
+    "te_trf": {
+      "class": "transform",
+      "kwargs": {
+        "position": [0.0, 0.0, -10.0],
+        "orientation": [0, 0, 0, 1],
+        "scale": [0.1, 0.1, 0.1]
+      }
+    },
     "cube": {
       "class": "model",
-      "args": [
-        "models/wuson-binary-le.ply",
-        "shaders/simple_vertex.glsl",
-        "shaders/simple_fragment.glsl"
-      ]
+      "kwargs": {
+        "mesh_path": "models/wuson-binary-le.ply",
+        "vertex_shader_path": "shaders/simple_vertex.glsl",
+        "fragment_shader_path": "shaders/simple_fragment.glsl"
+      }
     }
   }
 }

@@ -198,16 +198,16 @@ class Transform(Component):
     s = attr.ib(validator=instance_of(Matrix))
 
     @classmethod
-    def create(cls, translation=(0, 0, 0), orientation=(0, 0, 0, 1), scale=(1, 1, 1)):
+    def create(cls, position=(0, 0, 0), orientation=(0, 0, 0, 1), scale=(1, 1, 1)):
         """
         Create a Transform component from a translation vector, an orientation Quaternion and a scale vector.
 
-        :param translation:
+        :param position:
         :param orientation:
         :param scale:
         :return:
         """
-        t = Matrix.translation(*translation)
+        t = Matrix.translation(*position)
         r = Quaternion(*orientation).matrix
         s = Matrix.scaling(*scale)
 

@@ -512,50 +512,50 @@ class World(object):
             objects = dict()
             for k, v in object_tree.items():
                 cls = class_registry[v["class"]]
-                args = list()
-                for arg in v["args"]:
+                kwargs = dict()
+                for name, arg in v["kwargs"].items():
                     if isinstance(arg, str):
                         if arg in scene:
-                            args.append(scene[arg])
+                            kwargs[name] = scene[arg]
                         elif arg in self.ctx.data:
-                            args.append(self.ctx.data[arg])
+                            kwargs[name] = self.ctx.data[arg]
                         elif reference_tree is not None and arg in reference_tree:
-                            args.append(reference_tree[arg])
+                            kwargs[name] = reference_tree[arg]
                         elif any(p in arg for p in (os.path.sep, "/", "\\")):
-                            args.append(self.ctx.resources / arg)
+                            kwargs[name] = self.ctx.resources / arg
                         else:
-                            args.append(arg)
+                            kwargs[name] = arg
                     else:
-                        args.append(arg)
+                        kwargs[name] = arg
 
                 if hasattr(cls, "create"):
-                    objects[k] = cls.create(*args)
+                    objects[k] = cls.create(**kwargs)
                 else:
-                    objects[k] = cls(*args)
+                    objects[k] = cls(**kwargs)
         else:
             objects = list()
             for v in object_tree:
                 cls = class_registry[v["class"]]
-                args = list()
-                for arg in v["args"]:
+                kwargs = dict()
+                for name, arg in v["kwargs"].items():
                     if isinstance(arg, str):
                         if arg in scene:
-                            args.append(scene[arg])
+                            kwargs[name] = scene[arg]
                         elif arg in self.ctx.data:
-                            args.append(self.ctx.data[arg])
+                            kwargs[name] = self.ctx.data[arg]
                         elif reference_tree is not None and arg in reference_tree:
-                            args.append(reference_tree[arg])
+                            kwargs[name] = reference_tree[arg]
                         elif any(p in arg for p in (os.path.sep, "/", "\\")):
-                            args.append(self.ctx.resources / arg)
+                            kwargs[name] = self.ctx.resources / arg
                         else:
-                            args.append(arg)
+                            kwargs[name] = arg
                     else:
-                        args.append(arg)
+                        kwargs[name] = arg
 
                 if hasattr(cls, "create"):
-                    objects.append(cls.create(*args))
+                    objects.append(cls.create(**kwargs))
                 else:
-                    objects.append(cls(*args))
+                    objects.append(cls(**kwargs))
 
         return objects
 
