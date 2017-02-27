@@ -1,19 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import warnings
 
 import OpenGL.GL as gl
-import numpy
 import glfw
 import attr
 
 from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties
 from .entities import Camera
 from .events import KeyEvent, CursorEvent
-from .exceptions import FixmeWarning
 from .utilities import camelcase_to_underscore
-from .math import identity, Quaternion
+from .math import Quaternion, Matrix
 
 
 class SystemMeta(type):
@@ -139,13 +136,6 @@ class PhysicsSystem(UpdateSystem):
             transform.position += derivative_state.momentum / properties.mass * delta_time
             state.momentum += derivative_state.force * delta_time
 
-            # Calculate the angular component
-            r = transform.position - properties.center_of_mass
-            torque = numpy.cross(derivative_state.force, r)
-            angular_momentum = torque * delta_time
-            transform.orientation += derivative_state.spin / properties.inertia * delta_time
-            state.spin += 0.5 * (Quaternion(0, *angular_momentum) @ transform.orientation)
-
     def _runge_kutta(self, state: PhysicsState, delta_time: float) -> PhysicsState:
         """
         Perform a fourth-order Runge Kutta integration.
@@ -155,7 +145,7 @@ class PhysicsSystem(UpdateSystem):
         :param delta_time:
         :return:
         """
-        derivative_a = self._evaluate(state, PhysicsState(), 0)
+        derivative_a = self._evaluate(state, PhysicsState.create(), 0)
         derivative_b = self._evaluate(state, derivative_a, delta_time * 0.5)
         derivative_c = self._evaluate(state, derivative_b, delta_time * 0.5)
         derivative_d = self._evaluate(state, derivative_c, delta_time)
@@ -179,7 +169,7 @@ class PlayerMovementSystem(EventSystem):
     """
     PlayerMovementSystem causes the Camera to react on the basis of keyboard button presses.
     """
-    component_types = (Transform, PhysicsState, Projection)
+    component_types = (PhysicsState, Projection)
     is_applicator = True
     event_types = (KeyEvent,)
 
@@ -188,41 +178,41 @@ class PlayerMovementSystem(EventSystem):
         multiplier = 1
 
         if event.key in key_map and event.mods == 0:
-            for transform, state, projection in components:
-                direction = numpy.zeros(3)
+            for state, projection in components:
+                direction = Matrix.zeros(3)
                 if event.key == key_map.right:
                     if event.action == glfw.PRESS:
-                        direction += transform.right
+                        direction += Matrix.right()
                     if event.action == glfw.RELEASE:
-                        direction -= transform.right
+                        direction -= Matrix.right()
                 elif event.key == key_map.left:
                     if event.action == glfw.PRESS:
-                        direction += -transform.right
+                        direction += Matrix.left()
                     elif event.action == glfw.RELEASE:
-                        direction -= -transform.right
+                        direction -= Matrix.left()
                 elif event.key == key_map.up:
                     if event.action == glfw.PRESS:
-                        direction += transform.up
+                        direction += Matrix.up()
                     if event.action == glfw.RELEASE:
-                        direction -= transform.up
+                        direction -= Matrix.up()
                 elif event.key == key_map.down:
                     if event.action == glfw.PRESS:
-                        direction += -transform.up
+                        direction += Matrix.down()
                     elif event.action == glfw.RELEASE:
-                        direction -= -transform.up
+                        direction -= Matrix.down()
                 elif event.key == key_map.forward:
                     if event.action == glfw.PRESS:
-                        direction += transform.forward
+                        direction += Matrix.forward()
                     if event.action == glfw.RELEASE:
-                        direction -= transform.forward
+                        direction -= Matrix.forward()
                 elif event.key == key_map.backward:
                     if event.action == glfw.PRESS:
-                        direction += -transform.forward
+                        direction += Matrix.backward()
                     elif event.action == glfw.RELEASE:
-                        direction -= -transform.forward
+                        direction -= Matrix.backward()
 
                 if any(direction):
-                    state.momentum += multiplier * direction / numpy.linalg.norm(direction)
+                    state.momentum += multiplier * direction / direction.norm()
 
 
 @attr.s
@@ -238,7 +228,7 @@ class CameraControlSystem(EventSystem):
         camera = next(world.get_entities(Camera))
         inv_p = camera.projection.inverse_matrix
         window_shape = world.ctx.data.window_shape
-        cursor_pos = numpy.array((
+        cursor_pos = Matrix((4, 1), (
             2 * event.xpos / window_shape[0] - 1,
             -(2 * event.ypos / window_shape[1] - 1),
             0,
@@ -260,19 +250,16 @@ class OpenGlRenderer(RenderSystem):
 
     def render(self, world, components):
         # Get a reference to the camera
-        try:
-            camera = next(world.get_entities(Camera))
-            pv = camera.projection.matrix @ camera.transform.model_matrix
-        except StopIteration:
-            pv = identity()
+        for camera in world.get_entities(Camera):
+            pv = camera.projection.matrix @ camera.transform.matrix
 
-        # Clear the render buffers
-        gl.glClear(world.scene.clear_bits)
+            # Clear the render buffers
+            gl.glClear(world.scene.clear_bits)
 
-        # Render all models
-        warnings.warn("Optimize rendering with multiple Entities.", FixmeWarning)
-        for i, (transform, model) in enumerate(components):
-            with model:
-                model.draw(pv @ transform.model_matrix)
+            # Render all models
+            for transform, model in components:
+                with model:
+                    model.draw(pv @ transform.matrix)
 
-        glfw.swap_buffers(world.ctx.window)
+            # Swap the double buffer
+            glfw.swap_buffers(world.ctx.window)

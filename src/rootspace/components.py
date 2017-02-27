@@ -2,23 +2,20 @@
 
 import enum
 import math
-from array import ArrayType
 
 import xxhash
 import contextlib
 import warnings
 
 import attr
-import numpy
 import OpenGL.GL as gl
 import PIL.Image
 from attr.validators import instance_of
-from attr import Factory
 from OpenGL.constant import Constant
 
-from .math import perspective, translation, Quaternion
+from .math import Quaternion, Matrix
 from .wrappers import Texture, OpenGlProgram, OpenGlShader
-from .utilities import camelcase_to_underscore, iterable_of
+from .utilities import camelcase_to_underscore
 from .exceptions import TodoWarning, FixmeWarning
 from .data_abstractions import Attribute, Mesh
 from .model_parser import PlyParser
@@ -45,16 +42,53 @@ class Component(object, metaclass=ComponentMeta):
 
 @attr.s
 class PhysicsProperties(Component):
-    mass = attr.ib(default=1, validator=instance_of(float), convert=float)
-    inertia = attr.ib(default=1, validator=instance_of(float), convert=float)
-    center_of_mass = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    mass = attr.ib(validator=instance_of(float))
+    inertia = attr.ib(validator=instance_of(float))
+    center_of_mass = attr.ib(validator=instance_of(Matrix))
+
+    @classmethod
+    def create(cls, mass=1.0, inertia=1.0, center_of_mass=(0, 0, 0)):
+        """
+        Create PhysicsProperties from mass, inertia and the center of mass.
+
+        :param mass:
+        :param inertia:
+        :param center_of_mass:
+        :return:
+        """
+        return cls(
+            mass,
+            inertia,
+            Matrix((3, 1), center_of_mass)
+        )
 
 
 @attr.s
 class PhysicsState(Component):
-    momentum = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    spin = attr.ib(default=Factory(Quaternion), validator=instance_of(Quaternion), convert=Quaternion)
-    force = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
+    momentum = attr.ib(validator=instance_of(Matrix))
+    force = attr.ib(validator=instance_of(Matrix))
+
+    @classmethod
+    def create(cls, momentum=(0, 0, 0), force=(0, 0, 0)):
+        """
+        Create a PhysicsState component from momentum and force.
+
+        :param momentum:
+        :param force:
+        :return:
+        """
+        return cls(
+            Matrix((3, 1), momentum),
+            Matrix((3, 1), force)
+        )
+
+    def __neg__(self):
+        """
+        Negate each element.
+
+        :return:
+        """
+        return PhysicsState(-self.momentum, -self.force)
 
     def __add__(self, other):
         """
@@ -65,11 +99,11 @@ class PhysicsState(Component):
         :return:
         """
         if isinstance(other, PhysicsState):
-            return PhysicsState(self.momentum + other.momentum, self.spin + other.spin, self.force + other.force)
+            return PhysicsState(self.momentum + other.momentum, self.force + other.force)
         elif isinstance(other, (int, float)):
-            return PhysicsState(self.momentum + other, self.spin + other, self.force + other)
+            return PhysicsState(self.momentum + other, self.force + other)
         else:
-            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(type(self), type(other)))
+            return NotImplemented
 
     def __radd__(self, other):
         """
@@ -89,12 +123,7 @@ class PhysicsState(Component):
         :rtype: PhysicsState
         :return:
         """
-        if isinstance(other, PhysicsState):
-            return PhysicsState(self.momentum - other.momentum, self.spin - other.spin, self.force - other.force)
-        elif isinstance(other, (int, float)):
-            return PhysicsState(self.momentum - other, self.spin - other, self.force - other)
-        else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(self), type(other)))
+        return self + -other
 
     def __rsub__(self, other):
         """
@@ -104,12 +133,7 @@ class PhysicsState(Component):
         :rtype: PhysicsState
         :return:
         """
-        if isinstance(other, PhysicsState):
-            return PhysicsState(other.momentum - self.momentum, other.spin - self.spin, other.force - self.force)
-        elif isinstance(other, (int, float)):
-            return PhysicsState(other - self.momentum, other - self.spin, other - self.force)
-        else:
-            raise TypeError("unsupported operand type(s) for -: '{}' and '{}'".format(type(other), type(self)))
+        return other + -self
 
     def __mul__(self, other):
         """
@@ -120,11 +144,11 @@ class PhysicsState(Component):
         :return:
         """
         if isinstance(other, PhysicsState):
-            return PhysicsState(self.momentum * other.momentum, self.spin * other.spin, self.force * other.force)
+            return PhysicsState(self.momentum * other.momentum, self.force * other.force)
         elif isinstance(other, (int, float)):
-            return PhysicsState(self.momentum * other, self.spin * other, self.force * other)
+            return PhysicsState(self.momentum * other, self.force * other)
         else:
-            raise TypeError("unsupported operand type(s) for *: '{}' and '{}'".format(type(self), type(other)))
+            return NotImplemented
 
     def __rmul__(self, other):
         """
@@ -145,9 +169,9 @@ class PhysicsState(Component):
         :return:
         """
         if isinstance(other, PhysicsState):
-            return PhysicsState(self.momentum / other.momentum, self.spin / other.spin, self.force / other.force)
+            return PhysicsState(self.momentum / other.momentum, self.force / other.force)
         elif isinstance(other, (int, float)):
-            return PhysicsState(self.momentum / other, self.spin / other, self.force / other)
+            return PhysicsState(self.momentum / other, self.force / other)
         else:
             raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(self), type(other)))
 
@@ -160,100 +184,60 @@ class PhysicsState(Component):
         :return:
         """
         if isinstance(other, PhysicsState):
-            return PhysicsState(other.momentum / self.momentum, other.spin / self.spin, other.force / self.force)
+            return PhysicsState(other.momentum / self.momentum, other.force / self.force)
         elif isinstance(other, (int, float)):
-            return PhysicsState(other / self.momentum, other / self.spin, other / self.force)
+            return PhysicsState(other / self.momentum, other / self.force)
         else:
             raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(other), type(self)))
 
 
 @attr.s
 class Transform(Component):
-    _pos = attr.ib(default=numpy.zeros(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    _scale = attr.ib(default=numpy.ones(3), validator=instance_of(numpy.ndarray), convert=numpy.array)
-    _quat = attr.ib(default=Factory(Quaternion), validator=instance_of(Quaternion), convert=Quaternion)
+    t = attr.ib(validator=instance_of(Matrix))
+    r = attr.ib(validator=instance_of(Matrix))
+    s = attr.ib(validator=instance_of(Matrix))
 
-    @property
-    def position(self):
-        return self._pos
+    @classmethod
+    def create(cls, translation=(0, 0, 0), orientation=(0, 0, 0, 1), scale=(1, 1, 1)):
+        """
+        Create a Transform component from a translation vector, an orientation Quaternion and a scale vector.
 
-    @position.setter
-    def position(self, value):
-        if isinstance(value, numpy.ndarray) and value.shape == (3,):
-            self._pos = value
-        else:
-            raise TypeError("Position must be a 3-component numpy array.")
+        :param translation:
+        :param orientation:
+        :param scale:
+        :return:
+        """
+        t = Matrix.translation(*translation)
+        r = Quaternion(*orientation).matrix
+        s = Matrix.scaling(*scale)
 
-    @property
-    def scale(self):
-        return self._scale
-
-    @scale.setter
-    def scale(self, value):
-        if isinstance(value, numpy.ndarray) and value.shape == (3,):
-            self._scale = value
-        elif isinstance(value, (int, float)):
-            self._scale = value * numpy.ones(3)
-        else:
-            raise TypeError("Scale must be a 3-component numpy array or a scalar.")
-
-    @property
-    def orientation(self):
-        return self._quat
-
-    @orientation.setter
-    def orientation(self, value):
-        if isinstance(value, Quaternion):
-            self._quat = value
-        else:
-            raise TypeError("Orientation must be a Quaternion.")
-
-    @property
-    def zero(self):
-        return numpy.zeros(3)
-
-    @property
-    def up(self):
-        return (self._quat.t.matrix4 @ (0, 1, 0, 1))[:3]
-
-    @property
-    def right(self):
-        return (self._quat.t.matrix4 @ (1, 0, 0, 1))[:3]
-
-    @property
-    def forward(self):
-        return (self._quat.t.matrix4 @ (0, 0, 1, 1))[:3]
-
-    @property
-    def model_matrix(self):
-        scale_matrix = numpy.eye(4)
-        scale_matrix[:3, :3] *= self._scale
-        return translation(self._pos) @ self._quat.matrix4 @ scale_matrix
-
-
-@attr.s
-class Projection(Component):
-    _fov = attr.ib(default=math.pi / 4, validator=instance_of(float))
-    _shape = attr.ib(default=(800, 600), validator=iterable_of(tuple, int), convert=tuple)
-    _near = attr.ib(default=0.1, validator=instance_of(float))
-    _far = attr.ib(default=1000.0, validator=instance_of(float))
+        return cls(t, r, s)
 
     @property
     def matrix(self):
-        return perspective(self._fov, self._shape[0] / self._shape[1], self._near, self._far)
+        return self.t @ self.r @ self.s
 
     @property
-    def inverse_matrix(self):
-        warnings.warn("Do something more efficient than simply invert the projection matrix.", FixmeWarning)
-        return numpy.linalg.inv(self.matrix)
+    def position(self):
+        return self.t[0:3, 3]
+
+    @position.setter
+    def position(self, value):
+        self.t[0:3, 3] = value
+
+@attr.s
+class Projection(Component):
+    p = attr.ib(validator=instance_of(Matrix))
+
+    @classmethod
+    def create(cls, field_of_view=math.pi/4, window_shape=(800, 600), near_plane=0-1, far_plane=1000):
+        return cls(
+            Matrix.perspective(field_of_view, window_shape[0] / window_shape[1], near_plane, far_plane)
+        )
 
     @property
-    def shape(self):
-        return self._shape
-
-    @shape.setter
-    def shape(self, value):
-        self._shape = value
+    def matrix(self):
+        return self.p
 
 
 @attr.s
@@ -497,7 +481,7 @@ class DisplayBuffer(Component):
     """
     Describe the state of the display buffer of the simulated display.
     """
-    _buffer = attr.ib(validator=instance_of(numpy.ndarray))
+    _buffer = attr.ib(validator=instance_of(Matrix))
     _cursor_x = attr.ib(default=0, validator=instance_of(int))
     _cursor_y = attr.ib(default=0, validator=instance_of(int))
     _hasher = attr.ib(default=attr.Factory(xxhash.xxh64), validator=instance_of(xxhash.xxh64))
@@ -541,17 +525,7 @@ class DisplayBuffer(Component):
 
         :return:
         """
-        return numpy.count_nonzero(self._buffer) == 0
-
-    @classmethod
-    def create(cls, buffer_shape):
-        """
-        Create a TerminalDisplayBuffer
-
-        :param buffer_shape:
-        :return:
-        """
-        return cls(numpy.full(buffer_shape, b" ", dtype=bytes))
+        return not any(self._buffer)
 
     def to_bytes(self):
         """

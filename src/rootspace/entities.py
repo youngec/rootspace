@@ -50,11 +50,3 @@ class Camera(Entity):
 class StaticObject(Entity):
     transform = attr.ib(validator=instance_of(Transform))
     model = attr.ib(validator=instance_of(Model))
-
-
-@attr.s(hash=False)
-class PhysicalObject(Entity):
-    transform = attr.ib(validator=instance_of(Transform))
-    model = attr.ib(validator=instance_of(Model))
-    physics_properties = attr.ib(validator=instance_of(PhysicsProperties))
-    physics_state = attr.ib(validator=instance_of(PhysicsState))
