@@ -114,9 +114,9 @@ class PhysicsSystem(UpdateSystem):
         :return:
         """
         for transform, properties, state in components:
-            self._integrate(transform, properties, state, time, delta_time)
+            self._integrate(time, delta_time, transform, properties, state)
 
-    def _integrate(self, transform, properties, state, time, delta_time):
+    def _integrate(self, time, delta_time, transform, properties, state):
         """
         Perform a fourth-order Runge Kutta integration of the equations of motion.
         Based on http://gafferongames.com/game-physics/
