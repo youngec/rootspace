@@ -216,6 +216,11 @@ class Attribute(object):
         Color = 1
         Texture = 2
         Normal = 3
+        AmbientColor = 4
+        DiffuseColor = 5
+        SpecularColor = 6
+        Power = 7
+        Opacity = 8
 
         @classmethod
         def coerce(cls, type_value):
