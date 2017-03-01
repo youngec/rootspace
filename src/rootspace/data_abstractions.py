@@ -15,7 +15,7 @@ import glfw
 from OpenGL.GL import GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_LESS, GL_CCW, GL_BACK
 from attr.validators import instance_of
 
-from .utilities import iterable_of
+from .utilities import iterable_of, underscore_to_camelcase
 from .exceptions import SerializationError
 
 
@@ -212,10 +212,10 @@ class Attribute(object):
     """
 
     class Type(enum.Enum):
-        Other = 0
-        Position = 1
-        Color = 2
-        Texture = 3
+        Position = 0
+        Color = 1
+        Texture = 2
+        Normal = 3
 
         @classmethod
         def coerce(cls, type_value):
@@ -223,11 +223,11 @@ class Attribute(object):
                 return type_value
             elif isinstance(type_value, str):
                 try:
-                    return cls[type_value.capitalize()]
+                    return cls[underscore_to_camelcase(type_value)]
                 except KeyError:
-                    return cls.Other
+                    raise KeyError("No equivalent enum for '{}'.".format(type_value))
             else:
-                return cls.Other
+                raise KeyError("No equivalent enum for '{}'.".format(type_value))
 
     class DataType(enum.Enum):
         Int8 = ctypes.c_int8
