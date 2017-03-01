@@ -1,10 +1,9 @@
 ply
 format ascii 1.0
-comment Some random stuff
-comment VertexShaderFile file0.glsl
-comment FragmentShaderFile file1.glsl
-comment TextureFile file.png
-comment Some other comment
+comment A colored cube with shader and texture references.
+comment VertexShaderFile simple_vertex.glsl
+comment FragmentShaderFile simple_fragment.glsl
+comment TextureFile test-texture.png
 element vertex 8
 property float x
 property float y
