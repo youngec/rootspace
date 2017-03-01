@@ -143,8 +143,12 @@ class PlyParser(object):
         position_keywords = [cls._keyword_or(k) for k in ("x", "y", "z")]
         property_position = cls._aggregate_property("position", property_simple_prefix, *position_keywords)
 
-        color_keywords = [cls._keyword_or(*k) for k in (("r", "red"), ("g", "green"), ("b", "blue"), ("a", "alpha"))]
-        property_color = cls._aggregate_property("color", property_simple_prefix, *color_keywords)
+        property_color = pp.Group(pp.And([
+            pp.Group(property_simple_prefix + pp.MatchFirst((pp.CaselessKeyword("r"), pp.CaselessKeyword("red")))("name")),
+            pp.Group(property_simple_prefix + pp.MatchFirst((pp.CaselessKeyword("g"), pp.CaselessKeyword("green")))("name")),
+            pp.Group(property_simple_prefix + pp.MatchFirst((pp.CaselessKeyword("b"), pp.CaselessKeyword("blue")))("name")),
+            pp.Optional(pp.Group(property_simple_prefix + pp.MatchFirst((pp.CaselessKeyword("a"), pp.CaselessKeyword("alpha")))("name")),)
+        ]))("color")
 
         ambient_keywords = [cls._keyword_or(k) for k in ("ambient_red", "ambient_green", "ambient_blue", "ambient_alpha")]
         property_ambient_color = cls._aggregate_property("ambient_color", property_simple_prefix, *ambient_keywords)
@@ -167,8 +171,6 @@ class PlyParser(object):
         opacity_keywords = [pp.CaselessKeyword("opacity")]
         property_opacity = cls._aggregate_property("opacity", property_simple_prefix, *opacity_keywords)
 
-        property_simple_catchall = cls._aggregate_property("other_simple", property_simple_prefix, identifier)
-
         property_list_prefix = property_keyword + list_keyword + property_type("index_type") + property_type("data_type")
 
         vertex_index_keywords = [cls._keyword_or("vertex_index", "vertex_indices")]
@@ -176,8 +178,6 @@ class PlyParser(object):
 
         material_index_keywords = [cls._keyword_or("material_index", "material_indices")]
         property_material_index = cls._aggregate_property("material_index", property_list_prefix, *material_index_keywords)
-
-        property_list_catchall = cls._aggregate_property("other_list", property_list_prefix, identifier)
 
         # Define the grammar of elements
         element_keyword = cls._keyword_or(cls.element_keyword, suppress=True)
@@ -188,31 +188,17 @@ class PlyParser(object):
                 pp.OneOrMore(
                     property_position | property_color | property_ambient_color | property_diffuse_color |
                     property_specular_color | property_texture | property_normal | property_specular_power |
-                    property_opacity | property_simple_catchall
+                    property_opacity
                 )
             )("properties")
         )
 
         element_face = pp.Group(
             element_keyword + pp.CaselessKeyword("face")("name") + integer("count") +
-            pp.Group(property_vertex_index | property_material_index | property_list_catchall)("properties")
+            pp.Group(property_vertex_index | property_material_index)("properties")
         )
 
-        element_edge = pp.Group(
-            element_keyword + pp.CaselessKeyword("edge")("name") + integer("count") +
-            pp.Group(
-                pp.OneOrMore(property_color | property_simple_catchall)
-            )("properties")
-        )
-
-        element_catchall = pp.Group(
-            element_keyword + identifier("name") + integer("count") +
-            pp.Group(
-                pp.OneOrMore(property_simple_catchall) | property_list_catchall
-            )("properties")
-        )
-
-        element_group = element_vertex | element_face | element_edge | element_catchall
+        element_group = element_vertex | element_face
 
         declarations = format_expr + pp.Group(pp.OneOrMore(element_group))("elements")
 
