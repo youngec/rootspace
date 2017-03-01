@@ -304,7 +304,8 @@ class Mesh(object):
     index = attr.ib(validator=instance_of(array.array))
     attributes = attr.ib(validator=instance_of(tuple), convert=tuple)
     draw_mode = attr.ib(validator=instance_of(DrawMode))
-    shader_file = attr.ib(default=None, validator=optional(instance_of(str)))
+    vertex_shader_file = attr.ib(default=None, validator=optional(instance_of(str)))
+    fragment_shader_file = attr.ib(default=None, validator=optional(instance_of(str)))
     texture_file = attr.ib(default=None, validator=optional(instance_of(str)))
     comments = attr.ib(default=None, validator=optional(instance_of(tuple)))
 

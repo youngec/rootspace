@@ -12,7 +12,7 @@ import enum
 import attr
 from attr.validators import instance_of
 from pyparsing import pyparsing_common, ParserElement, Group, And, MatchFirst, CaselessKeyword, Optional, \
-    OneOrMore, replaceWith, Suppress, countedArray, ParseResults, Word, printables, ZeroOrMore, alphanums
+    OneOrMore, replaceWith, Suppress, countedArray, ParseResults, Word, printables, ZeroOrMore, alphanums, NotAny
 
 from .data_abstractions import Attribute, Mesh
 
@@ -123,9 +123,10 @@ class PlyParser(object):
 
         # Define the grammar of a comment statement
         comment_keyword = cls._or(cls.comment_keyword, suppress=True)
-        shader_comment = Group(comment_keyword + Suppress(CaselessKeyword("ShaderFile")) + Word(alphanums + ".-_/"))("shader_file")
-        texture_comment = Group(comment_keyword + Suppress(CaselessKeyword("TextureFile")) + Word(alphanums + ".-_/"))("texture_file")
-        other_comment = comment_keyword + Word(printables, excludeChars="\r\n")
+        vertex_shader_comment = Group(comment_keyword + Suppress(CaselessKeyword("VertexShaderFile")) + Word(alphanums + ".-_"))("vertex_shader_file")
+        fragment_shader_comment = Group(comment_keyword + Suppress(CaselessKeyword("FragmentShaderFile")) + Word(alphanums + ".-_"))("fragment_shader_file")
+        texture_comment = Group(comment_keyword + Suppress(CaselessKeyword("TextureFile")) + Word(alphanums + ".-_"))("texture_file")
+        other_comment = comment_keyword + NotAny("TextureFile") + Word(printables + " ")
 
         # Define the grammar of a format statement
         format_keyword = cls._or(cls.format_keyword, suppress=True)
@@ -202,7 +203,9 @@ class PlyParser(object):
 
         element_group = element_vertex | element_face
 
-        declarations = format_expr + ZeroOrMore(shader_comment | texture_comment | Group(OneOrMore(other_comment))("comments")) + Group(OneOrMore(element_group))("elements")
+        declarations = format_expr + \
+                       Group(ZeroOrMore(vertex_shader_comment | fragment_shader_comment | texture_comment | other_comment))("comments") + \
+                       Group(OneOrMore(element_group))("elements")
 
         header_grammar = start_keyword + declarations + stop_keyword
 
@@ -232,20 +235,28 @@ class PlyParser(object):
 
             # Extract the comments
             if "comments" in tokens:
-                comments = tuple(tokens.comments)
+                comments = list()
+                vertex_shader_file = None
+                fragment_shader_file = None
+                texture_file = None
+                for comment in tokens.comments:
+                    if isinstance(comment, str):
+                        comments.append(comment)
+                    else:
+                        if comment.getName() == "vertex_shader_file":
+                            vertex_shader_file = comment[0]
+                        elif comment.getName() == "fragment_shader_file":
+                            fragment_shader_file = comment[0]
+                        elif comment.getName() == "texture_file":
+                            texture_file = comment[0]
+                        else:
+                            raise ValueError("Unkown ParseResult: '{}'.".format(comment))
+                comments = tuple(comments)
             else:
                 comments = ()
-
-            if "shader_file" in tokens:
-                shader_file = tokens.shader_file[0]
-            else:
-                shader_file = None
-
-            if "texture_file" in tokens:
-                texture_file = tokens.texture_file[0]
-            else:
+                vertex_shader_file = None
+                fragment_shader_file = None
                 texture_file = None
-
 
             # Determine the data types
             aggregate_data_types = {
@@ -268,9 +279,10 @@ class PlyParser(object):
                 index=element_data["face"],
                 attributes=vertex_attributes,
                 draw_mode=Mesh.DrawMode.Triangles,
-                shader_file=shader_file,
+                vertex_shader_file=vertex_shader_file,
+                fragment_shader_file=fragment_shader_file,
                 texture_file=texture_file,
-                comments=comments
+                comments=tuple(comments)
             )
 
     def load(self, file):

@@ -1,5 +1,10 @@
 ply
-format ascii 1.0          
+format ascii 1.0
+comment Some random stuff
+comment VertexShaderFile file0.glsl
+comment FragmentShaderFile file1.glsl
+comment TextureFile file.png
+comment Some other comment
 element vertex 8
 property float x
 property float y
