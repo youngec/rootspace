@@ -10,8 +10,9 @@ import struct
 import enum
 
 import attr
-import pyparsing as pp
 from attr.validators import instance_of
+from pyparsing import pyparsing_common, ParserElement, Group, restOfLine, And, MatchFirst, CaselessKeyword, Optional, \
+    OneOrMore, replaceWith, Suppress, countedArray, ParseResults
 
 from .data_abstractions import Attribute, Mesh
 
@@ -48,7 +49,7 @@ class PlyParser(object):
     prop_list_data   ::= list_length (NUMBER * list_length)
     list_length      ::= NUMBER
     """
-    header_grammar = attr.ib(validator=instance_of(pp.ParserElement))
+    header_grammar = attr.ib(validator=instance_of(ParserElement))
 
     class FormatType(enum.Enum):
         ASCII = 0
@@ -113,9 +114,8 @@ class PlyParser(object):
         :return:
         """
         # Define the base patterns for parsing
-        real = pp.pyparsing_common.real()
-        integer = pp.pyparsing_common.integer()
-        identifier = pp.pyparsing_common.identifier()
+        real = pyparsing_common.real()
+        integer = pyparsing_common.integer()
 
         # Define how the header portion begins and ends
         start_keyword = cls._keyword_or(cls.begin_header_keyword, suppress=True)
@@ -123,12 +123,12 @@ class PlyParser(object):
 
         # Define the grammar of a comment statement
         comment_keyword = cls._keyword_or(cls.comment_keyword, suppress=True)
-        comment_expr = comment_keyword + pp.restOfLine
+        comment_expr = comment_keyword + restOfLine
 
         # Define the grammar of a format statement
         format_keyword = cls._keyword_or(cls.format_keyword, suppress=True)
         format_type = cls._keyword_or(cls.format_type_map)
-        format_expr = pp.Group(
+        format_expr = Group(
             format_keyword +
             format_type("file_type") +
             real("version")
@@ -143,11 +143,11 @@ class PlyParser(object):
         position_keywords = [cls._keyword_or(k) for k in ("x", "y", "z")]
         property_position = cls._aggregate_property("position", property_simple_prefix, *position_keywords)
 
-        property_color = pp.Group(pp.And([
-            pp.Group(property_simple_prefix + pp.MatchFirst((pp.CaselessKeyword("r"), pp.CaselessKeyword("red")))("name")),
-            pp.Group(property_simple_prefix + pp.MatchFirst((pp.CaselessKeyword("g"), pp.CaselessKeyword("green")))("name")),
-            pp.Group(property_simple_prefix + pp.MatchFirst((pp.CaselessKeyword("b"), pp.CaselessKeyword("blue")))("name")),
-            pp.Optional(pp.Group(property_simple_prefix + pp.MatchFirst((pp.CaselessKeyword("a"), pp.CaselessKeyword("alpha")))("name")),)
+        property_color = Group(And([
+            Group(property_simple_prefix + MatchFirst((CaselessKeyword("r"), CaselessKeyword("red")))("name")),
+            Group(property_simple_prefix + MatchFirst((CaselessKeyword("g"), CaselessKeyword("green")))("name")),
+            Group(property_simple_prefix + MatchFirst((CaselessKeyword("b"), CaselessKeyword("blue")))("name")),
+            Optional(Group(property_simple_prefix + MatchFirst((CaselessKeyword("a"), CaselessKeyword("alpha")))("name")),)
         ]))("color")
 
         ambient_keywords = [cls._keyword_or(k) for k in ("ambient_red", "ambient_green", "ambient_blue", "ambient_alpha")]
@@ -165,10 +165,10 @@ class PlyParser(object):
         normal_keywords = [cls._keyword_or(k) for k in ("nx", "ny", "nz")]
         property_normal = cls._aggregate_property("normal", property_simple_prefix, *normal_keywords)
 
-        power_keywords = [pp.CaselessKeyword("specular_power")]
+        power_keywords = [CaselessKeyword("specular_power")]
         property_specular_power = cls._aggregate_property("specular_power", property_simple_prefix, *power_keywords)
 
-        opacity_keywords = [pp.CaselessKeyword("opacity")]
+        opacity_keywords = [CaselessKeyword("opacity")]
         property_opacity = cls._aggregate_property("opacity", property_simple_prefix, *opacity_keywords)
 
         property_list_prefix = property_keyword + list_keyword + property_type("index_type") + property_type("data_type")
@@ -182,10 +182,10 @@ class PlyParser(object):
         # Define the grammar of elements
         element_keyword = cls._keyword_or(cls.element_keyword, suppress=True)
 
-        element_vertex = pp.Group(
-            element_keyword + pp.CaselessKeyword("vertex")("name") + integer("count") +
-            pp.Group(
-                pp.OneOrMore(
+        element_vertex = Group(
+            element_keyword + CaselessKeyword("vertex")("name") + integer("count") +
+            Group(
+                OneOrMore(
                     property_position | property_color | property_ambient_color | property_diffuse_color |
                     property_specular_color | property_texture | property_normal | property_specular_power |
                     property_opacity
@@ -193,14 +193,14 @@ class PlyParser(object):
             )("properties")
         )
 
-        element_face = pp.Group(
-            element_keyword + pp.CaselessKeyword("face")("name") + integer("count") +
-            pp.Group(property_vertex_index | property_material_index)("properties")
+        element_face = Group(
+            element_keyword + CaselessKeyword("face")("name") + integer("count") +
+            Group(property_vertex_index | property_material_index)("properties")
         )
 
         element_group = element_vertex | element_face
 
-        declarations = format_expr + pp.Group(pp.OneOrMore(element_group))("elements")
+        declarations = format_expr + Group(OneOrMore(element_group))("elements")
 
         header = start_keyword + declarations + stop_keyword
 
@@ -284,14 +284,14 @@ class PlyParser(object):
         :return:
         """
         if isinstance(literals[0], dict):
-            keywords = (pp.CaselessKeyword(l).addParseAction(pp.replaceWith(d)) for l, d in literals[0].items())
+            keywords = (CaselessKeyword(l).addParseAction(replaceWith(d)) for l, d in literals[0].items())
         else:
-            keywords = (pp.CaselessKeyword(literal) for literal in literals)
+            keywords = (CaselessKeyword(literal) for literal in literals)
 
-        match_first = pp.MatchFirst(keywords)
+        match_first = MatchFirst(keywords)
 
         if suppress:
-            return pp.Suppress(match_first)
+            return Suppress(match_first)
         else:
             return match_first
 
@@ -311,9 +311,9 @@ class PlyParser(object):
         """
         aggregates = list()
         for keyword in keywords:
-            aggregates.append(pp.Group(prefix + keyword("name")))
+            aggregates.append(Group(prefix + keyword("name")))
 
-        return pp.Group(pp.And(aggregates))(name)
+        return Group(And(aggregates))(name)
 
     def _extract_header(self, file_mmap):
         """
@@ -408,21 +408,21 @@ class PlyParser(object):
         :return:
         """
         # Define the grammar of the body
-        number = pp.pyparsing_common.number()
+        number = pyparsing_common.number()
         body_expr = list()
         for element in header_tokens.elements:
             sequences = list()
             for prop in element.properties:
                 for variable in prop:
                     if "index_type" in variable:
-                        sequences.append(pp.countedArray(number))
+                        sequences.append(countedArray(number))
                     else:
                         sequences.append(number(variable.name))
 
-            element_data = pp.Group(pp.And(sequences))
-            body_expr.append(pp.Group(element_data * element.count)(element.name))
+            element_data = Group(And(sequences))
+            body_expr.append(Group(element_data * element.count)(element.name))
 
-        ascii_grammar = pp.And(body_expr)
+        ascii_grammar = And(body_expr)
 
         # Tokenize the body data
         body_tokens = ascii_grammar.parseString(file_mmap[buffer_offset:].decode("ascii"), parseAll=True)
@@ -541,9 +541,9 @@ class PlyParser(object):
         :return:
         """
         for d in nested_iterable:
-            if isinstance(d, (tuple, pp.ParseResults)):
+            if isinstance(d, (tuple, ParseResults)):
                 for e in d:
-                    if isinstance(e, pp.ParseResults):
+                    if isinstance(e, ParseResults):
                         for f in e:
                             yield f
                     else:
