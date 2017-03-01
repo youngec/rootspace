@@ -13,7 +13,7 @@ import json
 import attr
 import glfw
 from OpenGL.GL import GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_LESS, GL_CCW, GL_BACK
-from attr.validators import instance_of
+from attr.validators import instance_of, optional
 
 from .utilities import iterable_of, underscore_to_camelcase
 from .exceptions import SerializationError
@@ -304,6 +304,9 @@ class Mesh(object):
     index = attr.ib(validator=instance_of(array.array))
     attributes = attr.ib(validator=instance_of(tuple), convert=tuple)
     draw_mode = attr.ib(validator=instance_of(DrawMode))
+    shader_file = attr.ib(default=None, validator=optional(instance_of(str)))
+    texture_file = attr.ib(default=None, validator=optional(instance_of(str)))
+    comments = attr.ib(default=None, validator=optional(instance_of(tuple)))
 
     @property
     def data_bytes(self):

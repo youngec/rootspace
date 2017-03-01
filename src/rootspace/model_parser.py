@@ -11,8 +11,8 @@ import enum
 
 import attr
 from attr.validators import instance_of
-from pyparsing import pyparsing_common, ParserElement, Group, restOfLine, And, MatchFirst, CaselessKeyword, Optional, \
-    OneOrMore, replaceWith, Suppress, countedArray, ParseResults
+from pyparsing import pyparsing_common, ParserElement, Group, And, MatchFirst, CaselessKeyword, Optional, \
+    OneOrMore, replaceWith, Suppress, countedArray, ParseResults, Word, printables, ZeroOrMore, alphanums
 
 from .data_abstractions import Attribute, Mesh
 
@@ -118,16 +118,18 @@ class PlyParser(object):
         integer = pyparsing_common.integer()
 
         # Define how the header portion begins and ends
-        start_keyword = cls._keyword_or(cls.begin_header_keyword, suppress=True)
-        stop_keyword = cls._keyword_or(cls.end_header_keyword, suppress=True)
+        start_keyword = cls._or(cls.begin_header_keyword, suppress=True)
+        stop_keyword = cls._or(cls.end_header_keyword, suppress=True)
 
         # Define the grammar of a comment statement
-        comment_keyword = cls._keyword_or(cls.comment_keyword, suppress=True)
-        comment_expr = comment_keyword + restOfLine
+        comment_keyword = cls._or(cls.comment_keyword, suppress=True)
+        shader_comment = Group(comment_keyword + Suppress(CaselessKeyword("ShaderFile")) + Word(alphanums + ".-_/"))("shader_file")
+        texture_comment = Group(comment_keyword + Suppress(CaselessKeyword("TextureFile")) + Word(alphanums + ".-_/"))("texture_file")
+        other_comment = comment_keyword + Word(printables, excludeChars="\r\n")
 
         # Define the grammar of a format statement
-        format_keyword = cls._keyword_or(cls.format_keyword, suppress=True)
-        format_type = cls._keyword_or(cls.format_type_map)
+        format_keyword = cls._or(cls.format_keyword, suppress=True)
+        format_type = cls._or(cls.format_type_map)
         format_expr = Group(
             format_keyword +
             format_type("file_type") +
@@ -135,52 +137,52 @@ class PlyParser(object):
         )("format")
 
         # Define the grammar of properties
-        property_keyword = cls._keyword_or(cls.property_keyword, suppress=True)
-        list_keyword = cls._keyword_or(cls.list_keyword, suppress=True)
-        property_type = cls._keyword_or(cls.data_type_map)
-        property_simple_prefix = property_keyword + property_type("data_type")
+        property_keyword = cls._or(cls.property_keyword, suppress=True)
+        list_keyword = cls._or(cls.list_keyword, suppress=True)
+        property_type = cls._or(cls.data_type_map)
+        psp = property_keyword + property_type("data_type")
 
-        position_keywords = [cls._keyword_or(k) for k in ("x", "y", "z")]
-        property_position = cls._aggregate_property("position", property_simple_prefix, *position_keywords)
+        position_keywords = [cls._or(k) for k in ("x", "y", "z")]
+        property_position = cls._aggregate_property("position", psp, *position_keywords)
 
         property_color = Group(And([
-            Group(property_simple_prefix + MatchFirst((CaselessKeyword("r"), CaselessKeyword("red")))("name")),
-            Group(property_simple_prefix + MatchFirst((CaselessKeyword("g"), CaselessKeyword("green")))("name")),
-            Group(property_simple_prefix + MatchFirst((CaselessKeyword("b"), CaselessKeyword("blue")))("name")),
-            Optional(Group(property_simple_prefix + MatchFirst((CaselessKeyword("a"), CaselessKeyword("alpha")))("name")),)
+            Group(psp + MatchFirst((CaselessKeyword("r"), CaselessKeyword("red")))("name")),
+            Group(psp + MatchFirst((CaselessKeyword("g"), CaselessKeyword("green")))("name")),
+            Group(psp + MatchFirst((CaselessKeyword("b"), CaselessKeyword("blue")))("name")),
+            Optional(Group(psp + MatchFirst((CaselessKeyword("a"), CaselessKeyword("alpha")))("name")),)
         ]))("color")
 
-        ambient_keywords = [cls._keyword_or(k) for k in ("ambient_red", "ambient_green", "ambient_blue", "ambient_alpha")]
-        property_ambient_color = cls._aggregate_property("ambient_color", property_simple_prefix, *ambient_keywords)
+        ambient_keywords = [cls._or(k) for k in ("ambient_red", "ambient_green", "ambient_blue", "ambient_alpha")]
+        property_ambient_color = cls._aggregate_property("ambient_color", psp, *ambient_keywords)
 
-        diffuse_keywords = [cls._keyword_or(k) for k in ("diffuse_red", "diffuse_green", "diffuse_blue", "diffuse_alpha")]
-        property_diffuse_color = cls._aggregate_property("diffuse_color", property_simple_prefix, *diffuse_keywords)
+        diffuse_keywords = [cls._or(k) for k in ("diffuse_red", "diffuse_green", "diffuse_blue", "diffuse_alpha")]
+        property_diffuse_color = cls._aggregate_property("diffuse_color", psp, *diffuse_keywords)
 
-        specular_keywords = [cls._keyword_or(k) for k in ("specular_red", "specular_green", "specular_blue", "specular_alpha")]
-        property_specular_color = cls._aggregate_property("specular_color", property_simple_prefix, *specular_keywords)
+        specular_keywords = [cls._or(k) for k in ("specular_red", "specular_green", "specular_blue", "specular_alpha")]
+        property_specular_color = cls._aggregate_property("specular_color", psp, *specular_keywords)
 
-        texture_keywords = [cls._keyword_or(*k) for k in (("s", "u", "tx"), ("t", "v", "ty"))]
-        property_texture = cls._aggregate_property("texture", property_simple_prefix, *texture_keywords)
+        texture_keywords = [cls._or(*k) for k in (("s", "u", "tx"), ("t", "v", "ty"))]
+        property_texture = cls._aggregate_property("texture", psp, *texture_keywords)
 
-        normal_keywords = [cls._keyword_or(k) for k in ("nx", "ny", "nz")]
-        property_normal = cls._aggregate_property("normal", property_simple_prefix, *normal_keywords)
+        normal_keywords = [cls._or(k) for k in ("nx", "ny", "nz")]
+        property_normal = cls._aggregate_property("normal", psp, *normal_keywords)
 
         power_keywords = [CaselessKeyword("specular_power")]
-        property_specular_power = cls._aggregate_property("specular_power", property_simple_prefix, *power_keywords)
+        property_specular_power = cls._aggregate_property("specular_power", psp, *power_keywords)
 
         opacity_keywords = [CaselessKeyword("opacity")]
-        property_opacity = cls._aggregate_property("opacity", property_simple_prefix, *opacity_keywords)
+        property_opacity = cls._aggregate_property("opacity", psp, *opacity_keywords)
 
-        property_list_prefix = property_keyword + list_keyword + property_type("index_type") + property_type("data_type")
+        plp = property_keyword + list_keyword + property_type("index_type") + property_type("data_type")
 
-        vertex_index_keywords = [cls._keyword_or("vertex_index", "vertex_indices")]
-        property_vertex_index = cls._aggregate_property("vertex_index", property_list_prefix, *vertex_index_keywords)
+        vertex_index_keywords = [cls._or("vertex_index", "vertex_indices")]
+        property_vertex_index = cls._aggregate_property("vertex_index", plp, *vertex_index_keywords)
 
-        material_index_keywords = [cls._keyword_or("material_index", "material_indices")]
-        property_material_index = cls._aggregate_property("material_index", property_list_prefix, *material_index_keywords)
+        material_index_keywords = [cls._or("material_index", "material_indices")]
+        property_material_index = cls._aggregate_property("material_index", plp, *material_index_keywords)
 
         # Define the grammar of elements
-        element_keyword = cls._keyword_or(cls.element_keyword, suppress=True)
+        element_keyword = cls._or(cls.element_keyword, suppress=True)
 
         element_vertex = Group(
             element_keyword + CaselessKeyword("vertex")("name") + integer("count") +
@@ -200,11 +202,9 @@ class PlyParser(object):
 
         element_group = element_vertex | element_face
 
-        declarations = format_expr + Group(OneOrMore(element_group))("elements")
+        declarations = format_expr + ZeroOrMore(shader_comment | texture_comment | Group(OneOrMore(other_comment))("comments")) + Group(OneOrMore(element_group))("elements")
 
-        header = start_keyword + declarations + stop_keyword
-
-        header_grammar = header.ignore(comment_expr)
+        header_grammar = start_keyword + declarations + stop_keyword
 
         return cls(header_grammar)
 
@@ -230,6 +230,23 @@ class PlyParser(object):
             header_data, data_start_idx = self._extract_header(file_mmap)
             tokens = self.tokenize_header(header_data)
 
+            # Extract the comments
+            if "comments" in tokens:
+                comments = tuple(tokens.comments)
+            else:
+                comments = ()
+
+            if "shader_file" in tokens:
+                shader_file = tokens.shader_file[0]
+            else:
+                shader_file = None
+
+            if "texture_file" in tokens:
+                texture_file = tokens.texture_file[0]
+            else:
+                texture_file = None
+
+
             # Determine the data types
             aggregate_data_types = {
                 "vertex": self._get_array_type(tokens, "vertex", "f"),
@@ -250,7 +267,10 @@ class PlyParser(object):
                 data=element_data["vertex"],
                 index=element_data["face"],
                 attributes=vertex_attributes,
-                draw_mode=Mesh.DrawMode.Triangles
+                draw_mode=Mesh.DrawMode.Triangles,
+                shader_file=shader_file,
+                texture_file=texture_file,
+                comments=comments
             )
 
     def load(self, file):
@@ -273,7 +293,7 @@ class PlyParser(object):
                             "or a binary file object.")
 
     @classmethod
-    def _keyword_or(cls, *literals, suppress=False):
+    def _or(cls, *literals, suppress=False):
         """
         Return a MatchFirst aggregation of CaselessKeyword literals based on the supplied iterable of strings.
         If the supplied iterable is a dictionary, replace the keys with the values as a pyparsing parse action.
