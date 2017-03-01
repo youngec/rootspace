@@ -16,7 +16,7 @@ from OpenGL.constant import Constant
 from .math import Quaternion, Matrix
 from .wrappers import Texture, OpenGlProgram, OpenGlShader
 from .utilities import camelcase_to_underscore
-from .exceptions import TodoWarning, FixmeWarning
+from .exceptions import FixmeWarning
 from .data_abstractions import Attribute, Mesh
 from .model_parser import PlyParser
 
@@ -294,11 +294,11 @@ class Model(Component):
 
     @classmethod
     def create(cls, mesh_path, vertex_shader_path, fragment_shader_path, texture_path=None):
-        with contextlib.ExitStack() as ctx:
-            # Load the mesh into memory.
-            mesh = PlyParser.create().load(mesh_path)
+        # Load the mesh into memory.
+        parser = PlyParser.create()
+        mesh = parser.load(mesh_path)
 
-            warnings.warn("Possibly rewrite the GL calls in Direct State Access style.", TodoWarning)
+        with contextlib.ExitStack() as ctx:
             # Create and bind the Vertex Array Object
             vao = int(gl.glGenVertexArrays(1))
             ctx.callback(cls.delete_vertex_arrays, 1, vao)
