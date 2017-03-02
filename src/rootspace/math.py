@@ -241,27 +241,15 @@ class Matrix(object):
         return len(self) == 1
 
     @classmethod
-    def right(cls):
+    def ex(cls):
         return cls((3, 1), (1, 0, 0))
 
     @classmethod
-    def left(cls):
-        return cls((3, 1), (-1, 0, 0))
-
-    @classmethod
-    def up(cls):
+    def ey(cls):
         return cls((3, 1), (0, 1, 0))
 
     @classmethod
-    def down(cls):
-        return cls((3, 1), (0, -1, 0))
-
-    @classmethod
-    def forward(cls):
-        return cls((3, 1), (0, 0, -1))
-
-    @classmethod
-    def backward(cls):
+    def ez(cls):
         return cls((3, 1), (0, 0, 1))
 
     @property

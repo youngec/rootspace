@@ -112,6 +112,18 @@ class Transform(Component):
         return self.t @ self.r @ self.s
 
     @property
+    def right(self):
+        return self.r[:3, :3] @ Matrix.ex()
+
+    @property
+    def up(self):
+        return self.r[:3, :3] @ Matrix.ey()
+
+    @property
+    def forward(self):
+        return self.r[:3, :3] @ -Matrix.ez()
+
+    @property
     def position(self):
         return self.t[0:3, 3]
 

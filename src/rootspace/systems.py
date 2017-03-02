@@ -10,7 +10,7 @@ from .components import Transform, Projection, Model, PhysicsState, PhysicsPrope
 from .entities import Camera
 from .events import KeyEvent, CursorEvent
 from .utilities import camelcase_to_underscore
-from .math import Matrix, equations_of_motion
+from .math import Matrix, Quaternion, equations_of_motion
 
 
 class SystemMeta(type):
@@ -126,7 +126,7 @@ class PlayerMovementSystem(EventSystem):
     """
     PlayerMovementSystem causes the Camera to react on the basis of keyboard button presses.
     """
-    component_types = (PhysicsState, Projection)
+    component_types = (Transform, PhysicsState, Projection)
     is_applicator = True
     event_types = (KeyEvent,)
 
@@ -135,38 +135,38 @@ class PlayerMovementSystem(EventSystem):
         multiplier = 1
 
         if event.key in key_map and event.mods == 0:
-            for state, projection in components:
+            for transform, state, projection in components:
                 direction = Matrix.zeros(3)
                 if event.key == key_map.right:
                     if event.action == glfw.PRESS:
-                        direction += Matrix.right()
+                        direction += transform.right
                     if event.action == glfw.RELEASE:
-                        direction -= Matrix.right()
+                        direction -= transform.right
                 elif event.key == key_map.left:
                     if event.action == glfw.PRESS:
-                        direction += Matrix.left()
+                        direction -= transform.right
                     elif event.action == glfw.RELEASE:
-                        direction -= Matrix.left()
+                        direction += transform.right
                 elif event.key == key_map.up:
                     if event.action == glfw.PRESS:
-                        direction += Matrix.up()
+                        direction += transform.up
                     if event.action == glfw.RELEASE:
-                        direction -= Matrix.up()
+                        direction -= transform.up
                 elif event.key == key_map.down:
                     if event.action == glfw.PRESS:
-                        direction += Matrix.down()
+                        direction -= transform.up
                     elif event.action == glfw.RELEASE:
-                        direction -= Matrix.down()
+                        direction += transform.up
                 elif event.key == key_map.forward:
                     if event.action == glfw.PRESS:
-                        direction -= Matrix.forward()
+                        direction -= transform.forward
                     if event.action == glfw.RELEASE:
-                        direction += Matrix.forward()
+                        direction += transform.forward
                 elif event.key == key_map.backward:
                     if event.action == glfw.PRESS:
-                        direction -= Matrix.backward()
+                        direction += transform.forward
                     elif event.action == glfw.RELEASE:
-                        direction += Matrix.backward()
+                        direction -= transform.forward
 
                 if any(direction):
                     state.momentum += multiplier * direction / direction.norm()
@@ -182,19 +182,7 @@ class CameraControlSystem(EventSystem):
     event_types = (CursorEvent,)
 
     def process(self, event, world, components):
-        camera = next(world.get_entities(Camera))
-        inv_p = camera.projection.inverse_matrix
-        window_shape = world.ctx.data.window_shape
-        cursor_pos = Matrix((4, 1), (
-            2 * event.xpos / window_shape[0] - 1,
-            -(2 * event.ypos / window_shape[1] - 1),
-            0,
-            1
-        ))
-        proj_pos = inv_p @ cursor_pos
         pass
-        #for transform, projection in components:
-        #    pass
 
 
 @attr.s
