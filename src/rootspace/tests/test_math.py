@@ -274,7 +274,7 @@ class TestMatrix(object):
             0, 0, 0, 1
         ))
 
-    def test_orthograohic(self):
+    def test_orthographic(self):
         assert Matrix.orthographic(-1 , 1, -1, 1, 0.1, 100) == Matrix((4, 4), (
             1, 0, 0, 0,
             0, 1, 0, 0,
@@ -594,3 +594,23 @@ class TestQuaternion(object):
         b = Matrix((4, 1), (1, 2, 3, 4))
 
         assert a @ b @ a.inverse() == Quaternion(1, 2, 3, 4)
+
+
+@pytest.mark.xfail
+def test_all_close():
+    raise NotImplementedError()
+
+
+@pytest.mark.xfail
+def test_euler_step():
+    raise NotImplementedError()
+
+
+@pytest.mark.xfail
+def test_runge_kutta_4():
+    raise NotImplementedError()
+
+
+@pytest.mark.xfail
+def test_equations_of_motion():
+    raise NotImplementedError()

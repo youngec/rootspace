@@ -83,114 +83,6 @@ class PhysicsState(Component):
             Matrix((3, 1), force)
         )
 
-    def __neg__(self):
-        """
-        Negate each element.
-
-        :return:
-        """
-        return PhysicsState(-self.momentum, -self.force)
-
-    def __add__(self, other):
-        """
-        Perform a left-sided addition operation.
-
-        :param PhysicsState|int|float other:
-        :rtype: PhysicsState
-        :return:
-        """
-        if isinstance(other, PhysicsState):
-            return PhysicsState(self.momentum + other.momentum, self.force + other.force)
-        elif isinstance(other, (int, float)):
-            return PhysicsState(self.momentum + other, self.force + other)
-        else:
-            return NotImplemented
-
-    def __radd__(self, other):
-        """
-        Perform a right-sided addition operation. Equivalent to __add__.
-
-        :param PhysicsState|int|float other:
-        :rtype: PhysicsState
-        :return:
-        """
-        return self.__add__(other)
-
-    def __sub__(self, other):
-        """
-        Perform a left-sided subtraction operation.
-
-        :param PhysicsState|int|float other:
-        :rtype: PhysicsState
-        :return:
-        """
-        return self + -other
-
-    def __rsub__(self, other):
-        """
-        Perform a right-sided subtraction operation.
-
-        :param PhysicsState|int|float other:
-        :rtype: PhysicsState
-        :return:
-        """
-        return other + -self
-
-    def __mul__(self, other):
-        """
-        Perform a left-sided element-wise multiplication operation.
-
-        :param PhysicsState|int|float other:
-        :rtype: PhysicsState
-        :return:
-        """
-        if isinstance(other, PhysicsState):
-            return PhysicsState(self.momentum * other.momentum, self.force * other.force)
-        elif isinstance(other, (int, float)):
-            return PhysicsState(self.momentum * other, self.force * other)
-        else:
-            return NotImplemented
-
-    def __rmul__(self, other):
-        """
-        Perform a right-sided element-wise multiplication operation. Equivalent to __mul__.
-
-        :param PhysicsState|int|float other:
-        :rtype: PhysicsState
-        :return:
-        """
-        return self.__mul__(other)
-
-    def __truediv__(self, other):
-        """
-        Perform a left-sided element-wise division operation.
-
-        :param PhysicsState|int|float other:
-        :rtype: PhysicsState
-        :return:
-        """
-        if isinstance(other, PhysicsState):
-            return PhysicsState(self.momentum / other.momentum, self.force / other.force)
-        elif isinstance(other, (int, float)):
-            return PhysicsState(self.momentum / other, self.force / other)
-        else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(self), type(other)))
-
-    def __rtruediv__(self, other):
-        """
-        Perform a right-sided element-wise division operation.
-
-        :param PhysicsState|int|float other:
-        :rtype: PhysicsState
-        :return:
-        """
-        if isinstance(other, PhysicsState):
-            return PhysicsState(other.momentum / self.momentum, other.force / self.force)
-        elif isinstance(other, (int, float)):
-            return PhysicsState(other / self.momentum, other / self.force)
-        else:
-            raise TypeError("unsupported operand type(s) for /: '{}' and '{}'".format(type(other), type(self)))
-
 
 @attr.s
 class Transform(Component):
@@ -226,6 +118,7 @@ class Transform(Component):
     @position.setter
     def position(self, value):
         self.t[0:3, 3] = value
+
 
 @attr.s
 class Projection(Component):

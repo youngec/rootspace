@@ -10,7 +10,7 @@ from .components import Transform, Projection, Model, PhysicsState, PhysicsPrope
 from .entities import Camera
 from .events import KeyEvent, CursorEvent
 from .utilities import camelcase_to_underscore
-from .math import Quaternion, Matrix
+from .math import Matrix, equations_of_motion
 
 
 class SystemMeta(type):
@@ -114,54 +114,11 @@ class PhysicsSystem(UpdateSystem):
         :return:
         """
         for transform, properties, state in components:
-            self._integrate(time, delta_time, transform, properties, state)
+            if any(state.momentum) or any(state.force):
+                pi, mi = equations_of_motion(delta_time, state.momentum, state.force, properties.mass)
 
-    def _integrate(self, time, delta_time, transform, properties, state):
-        """
-        Perform a fourth-order Runge Kutta integration of the equations of motion.
-        Based on http://gafferongames.com/game-physics/
-
-        :param transform:
-        :param properties:
-        :param state:
-        :param time:
-        :param delta_time:
-        :return:
-        """
-        if any(state.momentum) or any(state.force):
-            # Calculate the derivative state
-            derivative_state = self._runge_kutta(state, delta_time)
-
-            # Calculate the linear component
-            transform.position += derivative_state.momentum / properties.mass * delta_time
-            state.momentum += derivative_state.force * delta_time
-
-    def _runge_kutta(self, state: PhysicsState, delta_time: float) -> PhysicsState:
-        """
-        Perform a fourth-order Runge Kutta integration.
-        Based on http://gafferongames.com/game-physics/
-
-        :param state:
-        :param delta_time:
-        :return:
-        """
-        derivative_a = self._evaluate(state, PhysicsState.create(), 0)
-        derivative_b = self._evaluate(state, derivative_a, delta_time * 0.5)
-        derivative_c = self._evaluate(state, derivative_b, delta_time * 0.5)
-        derivative_d = self._evaluate(state, derivative_c, delta_time)
-
-        return (derivative_a + 2 * (derivative_b + derivative_c) + derivative_d) / 6
-
-    def _evaluate(self, state: PhysicsState, derivative: PhysicsState, delta_time: float) -> PhysicsState:
-        """
-        Evaluate the current derivative in an Euler step.
-
-        :param state:
-        :param derivative:
-        :param delta_time:
-        :return:
-        """
-        return state + derivative * delta_time
+                transform.position += pi
+                state.momentum += mi
 
 
 @attr.s

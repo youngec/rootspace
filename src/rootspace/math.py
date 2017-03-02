@@ -17,33 +17,6 @@ GenericMatrix = NewType("GenericMatrix", Union[Iterable[Number], MatrixType])
 QuaternionType = NewType("Quaternion", object)
 
 
-def all_close(a: Any, b: Any, rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> bool:
-    """
-    Return true if objects a and b are approximately equal.
-
-    :param a:
-    :param b:
-    :param rel_tol:
-    :param abs_tol:
-    :raise TypeError:
-    :return:
-    """
-    if hasattr(a, "all_close"):
-        r = a.all_close(b, rel_tol, abs_tol)
-        if r is NotImplemented:
-            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
-        else:
-            return r
-    elif hasattr(b, "all_close"):
-        r = b.all_close(a, rel_tol, abs_tol)
-        if r is NotImplemented:
-            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
-        else:
-            return r
-    else:
-        raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
-
-
 class Matrix(object):
     """
     The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
@@ -1182,3 +1155,84 @@ class Quaternion(object):
                 raise ValueError("Expected a four-dimensional vector as operand, got '{}'.".format(other))
         else:
             return NotImplemented
+
+
+def all_close(a: Any, b: Any, rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> bool:
+    """
+    Return true if objects a and b are approximately equal.
+
+    :param a:
+    :param b:
+    :param rel_tol:
+    :param abs_tol:
+    :raise TypeError:
+    :return:
+    """
+    if hasattr(a, "all_close"):
+        r = a.all_close(b, rel_tol, abs_tol)
+        if r is NotImplemented:
+            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
+        else:
+            return r
+    elif hasattr(b, "all_close"):
+        r = b.all_close(a, rel_tol, abs_tol)
+        if r is NotImplemented:
+            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
+        else:
+            return r
+    else:
+        raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
+
+
+def euler_step(delta_time, momentum, force, dm, df):
+    """
+    Evaluate the current integral step.
+
+    :param delta_time:
+    :param momentum:
+    :param force:
+    :param dm:
+    :param df:
+    :return:
+    """
+    dm_n = momentum + dm * delta_time
+    df_n = force + df * delta_time
+
+    return dm_n, df_n
+
+
+def runge_kutta_4(delta_time, momentum, force):
+    """
+    Perform a fourth-order Runge Kutta integration.
+    Based on http://gafferongames.com/game-physics/
+
+    :param delta_time:
+    :param momentum:
+    :param force:
+    :return:
+    """
+    dm_a, df_a = euler_step(0, momentum, force, Matrix((3, 1), 0), Matrix((3, 1), 0))
+    dm_b, df_b = euler_step(delta_time * 0.5, momentum, force, dm_a, df_a)
+    dm_c, df_c = euler_step(delta_time * 0.5, momentum, force, dm_b, df_b)
+    dm_d, df_d = euler_step(delta_time, momentum, force, dm_c, df_c)
+
+    dm = (dm_a + 2 * (dm_b + dm_c) + dm_d) / 6
+    df = (df_a + 2 * (df_b + df_c) + df_d) / 6
+
+    return dm, df
+
+def equations_of_motion(delta_time, momentum, force, mass):
+    """
+    Calculate the equations of motion for a given time step.
+
+    :param delta_time:
+    :param momentum:
+    :param force:
+    :param mass:
+    :return:
+    """
+    dm, df = runge_kutta_4(delta_time, momentum, force)
+    position_increment = dm / mass * delta_time
+    momentum_increment = df * delta_time
+
+    return position_increment, momentum_increment
