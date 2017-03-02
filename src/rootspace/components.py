@@ -83,6 +83,10 @@ class PhysicsState(Component):
             Matrix((3, 1), force)
         )
 
+    def reset(self):
+        self.momentum = Matrix((3, 1), 0)
+        self.force = Matrix((3, 1), 0)
+
 
 @attr.s
 class Transform(Component):
@@ -102,26 +106,22 @@ class Transform(Component):
         :return:
         """
         t = Matrix.translation(*position)
-        r = Quaternion(*orientation).matrix
+        q = Quaternion(*orientation)
         s = Matrix.scaling(*scale)
 
-        return cls(t, r, s)
-
-    @property
-    def matrix(self):
-        return self.t @ self.r @ self.s
+        return cls(t, q.matrix, s)
 
     @property
     def right(self):
-        return self.r[:3, :3] @ Matrix.ex()
+        return self.r[:3, :3].t @ Matrix.ex()
 
     @property
     def up(self):
-        return self.r[:3, :3] @ Matrix.ey()
+        return self.r[:3, :3].t @ Matrix.ey()
 
     @property
     def forward(self):
-        return self.r[:3, :3] @ -Matrix.ez()
+        return self.r[:3, :3].t @ -Matrix.ez()
 
     @property
     def position(self):
@@ -130,6 +130,11 @@ class Transform(Component):
     @position.setter
     def position(self, value):
         self.t[0:3, 3] = value
+
+    def reset(self):
+        self.t = Matrix((4, 4))
+        self.r = Matrix((4, 4))
+        self.s = Matrix((4, 4))
 
 
 @attr.s

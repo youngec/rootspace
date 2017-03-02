@@ -5,6 +5,7 @@ import logging
 import OpenGL.GL as gl
 import glfw
 import attr
+from attr.validators import optional, instance_of
 
 from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties
 from .entities import Camera
@@ -116,7 +117,6 @@ class PhysicsSystem(UpdateSystem):
         for transform, properties, state in components:
             if any(state.momentum) or any(state.force):
                 pi, mi = equations_of_motion(delta_time, state.momentum, state.force, properties.mass)
-
                 transform.position += pi
                 state.momentum += mi
 
@@ -136,53 +136,61 @@ class PlayerMovementSystem(EventSystem):
 
         if event.key in key_map and event.mods == 0:
             for transform, state, projection in components:
-                direction = Matrix.zeros(3)
-                if event.key == key_map.right:
-                    if event.action == glfw.PRESS:
-                        direction += transform.right
-                    if event.action == glfw.RELEASE:
+                direction = Matrix((3, 1), 0)
+                if event.action in (glfw.PRESS, glfw.REPEAT):
+                    if event.key == key_map.right:
                         direction -= transform.right
-                elif event.key == key_map.left:
-                    if event.action == glfw.PRESS:
-                        direction -= transform.right
-                    elif event.action == glfw.RELEASE:
+                    elif event.key == key_map.left:
                         direction += transform.right
-                elif event.key == key_map.up:
-                    if event.action == glfw.PRESS:
+                    elif event.key == key_map.up:
                         direction += transform.up
-                    if event.action == glfw.RELEASE:
+                    elif event.key == key_map.down:
                         direction -= transform.up
-                elif event.key == key_map.down:
-                    if event.action == glfw.PRESS:
-                        direction -= transform.up
-                    elif event.action == glfw.RELEASE:
-                        direction += transform.up
-                elif event.key == key_map.forward:
-                    if event.action == glfw.PRESS:
+                    elif event.key == key_map.forward:
                         direction -= transform.forward
-                    if event.action == glfw.RELEASE:
+                    elif event.key == key_map.backward:
                         direction += transform.forward
-                elif event.key == key_map.backward:
-                    if event.action == glfw.PRESS:
-                        direction += transform.forward
-                    elif event.action == glfw.RELEASE:
-                        direction -= transform.forward
+                    elif event.key == key_map.reset:
+                        transform.reset()
+                        state.reset()
+                        continue
 
                 if any(direction):
-                    state.momentum += multiplier * direction / direction.norm()
+                    state.momentum = multiplier * direction / direction.norm()
+                else:
+                    state.momentum = direction
 
 
 @attr.s
 class CameraControlSystem(EventSystem):
-    """
-
-    """
     component_types = (Transform, Projection)
     is_applicator = True
     event_types = (CursorEvent,)
 
+    cursor = attr.ib(default=None, validator=optional(instance_of(Matrix)))
+
     def process(self, event, world, components):
-        pass
+        multiplier = 0.02
+        window_shape = world.ctx.data.window_shape
+        cursor = Matrix((3, 1), (
+            2 * event.xpos / window_shape[0] - 1,
+            -(2 * event.ypos / window_shape[1] - 1),
+            0
+        ))
+        if self.cursor is None:
+            self.cursor = cursor
+
+        delta = self.cursor - cursor
+
+        if not delta.all_close(0):
+            self.cursor = cursor
+            delta /= delta.norm() / multiplier
+            for transform, projection in components:
+                new_orientation = Quaternion.from_vectors(transform.forward, transform.forward + delta)
+                transform.r @= new_orientation.matrix
+                # right_correction = transform.right
+                # right_correction[1] = 0
+                # transform.r @= Quaternion.from_vectors(transform.right, right_correction).matrix
 
 
 @attr.s
@@ -196,7 +204,7 @@ class OpenGlRenderer(RenderSystem):
     def render(self, world, components):
         # Get a reference to the camera
         for camera in world.get_entities(Camera):
-            pv = camera.projection.matrix @ camera.transform.matrix
+            pv = camera.projection.matrix @ camera.transform.s @ camera.transform.r @ camera.transform.t
 
             # Clear the render buffers
             gl.glClear(world.scene.clear_bits)
@@ -204,7 +212,7 @@ class OpenGlRenderer(RenderSystem):
             # Render all models
             for transform, model in components:
                 with model:
-                    model.draw(pv @ transform.matrix)
+                    model.draw(pv @ transform.t @ transform.r @ transform.s)
 
             # Swap the double buffer
             glfw.swap_buffers(world.ctx.window)

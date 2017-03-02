@@ -132,6 +132,7 @@ class KeyMap(DataModel):
         W = glfw.KEY_W
         X = glfw.KEY_X
         Z = glfw.KEY_Z
+        R = glfw.KEY_R
 
         @classmethod
         def coerce(cls, value):
@@ -151,6 +152,7 @@ class KeyMap(DataModel):
     _down = attr.ib(validator=instance_of(Key), convert=Key.coerce)
     _forward = attr.ib(validator=instance_of(Key), convert=Key.coerce)
     _backward = attr.ib(validator=instance_of(Key), convert=Key.coerce)
+    _reset = attr.ib(validator=instance_of(Key), convert=Key.coerce)
 
     def __iter__(self):
         """

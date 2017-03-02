@@ -14,6 +14,7 @@
   "far_plane": 1000.0,
   "systems": [
     {"class": "player_movement_system", "kwargs": {}},
+    {"class": "camera_control_system", "kwargs": {}},
     {"class": "physics_system", "kwargs": {}},
     {"class": "open_gl_renderer", "kwargs": {}}
   ],

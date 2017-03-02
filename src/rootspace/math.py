@@ -10,7 +10,6 @@ from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional
 
 from .utilities import get_sub_shape, linearize_indices
 
-
 Number = NewType("Number", Union[int, float])
 MatrixType = NewType("Matrix", object)
 GenericMatrix = NewType("GenericMatrix", Union[Iterable[Number], MatrixType])
@@ -21,6 +20,7 @@ class Matrix(object):
     """
     The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
     """
+
     @classmethod
     def from_iterable(cls, data: Sequence[Union[Number, Sequence[Number]]]) -> MatrixType:
         """
@@ -334,6 +334,7 @@ class Matrix(object):
         :raise ValueError:
         :return:
         """
+
         def det2(a):
             return a[0, 0] * a[1, 1] - a[0, 1] * a[1, 0]
 
@@ -367,7 +368,7 @@ class Matrix(object):
         :param p:
         :return:
         """
-        return math.pow(sum(math.pow(abs(d), p) for d in self), 1/p)
+        return math.pow(sum(math.pow(abs(d), p) for d in self), 1 / p)
 
     def cross(self, other: MatrixType) -> MatrixType:
         """
@@ -438,7 +439,8 @@ class Matrix(object):
                 raise TypeError("Expected either an ArrayType, an iterable or a scalar number as positional argument.")
         else:
             if shape[0] == shape[1]:
-                self._data = array.array(data_type, (1 if i in range(0, length, shape[0] + 1) else 0 for i in range(length)))
+                self._data = array.array(data_type,
+                                         (1 if i in range(0, length, shape[0] + 1) else 0 for i in range(length)))
             else:
                 self._data = array.array(data_type, (0 for _ in range(length)))
 
@@ -452,7 +454,7 @@ class Matrix(object):
         for i in range(self.shape[0]):
             d = self[i, :]
             if isinstance(d, Matrix):
-                lines.append("[{}]".format(", ".join(str(e) for e in d)))
+                lines.append("[{}]".format(", ".join("{:e}".format(e) for e in d)))
             else:
                 lines.append("[{}]".format(d))
 
@@ -465,7 +467,7 @@ class Matrix(object):
         :return:
         """
         return "{}({}, ({}), data_type={}, transposed={})".format(
-            self.__class__.__name__, self._shape, ", ".join(str(e) for e in self),
+            self.__class__.__name__, self._shape, ", ".join("{:e}".format(e) for e in self),
             self._data.typecode, self._transposed
         )
 
@@ -576,7 +578,8 @@ class Matrix(object):
             if isinstance(value, Matrix) and value.shape == sub_shape:
                 for j, i in enumerate(sub_idx):
                     self._data[i] = value.data[j]
-            elif isinstance(value, collections.abc.Sequence) and len(value) == functools.reduce(operator.mul, sub_shape):
+            elif isinstance(value, collections.abc.Sequence) and len(value) == functools.reduce(operator.mul,
+                                                                                                sub_shape):
                 for j, i in enumerate(sub_idx):
                     self._data[i] = value[j]
             elif isinstance(value, (int, float)):
@@ -773,7 +776,9 @@ class Matrix(object):
 
                     return result
             else:
-                raise ValueError("Last dimension of '{}' and first dimension of '{}' do not match or are 1.".format(self.shape, other.shape))
+                raise ValueError(
+                    "Last dimension of '{}' and first dimension of '{}' do not match or are 1.".format(self.shape,
+                                                                                                       other.shape))
         else:
             return NotImplemented
 
@@ -782,6 +787,7 @@ class Quaternion(object):
     """
     The Quaternion class provides a way to work with four-dimensional complex numbers.
     """
+
     @classmethod
     def from_axis(cls, axis: MatrixType, angle: Number) -> QuaternionType:
         """
@@ -825,12 +831,14 @@ class Quaternion(object):
             a = s.cross(t)
             b = math.sqrt(2 * (1 + math.e))
 
-            return Quaternion(
-                1/b * a[0],
-                1/b * a[1],
-                1/b * a[2],
-                b/2
+            q = Quaternion(
+                1 / b * a[0],
+                1 / b * a[1],
+                1 / b * a[2],
+                b / 2
             )
+
+            return q / q.norm()
         else:
             raise ValueError("Expected three-dimensional vectors, got '{}' and '{}'.".format(s, t))
 
@@ -899,9 +907,9 @@ class Quaternion(object):
         s = 2 / self.norm()
 
         return Matrix((4, 4), (
-            1 - s * (j**2 + k**2), s * (i*j - k*r), s * (i*k + j*r), 0,
-            s * (i*j + k*r), 1 - s * (i**2 + k**2), s * (j*k - i*r), 0,
-            s * (i*k - j*r), s * (j*k + i*r), 1 - s * (i**2 + j**2), 0,
+            1 - s * (j ** 2 + k ** 2), s * (i * j - k * r), s * (i * k + j * r), 0,
+            s * (i * j + k * r), 1 - s * (i ** 2 + k ** 2), s * (j * k - i * r), 0,
+            s * (i * k - j * r), s * (j * k + i * r), 1 - s * (i ** 2 + j ** 2), 0,
             0, 0, 0, 1
         ))
 
@@ -926,7 +934,7 @@ class Quaternion(object):
 
         :return:
         """
-        return math.sqrt(sum(abs(d)**2 for d in self))
+        return math.sqrt(sum(abs(d) ** 2 for d in self))
 
     def inverse(self) -> QuaternionType:
         """
@@ -1208,6 +1216,7 @@ def runge_kutta_4(delta_time, momentum, force):
     df = (df_a + 2 * (df_b + df_c) + df_d) / 6
 
     return dm, df
+
 
 def equations_of_motion(delta_time, momentum, force, mass):
     """
