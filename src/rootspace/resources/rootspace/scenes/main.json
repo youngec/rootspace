@@ -53,7 +53,7 @@
       "kwargs": {
         "position": [0.0, 0.0, -10.0],
         "orientation": [0, 0, 0, 1],
-        "scale": [0.1, 0.1, 0.1]
+        "scale": [1, 1, 1]
       }
     },
     "cube": {
