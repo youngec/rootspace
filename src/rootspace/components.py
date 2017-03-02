@@ -17,8 +17,7 @@ from .math import Quaternion, Matrix
 from .wrappers import Texture, OpenGlProgram, OpenGlShader
 from .utilities import camelcase_to_underscore
 from .exceptions import FixmeWarning
-from .data_abstractions import Attribute, Mesh
-from .model_parser import PlyParser
+from .data_abstractions import Mesh
 
 
 class ComponentMeta(type):
