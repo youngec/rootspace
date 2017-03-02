@@ -12,6 +12,7 @@ import json
 
 import attr
 import glfw
+import PIL.Image
 from OpenGL.GL import GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_LESS, GL_CCW, GL_BACK
 from attr.validators import instance_of, optional
 
@@ -304,9 +305,9 @@ class Mesh(object):
     index = attr.ib(validator=instance_of(array.array))
     attributes = attr.ib(validator=instance_of(tuple), convert=tuple)
     draw_mode = attr.ib(validator=instance_of(DrawMode))
-    vertex_shader_file = attr.ib(default=None, validator=optional(instance_of(str)))
-    fragment_shader_file = attr.ib(default=None, validator=optional(instance_of(str)))
-    texture_file = attr.ib(default=None, validator=optional(instance_of(str)))
+    vertex_shader = attr.ib(default=None, validator=optional(instance_of(str)))
+    fragment_shader = attr.ib(default=None, validator=optional(instance_of(str)))
+    texture = attr.ib(default=None, validator=optional(instance_of(PIL.Image.Image)))
     comments = attr.ib(default=None, validator=optional(instance_of(tuple)))
 
     @property
@@ -324,3 +325,7 @@ class Mesh(object):
     @property
     def index_type(self):
         return self.index.typecode
+
+    @property
+    def requires_texture(self):
+        return any(a.type == Attribute.Type.Texture for a in self.attributes)

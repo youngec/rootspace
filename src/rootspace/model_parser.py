@@ -9,6 +9,7 @@ import mmap
 import struct
 import enum
 
+import PIL.Image
 import attr
 from attr.validators import instance_of
 from pyparsing import pyparsing_common, ParserElement, Group, And, MatchFirst, CaselessKeyword, Optional, \
@@ -50,6 +51,8 @@ class PlyParser(object):
     list_length      ::= NUMBER
     """
     header_grammar = attr.ib(validator=instance_of(ParserElement))
+    base_shader_path = attr.ib(validator=instance_of(pathlib.Path))
+    base_texture_path = attr.ib(validator=instance_of(pathlib.Path))
 
     class FormatType(enum.Enum):
         ASCII = 0
@@ -107,10 +110,12 @@ class PlyParser(object):
     default_index_type = "I"
 
     @classmethod
-    def create(cls):
+    def create(cls, base_shader_path, base_texture_path):
         """
         Create a Stanford polygon file parser (PLY).
 
+        :param base_shader_path:
+        :param base_texture_path:
         :return:
         """
         # Define the base patterns for parsing
@@ -209,7 +214,7 @@ class PlyParser(object):
 
         header_grammar = start_keyword + declarations + stop_keyword
 
-        return cls(header_grammar)
+        return cls(header_grammar, base_shader_path, base_texture_path)
 
     def tokenize_header(self, header_data):
         """
@@ -236,27 +241,28 @@ class PlyParser(object):
             # Extract the comments
             if "comments" in tokens:
                 comments = list()
-                vertex_shader_file = None
-                fragment_shader_file = None
-                texture_file = None
+                vertex_shader = None
+                fragment_shader = None
+                texture = None
                 for comment in tokens.comments:
                     if isinstance(comment, str):
                         comments.append(comment)
                     else:
                         if comment.getName() == "vertex_shader_file":
-                            vertex_shader_file = comment[0]
+                            vertex_shader = (self.base_shader_path / comment[0]).read_text()
                         elif comment.getName() == "fragment_shader_file":
-                            fragment_shader_file = comment[0]
+                            fragment_shader = (self.base_shader_path / comment[0]).read_text()
                         elif comment.getName() == "texture_file":
-                            texture_file = comment[0]
+                            with PIL.Image.open(self.base_texture_path / comment[0]) as img:
+                                texture = img
                         else:
                             raise ValueError("Unkown ParseResult: '{}'.".format(comment))
                 comments = tuple(comments)
             else:
                 comments = ()
-                vertex_shader_file = None
-                fragment_shader_file = None
-                texture_file = None
+                vertex_shader = None
+                fragment_shader = None
+                texture = None
 
             # Determine the data types
             aggregate_data_types = {
@@ -279,9 +285,9 @@ class PlyParser(object):
                 index=element_data["face"],
                 attributes=vertex_attributes,
                 draw_mode=Mesh.DrawMode.Triangles,
-                vertex_shader_file=vertex_shader_file,
-                fragment_shader_file=fragment_shader_file,
-                texture_file=texture_file,
+                vertex_shader=vertex_shader,
+                fragment_shader=fragment_shader,
+                texture=texture,
                 comments=tuple(comments)
             )
 

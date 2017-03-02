@@ -59,9 +59,7 @@
     "cube": {
       "class": "model",
       "kwargs": {
-        "mesh_path": "models/cube.ply",
-        "vertex_shader_path": "shaders/simple_vertex.glsl",
-        "fragment_shader_path": "shaders/simple_fragment.glsl"
+        "mesh_path": "models/cube.ply"
       }
     }
   }

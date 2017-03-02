@@ -47,10 +47,11 @@ class PhysicsProperties(Component):
     center_of_mass = attr.ib(validator=instance_of(Matrix))
 
     @classmethod
-    def create(cls, mass=1.0, inertia=1.0, center_of_mass=(0, 0, 0)):
+    def create(cls, context, mass=1.0, inertia=1.0, center_of_mass=(0, 0, 0)):
         """
         Create PhysicsProperties from mass, inertia and the center of mass.
 
+        :param context:
         :param mass:
         :param inertia:
         :param center_of_mass:
@@ -69,10 +70,11 @@ class PhysicsState(Component):
     force = attr.ib(validator=instance_of(Matrix))
 
     @classmethod
-    def create(cls, momentum=(0, 0, 0), force=(0, 0, 0)):
+    def create(cls, context, momentum=(0, 0, 0), force=(0, 0, 0)):
         """
         Create a PhysicsState component from momentum and force.
 
+        :param context:
         :param momentum:
         :param force:
         :return:
@@ -198,10 +200,11 @@ class Transform(Component):
     s = attr.ib(validator=instance_of(Matrix))
 
     @classmethod
-    def create(cls, position=(0, 0, 0), orientation=(0, 0, 0, 1), scale=(1, 1, 1)):
+    def create(cls, context, position=(0, 0, 0), orientation=(0, 0, 0, 1), scale=(1, 1, 1)):
         """
         Create a Transform component from a translation vector, an orientation Quaternion and a scale vector.
 
+        :param context:
         :param position:
         :param orientation:
         :param scale:
@@ -230,7 +233,17 @@ class Projection(Component):
     p = attr.ib(validator=instance_of(Matrix))
 
     @classmethod
-    def create(cls, field_of_view=math.pi/4, window_shape=(800, 600), near_plane=0-1, far_plane=1000):
+    def create(cls, context, field_of_view=math.pi / 4, window_shape=(800, 600), near_plane=0 - 1, far_plane=1000):
+        """
+        Create a projection component.
+
+        :param context:
+        :param field_of_view:
+        :param window_shape:
+        :param near_plane:
+        :param far_plane:
+        :return:
+        """
         return cls(
             Matrix.perspective(field_of_view, window_shape[0] / window_shape[1], near_plane, far_plane)
         )
@@ -293,10 +306,27 @@ class Model(Component):
             gl.glDeleteBuffers(num, obj)
 
     @classmethod
-    def create(cls, mesh_path, vertex_shader_path, fragment_shader_path, texture_path=None):
+    def create(cls, context, mesh_path, vertex_shader_path=None, fragment_shader_path=None, texture_path=None):
         # Load the mesh into memory.
-        parser = PlyParser.create()
-        mesh = parser.load(mesh_path)
+        mesh = context.model_parser.load(mesh_path)
+
+        if mesh.vertex_shader is None and vertex_shader_path is None:
+            raise ValueError("There must be at least one vertex shader path specified.")
+        elif mesh.vertex_shader is None and vertex_shader_path is not None:
+            mesh.vertex_shader = vertex_shader_path.read_text()
+
+        if mesh.fragment_shader is None and fragment_shader_path is None:
+            raise ValueError("There must be at least one fragment shader path specified.")
+        elif mesh.fragment_shader is None and fragment_shader_path is not None:
+            mesh.fragment_shader = fragment_shader_path.read_text()
+
+        if mesh.requires_texture and mesh.texture is None and texture_path is None:
+            raise ValueError("The mesh requires texture data, but none was given.")
+        elif mesh.requires_texture and mesh.texture is None and texture_path is not None:
+            with PIL.Image.open(texture_path) as i:
+                mesh.texture = i
+        elif not mesh.requires_texture and (mesh.texture is not None or texture_path is not None):
+            warnings.warn("Texture data was provided but the model data does not use any.", FixmeWarning)
 
         with contextlib.ExitStack() as ctx:
             # Create and bind the Vertex Array Object
@@ -305,18 +335,14 @@ class Model(Component):
             gl.glBindVertexArray(vao)
 
             # Compile the shader program
-            vertex_shader = OpenGlShader.create(gl.GL_VERTEX_SHADER, vertex_shader_path.read_text())
-            fragment_shader = OpenGlShader.create(gl.GL_FRAGMENT_SHADER, fragment_shader_path.read_text())
+            vertex_shader = OpenGlShader.create(gl.GL_VERTEX_SHADER, mesh.vertex_shader)
+            fragment_shader = OpenGlShader.create(gl.GL_FRAGMENT_SHADER, mesh.fragment_shader)
             program = OpenGlProgram.create(vertex_shader, fragment_shader)
 
             # Create the texture only if necessary
             tex = None
-            if any(a.type == Attribute.Type.Texture for a in mesh.attributes):
-                if texture_path is not None:
-                    with PIL.Image.open(texture_path) as tx_data:
-                        tex = Texture.create(tx_data)
-            elif texture_path is not None:
-                warnings.warn("Texture data was provided but the model data does not use any.", FixmeWarning)
+            if mesh.requires_texture:
+                tex = Texture.create(mesh.texture)
 
             # Initialise the vertex buffer
             vbo = int(gl.glGenBuffers(1))

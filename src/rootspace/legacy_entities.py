@@ -41,7 +41,7 @@ class LocalComputer(Entity):
                 k in kwargs}
 
         inst = super(LocalComputer, cls).create(
-            world=world,
+            ctx=world,
             machine_state=MachineState(),
             network_state=NetworkState(),
             file_system=FileSystem(db_path),

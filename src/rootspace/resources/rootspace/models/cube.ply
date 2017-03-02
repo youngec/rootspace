@@ -3,7 +3,6 @@ format ascii 1.0
 comment A colored cube with shader and texture references.
 comment VertexShaderFile simple_vertex.glsl
 comment FragmentShaderFile simple_fragment.glsl
-comment TextureFile test-texture.png
 element vertex 8
 property float x
 property float y

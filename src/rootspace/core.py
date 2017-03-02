@@ -13,7 +13,7 @@ import os
 import OpenGL.GL as gl
 import attr
 import glfw
-from attr.validators import instance_of
+from attr.validators import instance_of, optional
 
 from .systems import SystemMeta, UpdateSystem, RenderSystem, EventSystem
 from .entities import EntityMeta, Camera
@@ -22,6 +22,7 @@ from .events import KeyEvent, CharEvent, CursorEvent, SceneEvent
 from .exceptions import GLFWError
 from .utilities import subclass_of
 from .data_abstractions import KeyMap, ContextData, Scene
+from .model_parser import PlyParser
 
 
 @attr.s
@@ -56,7 +57,7 @@ class World(object):
     _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
     _event_queue = attr.ib(default=attr.Factory(collections.deque), validator=instance_of(collections.deque))
-    _scene = attr.ib(default=None, validator=instance_of((type(None), Scene)))
+    _scene = attr.ib(default=None, validator=optional(instance_of(Scene)))
     _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
 
     @property
@@ -512,7 +513,7 @@ class World(object):
                 kwargs = self._parse_arguments(scene, v, reference_tree)
 
                 if hasattr(cls, "create"):
-                    objects[k] = cls.create(**kwargs)
+                    objects[k] = cls.create(self.ctx, **kwargs)
                 else:
                     objects[k] = cls(**kwargs)
         else:
@@ -522,7 +523,7 @@ class World(object):
                 kwargs = self._parse_arguments(scene, v, reference_tree)
 
                 if hasattr(cls, "create"):
-                    objects.append(cls.create(**kwargs))
+                    objects.append(cls.create(self.ctx, **kwargs))
                 else:
                     objects.append(cls(**kwargs))
 
@@ -604,8 +605,9 @@ class Context(object):
     _debug = attr.ib(validator=instance_of(bool))
     _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
     _window = attr.ib(default=None, repr=False)
-    _world = attr.ib(default=None, validator=instance_of((type(None), World)))
-    _ctx_exit = attr.ib(default=None, validator=instance_of((type(None), contextlib.ExitStack)), repr=False)
+    _model_parser = attr.ib(default=None, repr=False)
+    _world = attr.ib(default=None, validator=optional(instance_of((World))))
+    _ctx_exit = attr.ib(default=None, validator=optional(instance_of(contextlib.ExitStack)), repr=False)
 
     @classmethod
     def _ensure_config(cls, resources_path, states_path, force=False):
@@ -720,6 +722,15 @@ class Context(object):
         return self._window
 
     @property
+    def model_parser(self):
+        """
+        Return a feference to the model parser or None.
+
+        :return:
+        """
+        return self._model_parser
+
+    @property
     def world(self):
         """
         Return a reference to the World or None.
@@ -755,6 +766,15 @@ class Context(object):
         self._log.debug("Destroying the Window and deleting its reference.")
         glfw.destroy_window(self._window)
         self._window = None
+
+    def _del_model_parser(self):
+        """
+        Delete the reference to the model parser.
+
+        :return:
+        """
+        self._log.debug("Destroying the model parser.")
+        self._model_parser = None
 
     def _del_world(self):
         """
@@ -812,6 +832,11 @@ class Context(object):
             # num_extensions = gl.glGetIntegerv(gl.GL_NUM_EXTENSIONS)
             # extensions = (gl.glGetStringi(gl.GL_EXTENSIONS, i).decode("utf-8") for i in range(num_extensions))
             # self._log.debug("Extensions: {}".format(", ".join(extensions)))
+
+            # Create the model parser
+            self._log.debug("Creating the model parser.")
+            self._model_parser = PlyParser.create(self.resources / "shaders", self.resources / "textures")
+            ctx_mgr.callback(self._del_model_parser)
 
             # Create the World
             self._log.debug("Creating the world.")
