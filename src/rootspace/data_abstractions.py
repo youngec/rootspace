@@ -301,8 +301,8 @@ class Mesh(object):
         TrianglesAdjacency = 12
         Patches = 14
 
-    data = attr.ib(validator=instance_of(array.array))
-    index = attr.ib(validator=instance_of(array.array))
+    data = attr.ib(validator=instance_of(array.array), repr=False)
+    index = attr.ib(validator=instance_of(array.array), repr=False)
     attributes = attr.ib(validator=instance_of(tuple), convert=tuple)
     draw_mode = attr.ib(validator=instance_of(DrawMode))
     vertex_shader = attr.ib(default=None, validator=optional(instance_of(str)))
