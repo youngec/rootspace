@@ -495,7 +495,7 @@ class Matrix(object):
             else:
                 lines.append("[{}]".format(d))
 
-        return "[{}]".format("\n ".join(lines))
+        return "[{}]".format("; ".join(lines))
 
     def __repr__(self) -> str:
         """
