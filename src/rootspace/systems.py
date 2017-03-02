@@ -159,14 +159,14 @@ class PlayerMovementSystem(EventSystem):
                         direction -= Matrix.down()
                 elif event.key == key_map.forward:
                     if event.action == glfw.PRESS:
-                        direction += Matrix.forward()
-                    if event.action == glfw.RELEASE:
                         direction -= Matrix.forward()
+                    if event.action == glfw.RELEASE:
+                        direction += Matrix.forward()
                 elif event.key == key_map.backward:
                     if event.action == glfw.PRESS:
-                        direction += Matrix.backward()
-                    elif event.action == glfw.RELEASE:
                         direction -= Matrix.backward()
+                    elif event.action == glfw.RELEASE:
+                        direction += Matrix.backward()
 
                 if any(direction):
                     state.momentum += multiplier * direction / direction.norm()
