@@ -1215,18 +1215,19 @@ def runge_kutta_4(delta_time, momentum, force):
     return dm, df
 
 
-def equations_of_motion(delta_time, momentum, force, mass):
+def equations_of_motion(delta_time, position, momentum, force, mass):
     """
     Calculate the equations of motion for a given time step.
 
     :param delta_time:
+    :param position:
     :param momentum:
     :param force:
     :param mass:
     :return:
     """
     dm, df = runge_kutta_4(delta_time, momentum, force)
-    position_increment = dm / mass * delta_time
-    momentum_increment = df * delta_time
+    position_next = position + dm / mass * delta_time
+    momentum_next = momentum + df * delta_time
 
-    return position_increment, momentum_increment
+    return position_next, momentum_next

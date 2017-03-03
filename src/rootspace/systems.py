@@ -116,9 +116,9 @@ class PhysicsSystem(UpdateSystem):
         """
         for transform, properties, state in components:
             if any(state.momentum) or any(state.force):
-                pi, mi = equations_of_motion(delta_time, state.momentum, state.force, properties.mass)
-                transform.position += pi
-                state.momentum += mi
+                p, m = equations_of_motion(delta_time, transform.position, state.momentum, state.force, properties.mass)
+                transform.position = p
+                state.momentum = m
 
 
 @attr.s
