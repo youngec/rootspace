@@ -454,7 +454,7 @@ class Matrix(object):
         for i in range(self.shape[0]):
             d = self[i, :]
             if isinstance(d, Matrix):
-                lines.append("[{}]".format(", ".join("{:e}".format(e) for e in d)))
+                lines.append("[{}]".format(", ".join("{:.2e}".format(e) for e in d)))
             else:
                 lines.append("[{}]".format(d))
 
@@ -973,7 +973,7 @@ class Quaternion(object):
 
         :return:
         """
-        return "{}i + {}j + {}k + {}".format(self.qi, self.qj, self.qk, self.qr)
+        return "{:.2e}i + {:.2e}j + {:.2e}k + {:.2e}".format(self.qi, self.qj, self.qk, self.qr)
 
     def __repr__(self) -> str:
         """
@@ -981,7 +981,7 @@ class Quaternion(object):
 
         :return:
         """
-        return "{}(qi={}, qj={}, qk={}, qr={})".format(self.__class__.__name__, self.qi, self.qj, self.qk, self.qr)
+        return "{}(qi={:e}, qj={:e}, qk={:e}, qr={:e})".format(self.__class__.__name__, self.qi, self.qj, self.qk, self.qr)
 
     def __iter__(self):
         """
