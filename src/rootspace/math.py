@@ -1194,14 +1194,15 @@ def euler_step(delta_time, momentum, force, dm, df):
     return dm_n, df_n
 
 
-def runge_kutta_4(delta_time, momentum, force):
+def runge_kutta_4(delta_time, momentum, force, mass):
     """
-    Perform a fourth-order Runge Kutta integration.
+    Perform a fourth-order Runge Kutta integration with constant force.
     Based on http://gafferongames.com/game-physics/
 
     :param delta_time:
     :param momentum:
     :param force:
+    :param mass:
     :return:
     """
     dm_a, df_a = euler_step(0, momentum, force, Matrix((3, 1), 0), Matrix((3, 1), 0))
@@ -1209,10 +1210,25 @@ def runge_kutta_4(delta_time, momentum, force):
     dm_c, df_c = euler_step(delta_time * 0.5, momentum, force, dm_b, df_b)
     dm_d, df_d = euler_step(delta_time, momentum, force, dm_c, df_c)
 
-    dm = (dm_a + 2 * (dm_b + dm_c) + dm_d) / 6
-    df = (df_a + 2 * (df_b + df_c) + df_d) / 6
+    dp = (dm_a + 2 * (dm_b + dm_c) + dm_d) * (delta_time / (6 * mass))
+    dm = (df_a + 2 * (df_b + df_c) + df_d) * (delta_time / 6)
 
-    return dm, df
+    return dp, dm
+
+
+def velocity_verlet(delta_time, momentum, force, mass):
+    """
+    Perform a velocity verlet integration with constant force.
+
+    :param delta_time:
+    :param momentum:
+    :param force:
+    :param mass:
+    :return:
+    """
+    dp = (momentum + force * delta_time / 2) * delta_time / mass
+    dm = force * delta_time / mass
+    return dp, dm
 
 
 def equations_of_motion(delta_time, position, momentum, force, mass):
@@ -1226,8 +1242,8 @@ def equations_of_motion(delta_time, position, momentum, force, mass):
     :param mass:
     :return:
     """
-    dm, df = runge_kutta_4(delta_time, momentum, force)
-    position_next = position + dm / mass * delta_time
-    momentum_next = momentum + df * delta_time
+    dp, dm = velocity_verlet(delta_time, momentum, force, mass)
+    position_next = position + dp
+    momentum_next = momentum + dm
 
     return position_next, momentum_next
