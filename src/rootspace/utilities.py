@@ -11,7 +11,6 @@ import sys
 import itertools
 
 import attr
-import click
 import colorlog
 
 from .exceptions import FixmeWarning
@@ -206,7 +205,7 @@ def get_log_level(verbose, debug):
         elif verbose == 3:
             log_level = logging.DEBUG
         else:
-            click.echo("Only four verbosity levels are understood: 0, 1, 2 and 3.")
+            print("Only four verbosity levels are understood: 0, 1, 2 and 3.")
             log_level = logging.ERROR
 
     return log_level
