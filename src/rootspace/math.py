@@ -805,12 +805,9 @@ class Quaternion(object):
             c = math.cos(angle / 2)
             s = math.sin(angle / 2)
 
-            return Quaternion(
-                s * axis[0],
-                s * axis[1],
-                s * axis[2],
-                c
-            )
+            q = cls(s * axis[0], s * axis[1], s * axis[2], c)
+
+            return q / q.norm()
         else:
             raise ValueError("Expected a three-dimensional vector as axis, got '{}'.".format(axis))
 
@@ -831,7 +828,7 @@ class Quaternion(object):
             a = s.cross(t)
             b = math.sqrt(2 * (1 + math.e))
 
-            q = Quaternion(
+            q = cls(
                 1 / b * a[0],
                 1 / b * a[1],
                 1 / b * a[2],
