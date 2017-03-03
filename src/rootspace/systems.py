@@ -170,7 +170,7 @@ class CameraControlSystem(EventSystem):
     cursor = attr.ib(default=None, validator=optional(instance_of(Matrix)))
 
     def process(self, event, world, components):
-        multiplier = 0.05
+        multiplier = 0.04
         window_shape = world.ctx.data.window_shape
         cursor = Matrix((3, 1), (
             2 * event.xpos / window_shape[0] - 1,
@@ -188,7 +188,7 @@ class CameraControlSystem(EventSystem):
             for transform, projection in components:
                 rot_along_right = Quaternion.from_axis(transform.right, delta[1])
                 transform.r @= rot_along_right.matrix
-                rot_along_up = Quaternion.from_axis(transform.up, -delta[0])
+                rot_along_up = Quaternion.from_axis(Matrix.ey(), -delta[0])
                 transform.r @= rot_along_up.matrix
 
 
