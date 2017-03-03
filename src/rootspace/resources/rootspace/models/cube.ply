@@ -1,8 +1,8 @@
 ply
 format ascii 1.0
 comment A colored cube with shader and texture references.
-comment VertexShaderFile simple_vertex.glsl
-comment FragmentShaderFile simple_fragment.glsl
+comment VertexShaderFile cube-vertex.glsl
+comment FragmentShaderFile cube-fragment.glsl
 element vertex 8
 property float x
 property float y
@@ -10,18 +10,17 @@ property float z
 property float r
 property float g
 property float b
-property float a
 element face 12
 property list uchar uchar vertex_index
 end_header
--1 -1 -1 0 0 0 1
-1 -1 -1 1 0 0 1
--1 1 -1 0 1 0 1
-1 1 -1 1 1 0 1
--1 -1 1 0 0 1 1
-1 -1 1 1 0 1 1
--1 1 1 0 1 1 1
-1 1 1 1 1 1 1
+-1 -1 -1 0 0 0
+1 -1 -1 1 0 0
+-1 1 -1 0 1 0
+1 1 -1 1 1 0
+-1 -1 1 0 0 1
+1 -1 1 1 0 1
+-1 1 1 0 1 1
+1 1 1 1 1 1
 3 0 2 1
 3 1 2 3
 3 4 5 6
