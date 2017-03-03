@@ -107,6 +107,7 @@ class Transform(Component):
         """
         t = Matrix.translation(*position)
         q = Quaternion(*orientation)
+        q /= q.norm()
         s = Matrix.scaling(*scale)
 
         return cls(t, q.matrix, s)
