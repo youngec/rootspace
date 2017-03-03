@@ -28,10 +28,45 @@
         "projection": "cam_proj"
       }
     },
-    "test_entity": {
+    "cube_front": {
       "class": "static_object",
       "kwargs": {
-        "transform": "te_trf",
+        "transform": "te_trf_front",
+        "model": "cube"
+      }
+    },
+    "cube_back": {
+      "class": "static_object",
+      "kwargs": {
+        "transform": "te_trf_back",
+        "model": "cube"
+      }
+    },
+    "cube_right": {
+      "class": "static_object",
+      "kwargs": {
+        "transform": "te_trf_right",
+        "model": "cube"
+      }
+    },
+    "cube_left": {
+      "class": "static_object",
+      "kwargs": {
+        "transform": "te_trf_left",
+        "model": "cube"
+      }
+    },
+    "cube_up": {
+      "class": "static_object",
+      "kwargs": {
+        "transform": "te_trf_up",
+        "model": "cube"
+      }
+    },
+    "cube_down": {
+      "class": "static_object",
+      "kwargs": {
+        "transform": "te_trf_down",
         "model": "cube"
       }
     }
@@ -49,10 +84,50 @@
         "far_plane": "far_plane"
       }
     },
-    "te_trf": {
+    "te_trf_front": {
       "class": "transform",
       "kwargs": {
-        "position": [0.0, 0.0, -10.0],
+        "position": [0, 0, -5],
+        "orientation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "te_trf_back": {
+      "class": "transform",
+      "kwargs": {
+        "position": [0, 0, 5],
+        "orientation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "te_trf_right": {
+      "class": "transform",
+      "kwargs": {
+        "position": [5, 0, 0],
+        "orientation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "te_trf_left": {
+      "class": "transform",
+      "kwargs": {
+        "position": [-5, 0, 0],
+        "orientation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "te_trf_up": {
+      "class": "transform",
+      "kwargs": {
+        "position": [0, 5, 0],
+        "orientation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "te_trf_down": {
+      "class": "transform",
+      "kwargs": {
+        "position": [0, -5, 0],
         "orientation": [0, 0, 0, 1],
         "scale": [1, 1, 1]
       }
