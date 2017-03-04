@@ -11,6 +11,7 @@ from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional
 from .utilities import get_sub_shape, linearize_indices
 
 Number = NewType("Number", Union[int, float])
+Numeric = NewType("Comparable", Union[int, float, "Matrix"])
 
 
 class Matrix(object):
@@ -511,7 +512,7 @@ class Matrix(object):
         """
         return item in self._data
 
-    def __getitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int, ...]]]) -> Union[int, float, "Matrix"]:
+    def __getitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int, ...]]]) -> Numeric:
         """
         Provide angle-bracket element access to the matrix.
 
@@ -587,7 +588,7 @@ class Matrix(object):
         else:
             raise TypeError("Expected indices of type int, slice or tuple, not '{}'.".format(type(key)))
 
-    def __lt__(self, other: "Matrix") -> bool:
+    def __lt__(self, other: Numeric) -> bool:
         """
         Implement the element-wise less than operation.
 
@@ -596,10 +597,12 @@ class Matrix(object):
         """
         if isinstance(other, Matrix):
             return self.shape == other.shape and all(s < o for s, o in zip(self, other))
+        elif isinstance(other, (int, float)):
+            return all(s < other for s in self)
         else:
             return NotImplemented
 
-    def __le__(self, other: "Matrix") -> bool:
+    def __le__(self, other: Numeric) -> bool:
         """
         Implement the element-wise less than or equal to operation.
 
@@ -608,10 +611,12 @@ class Matrix(object):
         """
         if isinstance(other, Matrix):
             return self.shape == other.shape and all(s <= o for s, o in zip(self, other))
+        elif isinstance(other, (int, float)):
+            return all(s <= other for s in self)
         else:
             return NotImplemented
 
-    def __eq__(self, other: "Matrix") -> bool:
+    def __eq__(self, other: Numeric) -> bool:
         """
         Return True if all elements of two matrices compare equal.
 
@@ -620,10 +625,12 @@ class Matrix(object):
         """
         if isinstance(other, Matrix):
             return self.shape == other.shape and all(s == o for s, o in zip(self, other))
+        elif isinstance(other, (int, float)):
+            return all(s == other for s in self)
         else:
             return NotImplemented
 
-    def __gt__(self, other: "Matrix") -> bool:
+    def __gt__(self, other: Numeric) -> bool:
         """
         Implement the element-wise greater than operation.
 
@@ -632,10 +639,12 @@ class Matrix(object):
         """
         if isinstance(other, Matrix):
             return self.shape == other.shape and all(s > o for s, o in zip(self, other))
+        elif isinstance(other, (int, float)):
+            return all(s > other for s in self)
         else:
             return NotImplemented
 
-    def __ge__(self, other: "Matrix") -> bool:
+    def __ge__(self, other: Numeric) -> bool:
         """
         Implement the element-wise greater than or equal to operation.
 
@@ -644,6 +653,8 @@ class Matrix(object):
         """
         if isinstance(other, Matrix):
             return self.shape == other.shape and all(s >= o for s, o in zip(self, other))
+        elif isinstance(other, (int, float)):
+            return all(s >= other for s in self)
         else:
             return NotImplemented
 
@@ -680,7 +691,7 @@ class Matrix(object):
             result[i, j] = abs(self[i, j])
         return result
 
-    def __add__(self, other: Union[int, float, "Matrix"]) -> "Matrix":
+    def __add__(self, other: Numeric) -> "Matrix":
         """
         Perform a left-sided element-wise addition.
 
@@ -704,16 +715,16 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __radd__(self, other: Union[int, float, "Matrix"]) -> "Matrix":
+    def __radd__(self, other: Numeric) -> "Matrix":
         """
         Perform a right-sided element-wise addition. Equivalent to __add__.
 
         :param other:
         :return:
         """
-        return self.__add__(other)
+        return self + other
 
-    def __sub__(self, other: Union[int, float, "Matrix"]) -> "Matrix":
+    def __sub__(self, other: Numeric) -> "Matrix":
         """
         Perform a left-sided element-wise subtraction.
 
@@ -722,7 +733,7 @@ class Matrix(object):
         """
         return self + -other
 
-    def __rsub__(self, other: Union[int, float, "Matrix"]) -> "Matrix":
+    def __rsub__(self, other: Numeric) -> "Matrix":
         """
         Perform a right-sided element-wise subtraction.
 
@@ -731,7 +742,7 @@ class Matrix(object):
         """
         return other + -self
 
-    def __mul__(self, other: Union[int, float, "Matrix"]) -> "Matrix":
+    def __mul__(self, other: Numeric) -> "Matrix":
         """
         Perform a left-sided element-wise multiplication.
 
@@ -755,16 +766,16 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __rmul__(self, other: Union[int, float, "Matrix"]) -> "Matrix":
+    def __rmul__(self, other: Numeric) -> "Matrix":
         """
         Perform a right-sided element-wise multiplication. Equivalent to __mul__.
 
         :param other:
         :return:
         """
-        return self.__mul__(other)
+        return self * other
 
-    def __truediv__(self, other: Union[int, float, "Matrix"]) -> "Matrix":
+    def __truediv__(self, other: Numeric) -> "Matrix":
         """
         Perform a left-sided element-wise division.
 
@@ -788,7 +799,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __rtruediv__(self, other: Union[int, float, "Matrix"]) -> "Matrix":
+    def __rtruediv__(self, other: Numeric) -> "Matrix":
         """
         Perform a right-sided element wise division.
 
@@ -1103,7 +1114,7 @@ class Quaternion(object):
         :param other:
         :return:
         """
-        return self.__add__(other)
+        return self + other
 
     def __sub__(self, other: Union[int, float, "Quaternion"]) -> "Quaternion":
         """
@@ -1144,7 +1155,7 @@ class Quaternion(object):
         :param other:
         :return:
         """
-        return self.__mul__(other)
+        return self * other
 
     def __truediv__(self, other: Union[int, float, "Quaternion"]) -> "Quaternion":
         """
@@ -1233,7 +1244,7 @@ def all_close(a: Any, b: Any, rel_tol: float = 1e-05, abs_tol: float = 1e-08) ->
         raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
 
 
-def euler_step(delta_time, momentum, force, dm, df):
+def euler_step(delta_time: float, momentum: Matrix, force: Matrix, dm: Matrix, df: Matrix) -> Tuple[Matrix, Matrix]:
     """
     Evaluate the current integral step.
 
@@ -1250,7 +1261,7 @@ def euler_step(delta_time, momentum, force, dm, df):
     return dm_n, df_n
 
 
-def runge_kutta_4(delta_time, momentum, force, mass):
+def runge_kutta_4(delta_time: float, momentum: Matrix, force: Matrix, mass: float) -> Tuple[Matrix, Matrix]:
     """
     Perform a fourth-order Runge Kutta integration with constant force.
     Based on http://gafferongames.com/game-physics/
@@ -1272,7 +1283,7 @@ def runge_kutta_4(delta_time, momentum, force, mass):
     return dp, dm
 
 
-def velocity_verlet(delta_time, momentum, force, mass):
+def velocity_verlet(delta_time: float, momentum: Matrix, force: Matrix, mass: float) -> Tuple[Matrix, Matrix]:
     """
     Perform a velocity verlet integration with constant force.
 
@@ -1287,7 +1298,7 @@ def velocity_verlet(delta_time, momentum, force, mass):
     return dp, dm
 
 
-def equations_of_motion(delta_time, position, momentum, force, mass):
+def equations_of_motion(delta_time: float, position: Matrix, momentum: Matrix, force: Matrix, mass: float) -> Tuple[Matrix, Matrix]:
     """
     Calculate the equations of motion for a given time step.
 
@@ -1303,3 +1314,22 @@ def equations_of_motion(delta_time, position, momentum, force, mass):
     momentum_next = momentum + dm
 
     return position_next, momentum_next
+
+
+def aabb_overlap(a_min: Matrix, a_max: Matrix, b_min: Matrix, b_max: Matrix) -> bool:
+    """
+    Return True if the two Axis-Aligned minimum bounding boxes overlap.
+
+    :param a_min:
+    :param a_max:
+    :param b_min:
+    :param b_max:
+    :return:
+    """
+    d1 = b_min - a_max
+    d2 = a_min - b_max
+
+    if d1 >= 0 or d2 <= 0:
+        return True
+    else:
+        return False
