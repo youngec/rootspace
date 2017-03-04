@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import itertools
 
 import OpenGL.GL as gl
 import glfw
 import attr
 from attr.validators import optional, instance_of
 
-from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties
-from .entities import Camera
+from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties, BoundingVolume
+from .entities import Camera, StaticObject
 from .events import KeyEvent, CursorEvent
 from .utilities import camelcase_to_underscore
-from .math import Matrix, Quaternion, equations_of_motion
+from .math import Matrix, Quaternion, equations_of_motion, aabb_overlap
 
 
 class SystemMeta(type):
@@ -97,6 +98,27 @@ class EventSystem(System):
 
 
 @attr.s
+class CollisionSystem(UpdateSystem):
+    """
+    Detect collisions between objects.
+    """
+    component_types = (Transform, BoundingVolume, PhysicsProperties, PhysicsState)
+    is_applicator = True
+
+    def update(self, time, delta_time, world, components):
+        for trf, bv, prp, state in components:
+            d_min = trf.t @ trf.r @ trf.s @ bv.minimum
+            d_max = trf.t @ trf.r @ trf.s @ bv.maximum
+
+            for s in world.get_entities(StaticObject):
+                s_min = s.transform.t @ s.transform.r @ s.transform.s @ s.bounding_volume.minimum
+                s_max = s.transform.t @ s.transform.r @ s.transform.s @ s.bounding_volume.maximum
+                if aabb_overlap(d_min, d_max, s_min, s_max):
+                    state.momentum = Matrix((3, 1), 0)
+                    state.force = -prp.mass * prp.g
+
+
+@attr.s
 class PhysicsSystem(UpdateSystem):
     """
     Simulate the equations of motion.
@@ -115,9 +137,8 @@ class PhysicsSystem(UpdateSystem):
         :return:
         """
         for transform, properties, state in components:
-            if any(state.momentum) or any(state.force) or any(properties.g):
-                force = state.force + (properties.mass * properties.g)
-
+            force = state.force + (properties.mass * properties.g)
+            if any(state.momentum) or any(force):
                 p, m = equations_of_motion(delta_time, transform.position, state.momentum, force, properties.mass)
                 transform.position = p
                 state.momentum = m

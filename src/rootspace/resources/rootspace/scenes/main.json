@@ -15,6 +15,7 @@
   "systems": [
     {"class": "player_movement_system", "kwargs": {}},
     {"class": "camera_control_system", "kwargs": {}},
+    {"class": "collision_system", "kwargs": {}},
     {"class": "physics_system", "kwargs": {}},
     {"class": "open_gl_renderer", "kwargs": {}}
   ],
@@ -24,6 +25,7 @@
       "kwargs": {
         "transform": "cam_trf",
         "projection": "cam_proj",
+        "bounding_volume": "cam_bv",
         "physics_properties": "cam_phys_prop",
         "physics_state": "cam_phys_state"
       }
@@ -32,7 +34,8 @@
       "class": "static_object",
       "kwargs": {
         "transform": "floor_trf",
-        "model": "floor_mdl"
+        "model": "cube_mdl",
+        "bounding_volume": "floor_bv"
       }
     },
     "cube": {
@@ -40,6 +43,7 @@
       "kwargs": {
         "transform": "cube_trf",
         "model": "cube_mdl",
+        "bounding_volume": "cube_bv",
         "physics_properties": "cube_prp",
         "physics_state": "cube_sta"
       }
@@ -73,7 +77,7 @@
       "kwargs": {
         "position": [0, -2, -10],
         "orientation": [0, 0, 0, 1],
-        "scale": [1, 1, 1]
+        "scale": [8, 0.1, 8]
       }
     },
     "cube_trf": {
@@ -81,7 +85,25 @@
       "kwargs": {
         "position": [0, 1, -10],
         "orientation": [0, 0, 0, 1],
-        "scale": [1, 1, 1]
+        "scale": [0.5, 0.5, 0.5]
+      }
+    },
+    "cam_bv": {
+      "class": "bounding_volume",
+      "kwargs": {
+
+      }
+    },
+    "floor_bv": {
+      "class": "bounding_volume",
+      "kwargs": {
+
+      }
+    },
+    "cube_bv": {
+      "class": "bounding_volume",
+      "kwargs": {
+
       }
     },
     "floor_mdl": {

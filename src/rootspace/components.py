@@ -40,6 +40,27 @@ class Component(object, metaclass=ComponentMeta):
 
 
 @attr.s
+class BoundingVolume(Component):
+    minimum = attr.ib(validator=instance_of(Matrix))
+    maximum = attr.ib(validator=instance_of(Matrix))
+
+    @classmethod
+    def create(cls, context, minimum=(-1, -1, -1), maximum=(1, 1, 1)):
+        """
+        Create a BoundingVolume component from the minimum and maximum points.
+
+        :param context:
+        :param minimum:
+        :param maximum:
+        :return:
+        """
+        return cls(
+            Matrix((4, 1), minimum + (1,)),
+            Matrix((4, 1), maximum + (1,))
+        )
+
+
+@attr.s
 class PhysicsProperties(Component):
     mass = attr.ib(validator=instance_of(float))
     inertia = attr.ib(validator=instance_of(float))

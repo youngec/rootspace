@@ -5,7 +5,7 @@ import uuid
 import attr
 from attr.validators import instance_of
 
-from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties
+from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties, BoundingVolume
 from .utilities import camelcase_to_underscore
 
 
@@ -42,6 +42,7 @@ class Entity(object, metaclass=EntityMeta):
 class Camera(Entity):
     transform = attr.ib(validator=instance_of(Transform))
     projection = attr.ib(validator=instance_of(Projection))
+    bounding_volume = attr.ib(validator=instance_of(BoundingVolume))
     physics_properties = attr.ib(validator=instance_of(PhysicsProperties))
     physics_state = attr.ib(validator=instance_of(PhysicsState))
 
@@ -50,12 +51,14 @@ class Camera(Entity):
 class StaticObject(Entity):
     transform = attr.ib(validator=instance_of(Transform))
     model = attr.ib(validator=instance_of(Model))
+    bounding_volume = attr.ib(validator=instance_of(BoundingVolume))
 
 
 @attr.s(hash=False)
 class DynamicObject(Entity):
     transform = attr.ib(validator=instance_of(Transform))
     model = attr.ib(validator=instance_of(Model))
+    bounding_volume = attr.ib(validator=instance_of(BoundingVolume))
     physics_properties = attr.ib(validator=instance_of(PhysicsProperties))
     physics_state = attr.ib(validator=instance_of(PhysicsState))
 
