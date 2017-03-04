@@ -78,10 +78,21 @@ class TestMatrix(object):
         assert Matrix((1, 4)).is_scalar is False
         assert Matrix((1, 1)).is_scalar is True
 
-    def test_equality(self, shape):
+    def test_total_ordering(self, shape):
         length = functools.reduce(operator.mul, shape)
-        assert Matrix(shape) == Matrix(shape)
-        assert Matrix(shape, range(length)) == Matrix(shape, list(range(length)))
+        a = Matrix(shape, 0)
+        b = Matrix(shape, -1)
+        c = Matrix(shape, range(1, length + 1))
+
+        assert a == a
+        assert a >= a
+        assert a <= a
+        assert a > b
+        assert a >= b
+        assert b < a
+        assert b <= a
+        assert a != b
+        assert a != c
 
     def test_is_close(self, shape):
         epsilon = 7/3 - 4/3 - 1
@@ -608,6 +619,11 @@ def test_euler_step():
 
 @pytest.mark.xfail
 def test_runge_kutta_4():
+    raise NotImplementedError()
+
+
+@pytest.mark.xfail
+def test_velocity_verlet():
     raise NotImplementedError()
 
 
