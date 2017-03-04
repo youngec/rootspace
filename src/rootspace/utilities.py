@@ -9,6 +9,7 @@ import warnings
 import weakref
 import sys
 import itertools
+from typing import Tuple, Optional, Any, Union
 
 import attr
 import colorlog
@@ -20,7 +21,7 @@ FIRST_CAP_RE = re.compile(r"(.)([A-Z][a-z]+)")
 ALL_CAP_RE = re.compile(r"([a-z0-9])([A-Z])")
 
 
-def normalize_slice(s, sequence_length):
+def normalize_slice(s: slice, sequence_length: int) -> slice:
     """
     Normalize a given slice. That is, convert a slice with
     None attributes to contain the specified bounds:
@@ -35,7 +36,7 @@ def normalize_slice(s, sequence_length):
     return slice(*s.indices(sequence_length))
 
 
-def as_range(s, sequence_length):
+def as_range(s: slice, sequence_length: int) -> range:
     """
     Convert a slice to a range.
 
@@ -49,7 +50,7 @@ def as_range(s, sequence_length):
     return range(*s.indices(sequence_length))
 
 
-def slice_length(s, sequence_length):
+def slice_length(s: slice, sequence_length: int) -> int:
     """
     Return the length of the sliced portion.
 
@@ -60,7 +61,7 @@ def slice_length(s, sequence_length):
     return len(tuple(as_range(s, sequence_length)))
 
 
-def get_sub_shape(shape, *indices):
+def get_sub_shape(shape: Tuple[int, ...], *indices: Tuple[int, Tuple[int, ...], slice]) -> Tuple[int, ...]:
     """
     For a given set of multi-dimensional indices,
     return the shape of the resulting sub-matrix.
@@ -86,7 +87,7 @@ def get_sub_shape(shape, *indices):
     return tuple(sub_shape)
 
 
-def linearize_scalar_indices(shape, *idx):
+def linearize_scalar_indices(shape: Tuple[int, ...], *idx: Tuple[int, ...]) -> int:
     """
     From a given set of multi-dimensional indices, construct
     the corresponding linear index.
@@ -98,7 +99,7 @@ def linearize_scalar_indices(shape, *idx):
     return sum(i * s for i, s in zip((0, ) + idx, shape + (1, )))
 
 
-def linearize_indices(shape, i, j):
+def linearize_indices(shape: Tuple[int, ...], i: int, j: int) -> Tuple[int, ...]:
     """
     For given multi-dimensional indices, provide a linear index. This also works for sliced and tuple indices.
 
@@ -129,7 +130,7 @@ def linearize_indices(shape, i, j):
         raise TypeError("Expected the tuple indices to be either int or slice, not '{}' and '{}'.".format(type(i), type(j)))
 
 
-def underscore_to_camelcase(name):
+def underscore_to_camelcase(name: str) -> str:
     """
     Convert underscored_text to CamelCase text.
 
@@ -139,7 +140,7 @@ def underscore_to_camelcase(name):
     return "".join(x.capitalize() or "_" for x in name.split("_"))
 
 
-def camelcase_to_underscore(name):
+def camelcase_to_underscore(name: str) -> str:
     """
     Convert CamelCase text to underscored_text.
 
@@ -150,7 +151,7 @@ def camelcase_to_underscore(name):
     return ALL_CAP_RE.sub(r"\1_\2", s1).lower()
 
 
-def to_ref(value):
+def to_ref(value: Any) -> Optional[weakref.ReferenceType]:
     """
     Convert the input value using weakref.ref. This function is idempotent and
     passes None unmodified.
@@ -168,7 +169,7 @@ def to_ref(value):
         raise TypeError("Expected 'value' to be either an object, a ReferenceType or None.")
 
 
-def to_uuid(value):
+def to_uuid(value: Union[int, bytes, str, uuid.UUID]) -> Optional[uuid.UUID]:
     """
     Convert the input to a UUID value. This function is idempotent and passes None unmodified.
 
@@ -185,7 +186,7 @@ def to_uuid(value):
         raise TypeError("Expected 'value' to be either a UUID, a string or None.")
 
 
-def get_log_level(verbose, debug):
+def get_log_level(verbose: int, debug: bool) -> int:
     """
     Determine the logging level from the verbose and debug flags.
 
@@ -211,7 +212,7 @@ def get_log_level(verbose, debug):
     return log_level
 
 
-def configure_logger(name, log_level, log_path=None, with_warnings=True):
+def configure_logger(name: str, log_level: int, log_path: Optional[str] = None, with_warnings: Optional[bool] = True):
     """
     Configure the project logger of the specified name
     using colorlog.
