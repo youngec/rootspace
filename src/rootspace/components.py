@@ -44,9 +44,10 @@ class PhysicsProperties(Component):
     mass = attr.ib(validator=instance_of(float))
     inertia = attr.ib(validator=instance_of(float))
     center_of_mass = attr.ib(validator=instance_of(Matrix))
+    g = attr.ib(validator=instance_of(Matrix))
 
     @classmethod
-    def create(cls, context, mass=1.0, inertia=1.0, center_of_mass=(0, 0, 0)):
+    def create(cls, context, mass=1.0, inertia=1.0, center_of_mass=(0, 0, 0), g=(0, -9.80665, 0)):
         """
         Create PhysicsProperties from mass, inertia and the center of mass.
 
@@ -59,7 +60,8 @@ class PhysicsProperties(Component):
         return cls(
             mass,
             inertia,
-            Matrix((3, 1), center_of_mass)
+            Matrix((3, 1), center_of_mass),
+            Matrix((3, 1), g)
         )
 
 
@@ -93,16 +95,19 @@ class Transform(Component):
     t = attr.ib(validator=instance_of(Matrix))
     r = attr.ib(validator=instance_of(Matrix))
     s = attr.ib(validator=instance_of(Matrix))
+    camera = attr.ib(validator=instance_of(bool))
 
     @classmethod
-    def create(cls, context, position=(0, 0, 0), orientation=(0, 0, 0, 1), scale=(1, 1, 1)):
+    def create(cls, context, position=(0, 0, 0), orientation=(0, 0, 0, 1), scale=(1, 1, 1), camera=False):
         """
         Create a Transform component from a translation vector, an orientation Quaternion and a scale vector.
+        Setting camera to True inverts all translation operations.
 
         :param context:
         :param position:
         :param orientation:
         :param scale:
+        :param camera:
         :return:
         """
         t = Matrix.translation(*position)
@@ -110,7 +115,7 @@ class Transform(Component):
         q /= q.norm()
         s = Matrix.scaling(*scale)
 
-        return cls(t, q.matrix, s)
+        return cls(t, q.matrix, s, camera)
 
     @property
     def right(self):
@@ -126,11 +131,17 @@ class Transform(Component):
 
     @property
     def position(self):
-        return self.t[0:3, 3]
+        if self.camera:
+            return -self.t[0:3, 3]
+        else:
+            return self.t[0:3, 3]
 
     @position.setter
     def position(self, value):
-        self.t[0:3, 3] = value
+        if self.camera:
+            self.t[0:3, 3] = -value
+        else:
+            self.t[0:3, 3] = value
 
     def reset(self):
         self.t = Matrix((4, 4))

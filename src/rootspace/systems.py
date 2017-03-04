@@ -115,8 +115,10 @@ class PhysicsSystem(UpdateSystem):
         :return:
         """
         for transform, properties, state in components:
-            if any(state.momentum) or any(state.force):
-                p, m = equations_of_motion(delta_time, transform.position, state.momentum, state.force, properties.mass)
+            if any(state.momentum) or any(state.force) or any(properties.g):
+                force = state.force + (properties.mass * properties.g)
+
+                p, m = equations_of_motion(delta_time, transform.position, state.momentum, force, properties.mass)
                 transform.position = p
                 state.momentum = m
 
@@ -139,17 +141,17 @@ class PlayerMovementSystem(EventSystem):
                 direction = Matrix((3, 1), 0)
                 if event.action in (glfw.PRESS, glfw.REPEAT):
                     if event.key == key_map.right:
-                        direction -= transform.right
-                    elif event.key == key_map.left:
                         direction += transform.right
+                    elif event.key == key_map.left:
+                        direction -= transform.right
                     elif event.key == key_map.up:
                         direction += transform.up
                     elif event.key == key_map.down:
                         direction -= transform.up
                     elif event.key == key_map.forward:
-                        direction -= transform.forward
-                    elif event.key == key_map.backward:
                         direction += transform.forward
+                    elif event.key == key_map.backward:
+                        direction -= transform.forward
                     elif event.key == key_map.reset:
                         transform.reset()
                         state.reset()

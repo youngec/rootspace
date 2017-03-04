@@ -23,58 +23,35 @@
       "class": "camera",
       "kwargs": {
         "transform": "cam_trf",
+        "projection": "cam_proj",
         "physics_properties": "cam_phys_prop",
-        "physics_state": "cam_phys_state",
-        "projection": "cam_proj"
+        "physics_state": "cam_phys_state"
       }
     },
-    "cube_front": {
+    "floor": {
       "class": "static_object",
       "kwargs": {
-        "transform": "te_trf_front",
-        "model": "cube"
+        "transform": "floor_trf",
+        "model": "floor_mdl"
       }
     },
-    "cube_back": {
-      "class": "static_object",
+    "cube": {
+      "class": "dynamic_object",
       "kwargs": {
-        "transform": "te_trf_back",
-        "model": "cube"
-      }
-    },
-    "cube_right": {
-      "class": "static_object",
-      "kwargs": {
-        "transform": "te_trf_right",
-        "model": "cube"
-      }
-    },
-    "cube_left": {
-      "class": "static_object",
-      "kwargs": {
-        "transform": "te_trf_left",
-        "model": "cube"
-      }
-    },
-    "cube_up": {
-      "class": "static_object",
-      "kwargs": {
-        "transform": "te_trf_up",
-        "model": "cube"
-      }
-    },
-    "cube_down": {
-      "class": "static_object",
-      "kwargs": {
-        "transform": "te_trf_down",
-        "model": "cube"
+        "transform": "cube_trf",
+        "model": "cube_mdl",
+        "physics_properties": "cube_prp",
+        "physics_state": "cube_sta"
       }
     }
   },
   "components": {
-    "cam_trf": {"class": "transform", "kwargs": {}},
-    "cam_phys_prop": {"class": "physics_properties", "kwargs": {}},
-    "cam_phys_state": {"class": "physics_state", "kwargs": {}},
+    "cam_trf": {
+      "class": "transform",
+      "kwargs": {
+        "camera": true
+      }
+    },
     "cam_proj": {
       "class": "projection",
       "kwargs": {
@@ -84,59 +61,46 @@
         "far_plane": "far_plane"
       }
     },
-    "te_trf_front": {
+    "cam_phys_prop": {
+      "class": "physics_properties",
+      "kwargs": {
+        "g": [0, 0, 0]
+      }
+    },
+    "cam_phys_state": {"class": "physics_state", "kwargs": {}},
+    "floor_trf": {
       "class": "transform",
       "kwargs": {
-        "position": [0, 0, -5],
+        "position": [0, -2, -10],
         "orientation": [0, 0, 0, 1],
         "scale": [1, 1, 1]
       }
     },
-    "te_trf_back": {
+    "cube_trf": {
       "class": "transform",
       "kwargs": {
-        "position": [0, 0, 5],
+        "position": [0, 1, -10],
         "orientation": [0, 0, 0, 1],
         "scale": [1, 1, 1]
       }
     },
-    "te_trf_right": {
-      "class": "transform",
-      "kwargs": {
-        "position": [5, 0, 0],
-        "orientation": [0, 0, 0, 1],
-        "scale": [1, 1, 1]
-      }
-    },
-    "te_trf_left": {
-      "class": "transform",
-      "kwargs": {
-        "position": [-5, 0, 0],
-        "orientation": [0, 0, 0, 1],
-        "scale": [1, 1, 1]
-      }
-    },
-    "te_trf_up": {
-      "class": "transform",
-      "kwargs": {
-        "position": [0, 5, 0],
-        "orientation": [0, 0, 0, 1],
-        "scale": [1, 1, 1]
-      }
-    },
-    "te_trf_down": {
-      "class": "transform",
-      "kwargs": {
-        "position": [0, -5, 0],
-        "orientation": [0, 0, 0, 1],
-        "scale": [1, 1, 1]
-      }
-    },
-    "cube": {
+    "floor_mdl": {
       "class": "model",
       "kwargs": {
-        "mesh_path": "models/cube.ply"
+        "mesh_path": "models/floor.ply",
+        "vertex_shader_path": "shaders/floor-vertex.glsl",
+        "fragment_shader_path": "shaders/floor-fragment.glsl"
       }
-    }
+    },
+    "cube_mdl": {
+      "class": "model",
+      "kwargs": {
+        "mesh_path": "models/cube.ply",
+        "vertex_shader_path": "shaders/cube-vertex.glsl",
+        "fragment_shader_path": "shaders/cube-fragment.glsl"
+      }
+    },
+    "cube_prp": {"class": "physics_properties", "kwargs": {}},
+    "cube_sta": {"class": "physics_state", "kwargs": {}}
   }
 }
