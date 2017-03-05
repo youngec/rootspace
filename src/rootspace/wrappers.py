@@ -161,7 +161,10 @@ class OpenGlShader(object):
     @classmethod
     def _delete_shader(cls, obj):
         if bool(gl.glDeleteShader) and obj > 0:
-            gl.glDeleteShader(obj)
+            # This fails for an unknown reason and throws an INVALID_OPERATION (1282).
+            # glDeleteShader is not supposed to do that.
+            #gl.glDeleteShader(obj)
+            pass
 
     @classmethod
     def create(cls, shader_type, shader_source):
