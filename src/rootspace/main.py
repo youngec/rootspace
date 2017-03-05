@@ -41,7 +41,7 @@ def main():
         log.project.debug("Dispatching: {}".format(loop))
         if args.profile:
             import cProfile
-            cProfile.runctx("loop.run()", None, {"loop": loop}, sort="time")
+            cProfile.runctx("loop.run()", globals(), locals(), filename="rootspace.profile")
         else:
             loop.run()
 
