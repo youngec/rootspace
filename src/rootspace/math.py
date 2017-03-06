@@ -8,7 +8,7 @@ import operator
 import itertools
 from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional
 
-from .utilities import get_sub_shape, linearize_indices
+from .utilities_optimized import get_sub_shape, linearize_indices
 
 Number = NewType("Number", Union[int, float])
 Numeric = NewType("Comparable", Union[int, float, "Matrix"])
@@ -533,10 +533,10 @@ class Matrix(object):
             key = key if not self._transposed else key[::-1]
 
             # Calculate the shape of the resulting sub-matrix
-            sub_shape = get_sub_shape(self._shape, *key)
+            sub_shape = get_sub_shape(self._shape, key)
 
             # Calculate the linear indices into the super-matrix.
-            sub_idx = linearize_indices(self._shape, *key)
+            sub_idx = linearize_indices(self._shape, key)
 
             if len(sub_idx) == 1:
                 return self._data[sub_idx[0]]
@@ -568,10 +568,10 @@ class Matrix(object):
             key = key if not self._transposed else key[::-1]
 
             # Calculate the shape of the resulting sub-matrix
-            sub_shape = get_sub_shape(self._shape, *key)
+            sub_shape = get_sub_shape(self._shape, key)
 
             # Calculate the linear indices into the super-matrix.
-            sub_idx = linearize_indices(self._shape, *key)
+            sub_idx = linearize_indices(self._shape, key)
 
             if isinstance(value, Matrix) and value.shape == sub_shape:
                 for j, i in enumerate(sub_idx):

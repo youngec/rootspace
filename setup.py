@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 import pkg_resources
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 
 import versioneer
 
@@ -62,6 +62,10 @@ if __name__ == "__main__":
     except (configparser.NoSectionError, configparser.NoOptionError):
         pass
 
+    utilities_c = Extension("rootspace.utilities_optimized", [
+        "src/rootspace/utilities_optimized.c"
+    ])
+
     setup(
         name="rootspace",
         author="Eleanore C. Young",
@@ -82,6 +86,7 @@ if __name__ == "__main__":
         version=versioneer.get_version(),
         cmdclass=versioneer.get_cmdclass(),
         platforms="any",
+        ext_modules=[utilities_c],
         install_requires=[
             "colorlog",
             "attrs",
