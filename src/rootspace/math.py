@@ -8,7 +8,7 @@ import operator
 import itertools
 from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional
 
-from .utilities_optimized import get_sub_shape, linearize_indices
+from ._utilities import get_sub_shape, linearize_indices
 
 Number = NewType("Number", Union[int, float])
 Numeric = NewType("Comparable", Union[int, float, "Matrix"])

@@ -348,12 +348,12 @@ static PyMethodDef UtilitiesMethods[] = {
 
 static struct PyModuleDef UtilitiesModule = {
    PyModuleDef_HEAD_INIT,
-   "utilities_optimized",   /* name of module */
+   "_utilities",   /* name of module */
    "A collection of common utilities.", /* module documentation, may be NULL */
    -1,       /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
    UtilitiesMethods
 };
 
-PyMODINIT_FUNC PyInit_utilities_optimized(void) {
+PyMODINIT_FUNC PyInit__utilities(void) {
     return PyModule_Create(&UtilitiesModule);
 }

@@ -3,7 +3,7 @@
 import pytest
 
 from rootspace.utilities import as_range, slice_length, linearize_scalar_indices, normalize_slice
-from rootspace.utilities_optimized import linearize_indices, get_sub_shape
+from rootspace._utilities import linearize_indices, get_sub_shape
 
 def test_normalize_slice():
     assert normalize_slice(slice(None), 100) == slice(0, 100, 1)
