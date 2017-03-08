@@ -114,7 +114,5 @@ if __name__ == "__main__":
         },
         packages=find_packages(where="src"),
         package_dir={"": "src"},
-        package_data={
-            "rootspace": ["config.ini", "keymap.ini"]
-        }
+        package_data={}
     )
