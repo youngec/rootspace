@@ -62,9 +62,6 @@ if __name__ == "__main__":
     except (configparser.NoSectionError, configparser.NoOptionError):
         pass
 
-    utilities_opt = Extension("rootspace._utilities", [
-        "src/rootspace/_utilities.c"
-    ])
     math_opt = Extension("rootspace._math", [
         "src/rootspace/_math.c"
     ])
@@ -89,7 +86,7 @@ if __name__ == "__main__":
         version=versioneer.get_version(),
         cmdclass=versioneer.get_cmdclass(),
         platforms="any",
-        ext_modules=[utilities_opt, math_opt],
+        ext_modules=[math_opt],
         install_requires=[
             "colorlog",
             "attrs",

@@ -2,8 +2,479 @@
 
 #include <Python.h>
 
+/*
+ *  Compute the linear index for two scalar multi-dimensional indices.
+ *  Raise an IndexError and return -1 if the indices are out of bounds.
+ */
 static Py_ssize_t linearize_scalar_indices(Py_ssize_t shape_i, Py_ssize_t shape_j, Py_ssize_t i, Py_ssize_t j) {
-    return i * shape_j + j;
+    if (i >= 0 && i < shape_i && j >= 0 && j < shape_j) {
+        return i * shape_j + j;
+    } else {
+        PyErr_SetString(PyExc_IndexError, "Index out of bounds");
+        return -1;
+    }
+}
+
+/*
+ *  Compute the tuple of linear indices from a single pair of scalar multi-dimensional indices.
+ */
+static PyObject* li_int_int(Py_ssize_t shape_i, Py_ssize_t shape_j, Py_ssize_t i, Py_ssize_t j) {
+    Py_ssize_t lin_idx = linearize_scalar_indices(shape_i, shape_j, i, j);
+    if (lin_idx < 0) {
+        return NULL;
+    }
+    return Py_BuildValue("(n)", lin_idx);
+}
+
+/*
+ *  Compute the tuple of linear indices from a scalar index and a tuple index.
+ *  Raises a TypeError if not all elements of the tuple are integers.
+ */
+static PyObject* li_int_tuple(Py_ssize_t shape_i, Py_ssize_t shape_j, Py_ssize_t i, PyObject* j) {
+    Py_ssize_t length = PyTuple_Size(j);
+    PyObject* r = PyTuple_New(length);
+    if (r == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t r_idx;
+    for (r_idx = 0; r_idx < length; r_idx++) {
+        PyObject* j_element = PyTuple_GetItem(j, r_idx);
+        if (PyLong_Check(j_element)) {
+            Py_ssize_t j_element_value = PyLong_AsSsize_t(j_element);
+            Py_ssize_t lin_idx = linearize_scalar_indices(shape_i, shape_j, i, j_element_value);
+            if (lin_idx < 0) {
+                Py_DECREF(r);
+                return NULL;
+            }
+            PyTuple_SetItem(r, r_idx, PyLong_FromSsize_t(lin_idx));
+        } else {
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_TypeError, "Expected integers as tuple elements.");
+            return NULL;
+        }
+    }
+
+    return r;
+}
+
+static PyObject* li_int_slice(Py_ssize_t shape_i, Py_ssize_t shape_j, Py_ssize_t i, PyObject* j) {
+    Py_ssize_t start = 0;
+    Py_ssize_t stop = shape_j;
+    Py_ssize_t step = 1;
+    Py_ssize_t length = shape_j;
+
+    if (PySlice_GetIndicesEx(j, shape_j, &start, &stop, &step, &length) < 0) {
+        return NULL;
+    }
+
+    PyObject* r = PyTuple_New(length);
+    if (r == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t r_idx;
+    for (r_idx = 0; r_idx < length; r_idx++) {
+        Py_ssize_t j_idx = r_idx * step + start;
+        Py_ssize_t lin_idx = linearize_scalar_indices(shape_i, shape_j, i, j_idx);
+        if (lin_idx < 0) {
+            Py_DECREF(r);
+            return NULL;
+        }
+        PyTuple_SetItem(r, r_idx, PyLong_FromSsize_t(lin_idx));
+    }
+
+    return r;
+}
+
+static PyObject* li_tuple_int(Py_ssize_t shape_i, Py_ssize_t shape_j, PyObject* i, Py_ssize_t j) {
+    Py_ssize_t length = PyTuple_Size(i);
+    PyObject* r = PyTuple_New(length);
+    if (r == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t r_idx;
+    for (r_idx = 0; r_idx < length; r_idx++) {
+        PyObject* i_element = PyTuple_GetItem(i, r_idx);
+        if (PyLong_Check(i_element)) {
+            Py_ssize_t i_element_value = PyLong_AsSsize_t(i_element);
+            Py_ssize_t lin_idx = linearize_scalar_indices(shape_i, shape_j, i_element_value, j);
+            if (lin_idx < 0) {
+                Py_DECREF(r);
+                return NULL;
+            }
+            PyTuple_SetItem(r, r_idx, PyLong_FromSsize_t(lin_idx));
+        } else {
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_TypeError, "Expected integers as tuple elements.");
+            return NULL;
+        }
+    }
+
+    return r;
+}
+
+static PyObject* li_tuple_tuple(Py_ssize_t shape_i, Py_ssize_t shape_j, PyObject* i, PyObject* j) {
+    Py_ssize_t i_len = PyTuple_Size(i);
+    Py_ssize_t j_len = PyTuple_Size(j);
+    Py_ssize_t length = i_len * j_len;
+
+    PyObject* r = PyTuple_New(length);
+    if (r == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t i_idx;
+    for (i_idx = 0; i_idx < i_len; i_idx++) {
+        PyObject* i_element = PyTuple_GetItem(i, i_idx);
+        if (PyLong_Check(i_element)) {
+            Py_ssize_t i_element_value = PyLong_AsSsize_t(i_element);
+            Py_ssize_t j_idx;
+            for (j_idx = 0; j_idx < j_len; j_idx++) {
+                PyObject* j_element = PyTuple_GetItem(j, j_idx);
+                if (PyLong_Check(j_element)) {
+                    Py_ssize_t j_element_value = PyLong_AsSsize_t(j_element);
+                    Py_ssize_t lin_idx = linearize_scalar_indices(shape_i, shape_j, i_element_value, j_element_value);
+                    if (lin_idx < 0) {
+                        Py_DECREF(r);
+                        return NULL;
+                    }
+                    Py_ssize_t r_idx = linearize_scalar_indices(i_len, j_len, i_idx, j_idx);
+                    if (r_idx < 0) {
+                        Py_DECREF(r);
+                        return NULL;
+                    }
+                    PyTuple_SetItem(r, r_idx, PyLong_FromSsize_t(lin_idx));
+                } else {
+                    Py_DECREF(r);
+                    PyErr_SetString(PyExc_TypeError, "Expected integers as tuple elements.");
+                    return NULL;
+                }
+            }
+        } else {
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_TypeError, "Expected integers as tuple elements.");
+            return NULL;
+        }
+    }
+
+    return r;
+}
+
+static PyObject* li_tuple_slice(Py_ssize_t shape_i, Py_ssize_t shape_j, PyObject* i, PyObject* j) {
+    Py_ssize_t i_len = PyTuple_Size(i);
+    Py_ssize_t j_start = 0;
+    Py_ssize_t j_stop = shape_j;
+    Py_ssize_t j_step = 1;
+    Py_ssize_t j_len = shape_j;
+
+    if (PySlice_GetIndicesEx(j, shape_j, &j_start, &j_stop, &j_step, &j_len) < 0) {
+        return NULL;
+    }
+
+    PyObject* r = PyTuple_New(i_len * j_len);
+    if (r == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t i_idx;
+    for (i_idx = 0; i_idx < i_len; i_idx++) {
+        PyObject* i_element = PyTuple_GetItem(i, i_idx);
+        if (PyLong_Check(i_element)) {
+            Py_ssize_t i_element_value = PyLong_AsSsize_t(i_element);
+            Py_ssize_t j_idx;
+            for (j_idx = 0; j_idx < j_len; j_idx++) {
+                Py_ssize_t j_element_value = j_idx * j_step + j_start;
+                Py_ssize_t lin_idx = linearize_scalar_indices(shape_i, shape_j, i_element_value, j_element_value);
+                if (lin_idx < 0) {
+                    Py_DECREF(r);
+                    return NULL;
+                }
+                Py_ssize_t r_idx = linearize_scalar_indices(i_len, j_len, i_idx, j_idx);
+                if (r_idx < 0) {
+                    Py_DECREF(r);
+                    return NULL;
+                }
+                PyTuple_SetItem(r, r_idx, PyLong_FromSsize_t(lin_idx));
+            }
+        } else {
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_TypeError, "Expected integers as tuple elements.");
+            return NULL;
+        }
+    }
+
+    return r;
+}
+
+static PyObject* li_slice_int(Py_ssize_t shape_i, Py_ssize_t shape_j, PyObject* i, Py_ssize_t j) {
+    Py_ssize_t start = 0;
+    Py_ssize_t stop = shape_i;
+    Py_ssize_t step = 1;
+    Py_ssize_t length = shape_i;
+
+    if (PySlice_GetIndicesEx(i, shape_i, &start, &stop, &step, &length) < 0) {
+        return NULL;
+    }
+
+    PyObject* r = PyTuple_New(length);
+    if (r == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t r_idx;
+    for (r_idx = 0; r_idx < length; r_idx++) {
+        Py_ssize_t i_idx = r_idx * step + start;
+        Py_ssize_t lin_idx = linearize_scalar_indices(shape_i, shape_j, i_idx, j);
+        if (lin_idx < 0) {
+            Py_DECREF(r);
+            return NULL;
+        }
+        PyTuple_SetItem(r, r_idx, PyLong_FromSsize_t(lin_idx));
+    }
+
+    return r;
+}
+
+static PyObject* li_slice_tuple(Py_ssize_t shape_i, Py_ssize_t shape_j, PyObject* i, PyObject* j) {
+    Py_ssize_t i_start = 0;
+    Py_ssize_t i_stop = shape_i;
+    Py_ssize_t i_step = 1;
+    Py_ssize_t i_len = shape_i;
+    Py_ssize_t j_len = PyTuple_Size(j);
+
+    if (PySlice_GetIndicesEx(i, shape_i, &i_start, &i_stop, &i_step, &i_len) < 0) {
+        return NULL;
+    }
+
+    PyObject* r = PyTuple_New(i_len * j_len);
+    if (r == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t i_idx;
+    for (i_idx = 0; i_idx < i_len; i_idx++) {
+        Py_ssize_t i_element_value = i_idx * i_step + i_start;
+        Py_ssize_t j_idx;
+        for (j_idx = 0; j_idx < j_len; j_idx++) {
+            PyObject* j_element = PyTuple_GetItem(j, j_idx);
+            if (PyLong_Check(j_element)) {
+                Py_ssize_t j_element_value = PyLong_AsSsize_t(j_element);
+                Py_ssize_t lin_idx = linearize_scalar_indices(shape_i, shape_j, i_element_value, j_element_value);
+                if (lin_idx < 0) {
+                    Py_DECREF(r);
+                    return NULL;
+                }
+                Py_ssize_t r_idx = linearize_scalar_indices(i_len, j_len, i_idx, j_idx);
+                if (r_idx < 0) {
+                    Py_DECREF(r);
+                    return NULL;
+                }
+                PyTuple_SetItem(r, r_idx, PyLong_FromSsize_t(lin_idx));
+            } else {
+                Py_DECREF(r);
+                PyErr_SetString(PyExc_TypeError, "Expected integers as tuple elements.");
+                return NULL;
+            }
+        }
+    }
+
+    return r;
+
+}
+
+static PyObject* li_slice_slice(Py_ssize_t shape_i, Py_ssize_t shape_j, PyObject* i, PyObject* j) {
+    Py_ssize_t i_start = 0;
+    Py_ssize_t i_stop = shape_i;
+    Py_ssize_t i_step = 1;
+    Py_ssize_t i_len = shape_i;
+    Py_ssize_t j_start = 0;
+    Py_ssize_t j_stop = shape_j;
+    Py_ssize_t j_step = 1;
+    Py_ssize_t j_len = shape_j;
+
+    if (PySlice_GetIndicesEx(i, shape_i, &i_start, &i_stop, &i_step, &i_len) < 0) {
+        return NULL;
+    }
+
+    if (PySlice_GetIndicesEx(j, shape_j, &j_start, &j_stop, &j_step, &j_len) < 0) {
+        return NULL;
+    }
+
+    PyObject* r = PyTuple_New(i_len * j_len);
+    if (r == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t i_idx;
+    for (i_idx = 0; i_idx < i_len; i_idx++) {
+        Py_ssize_t i_element_value = i_idx * i_step + i_start;
+        Py_ssize_t j_idx;
+        for (j_idx = 0; j_idx < j_len; j_idx++) {
+            Py_ssize_t j_element_value = j_idx * j_step + j_start;
+            Py_ssize_t lin_idx = linearize_scalar_indices(shape_i, shape_j, i_element_value, j_element_value);
+            if (lin_idx < 0) {
+                Py_DECREF(r);
+                return NULL;
+            }
+            Py_ssize_t r_idx = linearize_scalar_indices(i_len, j_len, i_idx, j_idx);
+            if (r_idx < 0) {
+                Py_DECREF(r);
+                return NULL;
+            }
+            PyTuple_SetItem(r, r_idx, PyLong_FromSsize_t(lin_idx));
+        }
+    }
+
+    return r;
+}
+
+static PyObject* get_sub_shape(Py_ssize_t shape_i, Py_ssize_t shape_j, PyObject* indices) {
+    Py_ssize_t idx_len = PyTuple_Size(indices);
+    if (idx_len != 2) {
+        PyErr_SetString(PyExc_ValueError, "The number of multidimensional indices is not 2.");
+        return NULL;
+    }
+
+    PyObject* result = PyTuple_New(idx_len);
+    if (result == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t idx;
+    for (idx = 0; idx < idx_len; idx++) {
+        Py_ssize_t shape = 1;
+        if (idx == 0) {
+            shape = shape_i;
+        } else if (idx == 1) {
+            shape = shape_j;
+        }
+
+        PyObject* i = PyTuple_GetItem(indices, idx);
+        if (i == NULL) {
+            Py_DECREF(result);
+            return NULL;
+        } else if (PyLong_Check(i)) {
+            PyTuple_SetItem(result, idx, PyLong_FromSsize_t(1));
+        } else if (PyTuple_Check(i)) {
+            PyTuple_SetItem(result, idx, PyLong_FromSsize_t(PyTuple_Size(i)));
+        } else if (PySlice_Check(i)) {
+            Py_ssize_t i_start = 0;
+            Py_ssize_t i_stop = shape;
+            Py_ssize_t i_step = 1;
+            Py_ssize_t i_len = shape;
+            if (PySlice_GetIndicesEx(i, shape, &i_start, &i_stop, &i_step, &i_len) < 0) {
+                Py_DECREF(result);
+                return NULL;
+            }
+            PyTuple_SetItem(result, idx, PyLong_FromSsize_t(i_len));
+        } else {
+            Py_DECREF(result);
+            PyErr_SetString(PyExc_TypeError, "Expected the indices to be either int, tuple or slice.");
+            return NULL;
+        }
+    }
+
+    return result;
+}
+
+static PyObject* linearize_indices(Py_ssize_t shape_i, Py_ssize_t shape_j, PyObject* indices) {
+    PyObject* result = NULL;
+
+    PyObject* i = PyTuple_GetItem(indices, 0);
+    PyObject* j = PyTuple_GetItem(indices, 1);
+
+    if (i == NULL || j == NULL) {
+        return NULL;
+    }
+
+    int i_is_int = PyLong_Check(i);
+    int i_is_tuple = PyTuple_Check(i);
+    int i_is_slice = PySlice_Check(i);
+    int j_is_int = PyLong_Check(j);
+    int j_is_tuple = PyTuple_Check(j);
+    int j_is_slice = PySlice_Check(j);
+
+    if (i_is_int && j_is_int) {
+        result = li_int_int(shape_i, shape_j, PyLong_AsSsize_t(i), PyLong_AsSsize_t(j));
+    } else if (i_is_int && j_is_tuple) {
+        result = li_int_tuple(shape_i, shape_j, PyLong_AsSsize_t(i), j);
+    } else if (i_is_int && j_is_slice) {
+        result = li_int_slice(shape_i, shape_j, PyLong_AsSsize_t(i), j);
+    } else if (i_is_tuple && j_is_int) {
+        result = li_tuple_int(shape_i, shape_j, i, PyLong_AsSsize_t(j));
+    } else if (i_is_tuple && j_is_tuple) {
+        result = li_tuple_tuple(shape_i, shape_j, i, j);
+    } else if (i_is_tuple && j_is_slice) {
+        result = li_tuple_slice(shape_i, shape_j, i, j);
+    } else if (i_is_slice && j_is_int) {
+        result = li_slice_int(shape_i, shape_j, i, PyLong_AsSsize_t(j));
+    } else if (i_is_slice && j_is_tuple) {
+        result = li_slice_tuple(shape_i, shape_j, i, j);
+    } else if (i_is_slice && j_is_slice) {
+        result = li_slice_slice(shape_i, shape_j, i, j);
+    } else {
+        PyErr_SetString(PyExc_TypeError, "Expected the indices to be either int, tuple or slice.");
+        return NULL;
+    }
+
+    return result;
+}
+
+static PyObject* sanitize_indices(PyObject* indices, int transposed) {
+    PyObject* idx = PyTuple_New(2);
+    if (idx == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t idx_a = 0;
+    Py_ssize_t idx_b = 1;
+    if (transposed) {
+        idx_a = 1;
+        idx_b = 0;
+    }
+
+    if (PyLong_Check(indices) || PySlice_Check(indices)) {
+        PyObject* idx_a_element = indices;
+        PyObject* idx_b_element = PySlice_New(NULL, NULL, NULL);
+        if (idx_b_element == NULL) {
+            Py_DECREF(idx);
+            return NULL;
+        }
+        Py_INCREF(idx_a_element);
+        PyTuple_SetItem(idx, idx_a, idx_a_element);
+        PyTuple_SetItem(idx, idx_b, idx_b_element);
+    } else if (PyTuple_Check(indices)) {
+        if (PyTuple_Size(indices) == 1) {
+            PyObject* idx_a_element = PyTuple_GetItem(indices, 0);
+            PyObject* idx_b_element = PySlice_New(NULL, NULL, NULL);
+            if (idx_b_element == NULL) {
+                Py_DECREF(idx);
+                return NULL;
+            }
+            Py_INCREF(idx_a_element);
+            PyTuple_SetItem(idx, idx_a, idx_a_element);
+            PyTuple_SetItem(idx, idx_b, idx_b_element);
+        } else if (PyTuple_Size(indices) == 2) {
+            PyObject* idx_a_element = PyTuple_GetItem(indices, 0);
+            PyObject* idx_b_element = PyTuple_GetItem(indices, 1);
+            Py_INCREF(idx_a_element);
+            PyTuple_SetItem(idx, idx_a, idx_a_element);
+            Py_INCREF(idx_b_element);
+            PyTuple_SetItem(idx, idx_b, idx_b_element);
+        } else {
+            Py_DECREF(idx);
+            PyErr_SetString(PyExc_ValueError, "Too many multi-dimensional indices, expected 2.");
+            return NULL;
+        }
+    } else {
+        Py_DECREF(idx);
+        PyErr_SetString(PyExc_TypeError, "Expected an integer, a slice or a tuple.");
+        return NULL;
+    }
+
+    return idx;
 }
 
 typedef struct {
@@ -104,9 +575,9 @@ static PyObject* Matrix_new(PyTypeObject* type, PyObject* args, PyObject* kwargs
             for (idx = 0; idx < length; idx++) {
                 PyObject* item = PyTuple_GetItem(data, idx);
                 if (PyLong_Check(item)) {
-                    self->data[idx] = (float) PyLong_AsLong(data);
+                    self->data[idx] = (float) PyLong_AsLong(item);
                 } else if (PyFloat_Check(item)) {
-                    self->data[idx] = (float) PyFloat_AsDouble(data);
+                    self->data[idx] = (float) PyFloat_AsDouble(item);
                 } else {
                     Py_DECREF(self);
                     PyErr_SetString(PyExc_TypeError, "Expected elements of the tuple to be either integers or floats.");
@@ -123,10 +594,183 @@ static PyObject* Matrix_new(PyTypeObject* type, PyObject* args, PyObject* kwargs
         self->shape_j = shape_j;
         self->transposed = transposed;
         Py_SIZE(self) = length;
+
+        return (PyObject*) self;
+    }
+    return NULL;
+}
+
+static Py_ssize_t Matrix_Length(Matrix* self) {
+    return self->shape_i * self->shape_j;
+}
+
+static PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
+    PyObject* idx = sanitize_indices(key, self->transposed);
+    if (idx == NULL) {
+        return NULL;
     }
 
-    return (PyObject*) self;
+    PyObject* sub_shape = get_sub_shape(self->shape_i, self->shape_j, idx);
+    if (sub_shape == NULL) {
+        Py_DECREF(idx);
+        return NULL;
+    }
+
+    PyObject* sub_idx = linearize_indices(self->shape_i, self->shape_j, idx);
+    if (sub_idx == NULL) {
+        Py_DECREF(sub_shape);
+        Py_DECREF(idx);
+        return NULL;
+    }
+
+    PyObject* sub_shape_i_obj = PyTuple_GetItem(sub_shape, 0);
+    PyObject* sub_shape_j_obj = PyTuple_GetItem(sub_shape, 1);
+    Py_ssize_t sub_shape_i = PyLong_AsLong(sub_shape_i_obj);
+    Py_ssize_t sub_shape_j = PyLong_AsLong(sub_shape_j_obj);
+    Py_ssize_t sub_length = sub_shape_i * sub_shape_j;
+
+    if (sub_length > 1) {
+        Matrix* sub_matrix = (Matrix*) MatrixType.tp_alloc(&MatrixType, 0);
+        if (sub_matrix != NULL) {
+            sub_matrix->data = PyMem_New(float, sub_length);
+            if (sub_matrix->data == NULL) {
+                Py_DECREF(sub_matrix);
+                Py_DECREF(sub_idx);
+                Py_DECREF(sub_shape);
+                Py_DECREF(idx);
+                PyErr_SetNone(PyExc_MemoryError);
+                return NULL;
+            }
+
+            Py_ssize_t i;
+            for (i = 0; i < sub_length; i++) {
+                PyObject* idx_i_obj = PyTuple_GetItem(sub_idx, i);
+                Py_ssize_t idx_i = PyLong_AsLong(idx_i_obj);
+                sub_matrix->data[i] = self->data[idx_i];
+            }
+
+            sub_matrix->shape_i = sub_shape_i;
+            sub_matrix->shape_j = sub_shape_j;
+            sub_matrix->transposed = 0;
+            Py_SIZE(sub_matrix) = sub_length;
+        }
+
+        Py_DECREF(sub_shape);
+        Py_DECREF(sub_idx);
+        Py_DECREF(idx);
+
+        return (PyObject*) sub_matrix;
+    } else {
+        PyObject* idx_i_obj = PyTuple_GetItem(sub_idx, 0);
+        Py_ssize_t idx_i = PyLong_AsLong(idx_i_obj);
+
+        Py_DECREF(sub_shape);
+        Py_DECREF(sub_idx);
+        Py_DECREF(idx);
+
+        return PyFloat_FromDouble(self->data[idx_i]);
+    }
 }
+
+static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
+    PyObject* idx = sanitize_indices(key, self->transposed);
+    if (idx == NULL) {
+        return -1;
+    }
+
+    PyObject* sub_shape = get_sub_shape(self->shape_i, self->shape_j, idx);
+    if (sub_shape == NULL) {
+        Py_DECREF(idx);
+        return -1;
+    }
+
+    PyObject* sub_idx = linearize_indices(self->shape_i, self->shape_j, idx);
+    if (sub_idx == NULL) {
+        Py_DECREF(sub_shape);
+        Py_DECREF(idx);
+        return -1;
+    }
+
+    PyObject* sub_shape_i_obj = PyTuple_GetItem(sub_shape, 0);
+    PyObject* sub_shape_j_obj = PyTuple_GetItem(sub_shape, 1);
+    Py_ssize_t sub_shape_i = PyLong_AsLong(sub_shape_i_obj);
+    Py_ssize_t sub_shape_j = PyLong_AsLong(sub_shape_j_obj);
+    Py_ssize_t sub_length = sub_shape_i * sub_shape_j;
+
+    if (Matrix_Check(value)) {
+        Matrix* value_obj = (Matrix*) value;
+        if (value_obj->shape_i != sub_shape_i || value_obj->shape_j != sub_shape_j) {
+            Py_DECREF(sub_idx);
+            Py_DECREF(sub_shape);
+            Py_DECREF(idx);
+            PyErr_SetString(PyExc_ValueError, "Shape mismatch between indexed range and submitted Matrix value.");
+            return -1;
+        }
+        Py_ssize_t i;
+        for (i = 0; i < sub_length; i++) {
+            PyObject* sub_idx_obj = PyTuple_GetItem(sub_idx, i);
+            Py_ssize_t sub_idx = PyLong_AsSsize_t(sub_idx_obj);
+            self->data[sub_idx] = value_obj->data[i];
+        }
+    } else if (PySequence_Check(value)) {
+        if (PySequence_Size(value) != sub_length) {
+            Py_DECREF(sub_idx);
+            Py_DECREF(sub_shape);
+            Py_DECREF(idx);
+            PyErr_SetString(PyExc_ValueError, "The submitted value does not have the same length as the indexed range.");
+            return -1;
+        }
+        Py_ssize_t i;
+        for (i = 0; i < sub_length; i++) {
+            PyObject* value_obj = PySequence_GetItem(value, i);
+            float value_data;
+            if (PyFloat_Check(value_obj)) {
+                value_data = (float) PyFloat_AsDouble(value_obj);
+            } else if (PyLong_Check(value_obj)) {
+                value_data = (float) PyLong_AsLong(value_obj);
+            } else {
+                Py_DECREF(sub_idx);
+                Py_DECREF(sub_shape);
+                Py_DECREF(idx);
+                PyErr_SetString(PyExc_TypeError, "The elements of the submitted Sequence must be integers or floats.");
+                return -1;
+            }
+            PyObject* sub_idx_obj = PyTuple_GetItem(sub_idx, i);
+            Py_ssize_t sub_idx = PyLong_AsSsize_t(sub_idx_obj);
+            self->data[sub_idx] = value_data;
+        }
+    } else if (PyLong_Check(value)) {
+        float value_data = (float) PyLong_AsLong(value);
+        Py_ssize_t i;
+        for (i = 0; i < sub_length; i++) {
+            PyObject* sub_idx_obj = PyTuple_GetItem(sub_idx, i);
+            Py_ssize_t sub_idx = PyLong_AsSsize_t(sub_idx_obj);
+            self->data[sub_idx] = value_data;
+        }
+    } else if (PyFloat_Check(value)) {
+        float value_data = (float) PyFloat_AsDouble(value);
+        Py_ssize_t i;
+        for (i = 0; i < sub_length; i++) {
+            PyObject* sub_idx_obj = PyTuple_GetItem(sub_idx, i);
+            Py_ssize_t sub_idx = PyLong_AsSsize_t(sub_idx_obj);
+            self->data[sub_idx] = value_data;
+        }
+    } else {
+        Py_DECREF(sub_idx);
+        Py_DECREF(sub_shape);
+        Py_DECREF(idx);
+        PyErr_SetString(PyExc_TypeError, "Expected a Matrix, a Sequence, an integer or a float as values.");
+        return -1;
+    }
+
+    return 0;
+}
+
+static PyMappingMethods MatrixAsMapping = {
+    (lenfunc) Matrix_Length,
+    (binaryfunc) Matrix_GetItem,
+    (objobjargproc) Matrix_SetItem
+};
 
 static PyTypeObject MatrixType = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -141,7 +785,7 @@ static PyTypeObject MatrixType = {
     (reprfunc) Matrix_repr,                   /* tp_repr */
     0,                                        /* tp_as_number */
     0,                                        /* tp_as_sequence */
-    0,                                        /* tp_as_mapping */
+    &MatrixAsMapping,                         /* tp_as_mapping */
     PyObject_HashNotImplemented,              /* tp_hash  */
     0,                                        /* tp_call */
     (reprfunc) Matrix_str,                    /* tp_str */
@@ -189,6 +833,6 @@ PyMODINIT_FUNC PyInit__math(void) {
         return NULL;
 
     Py_INCREF(&MatrixType);
-    PyModule_AddObject(m, "Matrix", (PyObject *)&MatrixType);
+    PyModule_AddObject(m, "Matrix", (PyObject*) &MatrixType);
     return m;
 }
