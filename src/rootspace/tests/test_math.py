@@ -27,16 +27,6 @@ class TestMatrix(object):
     def shape(self, request):
         return request.param
 
-    def test_instantiation(self, shape):
-        Matrix(shape)
-        Matrix(shape, data_type="f", transposed=False)
-        Matrix(shape, 2)
-        Matrix(shape, range(shape[0] * shape[1]))
-        Matrix(shape, list(range(shape[0] * shape[1])))
-
-        a = Matrix(shape)
-        assert Matrix(shape, a._data)._data is a._data
-
     def test_traits(self):
         assert issubclass(Matrix, collections.abc.Reversible)
         assert issubclass(Matrix, collections.abc.Collection)
@@ -93,16 +83,6 @@ class TestMatrix(object):
         assert b <= a
         assert a != b
         assert a != c
-
-    def test_is_close(self, shape):
-        epsilon = 7/3 - 4/3 - 1
-        a = Matrix(shape, epsilon)
-        b = Matrix(shape, 0)
-        c = 0
-        d = 0.0
-        assert a.is_close(b) == Matrix(shape, 1, data_type="B")
-        assert a.is_close(c) == Matrix(shape, 1, data_type="B")
-        assert a.is_close(d) == Matrix(shape, 1, data_type="B")
 
     def test_all_close(self, shape):
         epsilon = 7/3 - 4/3 - 1
@@ -444,10 +424,6 @@ class TestMatrix(object):
 
 
 class TestQuaternion(object):
-    def test_instantiation(self):
-        Quaternion()
-        Quaternion(qi=0, qj=0, qk=0, qr=1, data_type="f")
-
     def test_properties(self):
         a = Quaternion(1, 2, 3, 4)
         assert a.qi == 1
