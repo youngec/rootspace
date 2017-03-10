@@ -489,6 +489,7 @@ static PyTypeObject MatrixType;
 
 #define Matrix_Check(op) PyObject_TypeCheck(op, &MatrixType)
 #define Matrix_CheckExact(op) (Py_TYPE(op) == &MatrixType)
+#define Matrix_DATA(op) (((Matrix*) op)->data)
 
 static void Matrix_dealloc(Matrix* self) {
     PyMem_Del(self->data);
@@ -766,6 +767,144 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
     return 0;
 }
 
+static PyObject* Matrix_LessThan(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        Matrix* fm = (Matrix*) first;
+        Matrix* sm = (Matrix*) second;
+
+        if (fm->shape_i == sm->shape_i && fm->shape_j == sm->shape_j) {
+            int comp = 1;
+            Py_ssize_t i;
+            for (i = 0; i < Py_SIZE(first); i++) {
+                if (!(fm->data[i] < sm->data[i])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] < second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] < second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value < Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value < Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
+    Py_INCREF(result);
+    return result;
+}
+
+static PyObject* Matrix_LessOrEqual(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+    Py_INCREF(result);
+    return result;
+}
+
+static PyObject* Matrix_Equal(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+    Py_INCREF(result);
+    return result;
+}
+
+static PyObject* Matrix_NotEqual(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+    Py_INCREF(result);
+    return result;
+}
+
+static PyObject* Matrix_GreaterOrEqual(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+    Py_INCREF(result);
+    return result;
+}
+
+static PyObject* Matrix_GreaterThan(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+    Py_INCREF(result);
+    return result;
+}
+
+static PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op) {
+    switch (op) {
+        case Py_LT:
+            return Matrix_LessThan(first, second);
+        case Py_LE:
+            return Matrix_LessOrEqual(first, second);
+        case Py_EQ:
+            return Matrix_Equal(first, second);
+        case Py_NE:
+            return Matrix_NotEqual(first, second);
+        case Py_GE:
+            return Matrix_GreaterOrEqual(first, second);
+        case Py_GT:
+            return Matrix_GreaterThan(first, second);
+    }
+}
+
 static PyMappingMethods MatrixAsMapping = {
     (lenfunc) Matrix_Length,
     (binaryfunc) Matrix_GetItem,
@@ -796,7 +935,7 @@ static PyTypeObject MatrixType = {
     "Arbitrary size matrix (float32)",        /* tp_doc */
     0,                                        /* tp_traverse */
     0,                                        /* tp_clear */
-    0,                                        /* tp_richcompare */
+    (richcmpfunc) Matrix_RichCompare,         /* tp_richcompare */
     0,                                        /* tp_weaklistoffset */
     0,                                        /* tp_iter */
     0,                                        /* tp_iternext */

@@ -3,6 +3,7 @@
 import array
 import ctypes
 
+import pytest
 
 from rootspace.data_abstractions import Attribute, Mesh
 
@@ -12,7 +13,8 @@ class TestAttribute(object):
         assert Attribute("position", "f", 0, 0, 0).type == Attribute.Type.Position
 
     def test_coersion_unknown(self):
-        assert Attribute("somethingelse", "f", 0, 0, 0).type == Attribute.Type.Other
+        with pytest.raises(KeyError):
+            Attribute("somethingelse", "f", 0, 0, 0)
 
     def test_stride(self):
         a = Attribute("position", "f", 0, 1, 0)

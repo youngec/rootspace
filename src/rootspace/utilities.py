@@ -61,7 +61,7 @@ def slice_length(s: slice, sequence_length: int) -> int:
     return len(tuple(as_range(s, sequence_length)))
 
 
-def get_sub_shape(shape: Tuple[int, ...], *indices: Tuple[int, Tuple[int, ...], slice]) -> Tuple[int, ...]:
+def get_sub_shape(shape: Tuple[int, ...], indices: Tuple[Union[int, slice, Tuple[int, ...]], ...]) -> Tuple[int, ...]:
     """
     For a given set of multi-dimensional indices,
     return the shape of the resulting sub-matrix.
@@ -99,7 +99,7 @@ def linearize_scalar_indices(shape: Tuple[int, ...], *idx: Tuple[int, ...]) -> i
     return sum(i * s for i, s in zip((0, ) + idx, shape + (1, )))
 
 
-def linearize_indices(shape: Tuple[int, ...], i: int, j: int) -> Tuple[int, ...]:
+def linearize_indices(shape: Tuple[int, ...], indices: Tuple[Union[int, slice, Tuple[int, ...]], ...]) -> Tuple[int, ...]:
     """
     For given multi-dimensional indices, provide a linear index. This also works for sliced and tuple indices.
 
@@ -108,6 +108,8 @@ def linearize_indices(shape: Tuple[int, ...], i: int, j: int) -> Tuple[int, ...]
     :param j:
     :return:
     """
+    i, j = indices
+
     if isinstance(i, int) and isinstance(j, int):  # Single 2-index
         return (linearize_scalar_indices(shape, i, j), )
     elif isinstance(i, int) and isinstance(j, tuple):
