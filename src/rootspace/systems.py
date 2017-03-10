@@ -46,6 +46,9 @@ class System(object, metaclass=SystemMeta):
     component_types = tuple()
     is_applicator = True
 
+    def __eq__(self, other):
+        return type(self) is type(other)
+
 
 class UpdateSystem(System):
     """
