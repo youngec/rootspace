@@ -14,7 +14,7 @@ from .core import Loop, Context
 from .utilities import get_log_level, configure_logger
 
 
-def main():
+def main() -> None:
     """
     Start a game using the rootspace game engine.
     Command line parameters take precedence over configuration values.
