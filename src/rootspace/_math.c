@@ -778,7 +778,7 @@ static PyObject* Matrix_LessThan(PyObject* first, PyObject* second) {
             int comp = 1;
             Py_ssize_t i;
             for (i = 0; i < Py_SIZE(first); i++) {
-                if (!(fm->data[i] < sm->data[i])) {
+                if (!(fm->data[i] < fm->data[i])) {
                     comp = 0;
                     break;
                 }
