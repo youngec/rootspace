@@ -778,7 +778,7 @@ static PyObject* Matrix_LessThan(PyObject* first, PyObject* second) {
             int comp = 1;
             Py_ssize_t i;
             for (i = 0; i < Py_SIZE(first); i++) {
-                if (!(fm->data[i] < fm->data[i])) {
+                if (!(fm->data[i] < sm->data[i])) {
                     comp = 0;
                     break;
                 }
@@ -860,30 +860,453 @@ static PyObject* Matrix_LessThan(PyObject* first, PyObject* second) {
 
 static PyObject* Matrix_LessOrEqual(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        Matrix* fm = (Matrix*) first;
+        Matrix* sm = (Matrix*) second;
+
+        if (fm->shape_i == sm->shape_i && fm->shape_j == sm->shape_j) {
+            int comp = 1;
+            Py_ssize_t i;
+            for (i = 0; i < Py_SIZE(first); i++) {
+                if (!(fm->data[i] <= sm->data[i])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] <= second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] <= second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value <= Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value <= Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
     Py_INCREF(result);
     return result;
 }
 
 static PyObject* Matrix_Equal(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        Matrix* fm = (Matrix*) first;
+        Matrix* sm = (Matrix*) second;
+
+        if (fm->shape_i == sm->shape_i && fm->shape_j == sm->shape_j) {
+            int comp = 1;
+            Py_ssize_t i;
+            for (i = 0; i < Py_SIZE(first); i++) {
+                if (!(fm->data[i] == sm->data[i])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] == second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] == second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value == Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value == Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
     Py_INCREF(result);
     return result;
 }
 
 static PyObject* Matrix_NotEqual(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        Matrix* fm = (Matrix*) first;
+        Matrix* sm = (Matrix*) second;
+
+        if (fm->shape_i == sm->shape_i && fm->shape_j == sm->shape_j) {
+            int comp = 0;
+            Py_ssize_t i;
+            for (i = 0; i < Py_SIZE(first); i++) {
+                if (fm->data[i] != sm->data[i]) {
+                    comp = 1;
+                    break;
+                }
+            }
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            result = Py_True;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 0;
+        float second_value = (float) PyLong_AsLong(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (Matrix_DATA(first)[i] != second_value) {
+                comp = 1;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 0;
+        float second_value = (float) PyFloat_AsDouble(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (Matrix_DATA(first)[i] != second_value) {
+                comp = 1;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 0;
+        float first_value = (float) PyLong_AsLong(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (first_value != Matrix_DATA(second)[i]) {
+                comp = 1;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 0;
+        float first_value = (float) PyFloat_AsDouble(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (first_value != Matrix_DATA(second)[i]) {
+                comp = 1;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
     Py_INCREF(result);
     return result;
 }
 
 static PyObject* Matrix_GreaterOrEqual(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        Matrix* fm = (Matrix*) first;
+        Matrix* sm = (Matrix*) second;
+
+        if (fm->shape_i == sm->shape_i && fm->shape_j == sm->shape_j) {
+            int comp = 1;
+            Py_ssize_t i;
+            for (i = 0; i < Py_SIZE(first); i++) {
+                if (!(fm->data[i] >= sm->data[i])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] >= second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] >= second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value >= Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value >= Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
     Py_INCREF(result);
     return result;
 }
 
 static PyObject* Matrix_GreaterThan(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        Matrix* fm = (Matrix*) first;
+        Matrix* sm = (Matrix*) second;
+
+        if (fm->shape_i == sm->shape_i && fm->shape_j == sm->shape_j) {
+            int comp = 1;
+            Py_ssize_t i;
+            for (i = 0; i < Py_SIZE(first); i++) {
+                if (!(fm->data[i] > sm->data[i])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] > second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] > second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value > Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        Py_ssize_t i;
+        for (i = 0; i < Py_SIZE(second); i++) {
+            if (!(first_value > Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
     Py_INCREF(result);
     return result;
 }
@@ -902,8 +1325,54 @@ static PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op) {
             return Matrix_GreaterOrEqual(first, second);
         case Py_GT:
             return Matrix_GreaterThan(first, second);
+        default:
+            PyErr_SetString(PyExc_RuntimeError, "Unreachable code reached in Matrix_RichCompare.");
+            return NULL;
     }
 }
+
+static PyNumberMethods MatrixAsNumber = {
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+
+    0,
+    0,
+    0,
+    0,
+
+    0,
+
+    0,
+    0,
+};
 
 static PyMappingMethods MatrixAsMapping = {
     (lenfunc) Matrix_Length,
@@ -922,7 +1391,7 @@ static PyTypeObject MatrixType = {
     0,                                        /* tp_setattr */
     0,                                        /* tp_reserved */
     (reprfunc) Matrix_repr,                   /* tp_repr */
-    0,                                        /* tp_as_number */
+    &MatrixAsNumber,                          /* tp_as_number */
     0,                                        /* tp_as_sequence */
     &MatrixAsMapping,                         /* tp_as_mapping */
     PyObject_HashNotImplemented,              /* tp_hash  */
