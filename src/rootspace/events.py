@@ -8,7 +8,12 @@ from attr.validators import instance_of
 
 
 @attr.s
-class KeyEvent(object):
+class Event(object):
+    pass
+
+
+@attr.s
+class KeyEvent(Event):
     window = attr.ib()
     key = attr.ib()
     scancode = attr.ib()
@@ -17,26 +22,26 @@ class KeyEvent(object):
 
 
 @attr.s
-class CharEvent(object):
+class CharEvent(Event):
     window = attr.ib()
     codepoint = attr.ib()
 
 
 @attr.s
-class CursorEvent(object):
+class CursorEvent(Event):
     window = attr.ib()
     xpos = attr.ib()
     ypos = attr.ib()
 
 
 @attr.s
-class CursorEnterEvent(object):
+class CursorEnterEvent(Event):
     window = attr.ib()
     entered = attr.ib()
 
 
 @attr.s
-class MouseButtonEvent(object):
+class MouseButtonEvent(Event):
     window = attr.ib()
     button = attr.ib()
     action = attr.ib()
@@ -44,12 +49,12 @@ class MouseButtonEvent(object):
 
 
 @attr.s
-class ScrollEvent(object):
+class ScrollEvent(Event):
     window = attr.ib()
     xoffset = attr.ib()
     yoffset = attr.ib()
 
 
 @attr.s
-class SceneEvent(object):
+class SceneEvent(Event):
     name = attr.ib(validator=instance_of(str))
