@@ -9,16 +9,17 @@ import shutil
 import weakref
 import collections
 import os
+from typing import Tuple, Type, Optional, Dict, Union, List
 
 import OpenGL.GL as gl
 import attr
 import glfw
 from attr.validators import instance_of, optional
 
-from .systems import SystemMeta, UpdateSystem, RenderSystem, EventSystem
-from .entities import EntityMeta, Camera
-from .components import ComponentMeta
-from .events import KeyEvent, CharEvent, CursorEvent, SceneEvent
+from .systems import SystemMeta, System, UpdateSystem, RenderSystem, EventSystem
+from .entities import EntityMeta, Entity, Camera
+from .components import ComponentMeta, Component
+from .events import Event, KeyEvent, CharEvent, CursorEvent, SceneEvent
 from .exceptions import GLFWError
 from .utilities import subclass_of
 from .data_abstractions import KeyMap, ContextData, Scene
@@ -50,42 +51,72 @@ class World(object):
     The order in which data is processed depends on the order of the
     added systems.
     """
-    _ctx = attr.ib(validator=instance_of(weakref.ReferenceType), repr=False)
-    _entities = attr.ib(default=attr.Factory(set), validator=instance_of(set))
-    _components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict), repr=False)
-    _update_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-    _render_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-    _event_systems = attr.ib(default=attr.Factory(list), validator=instance_of(list))
-    _event_queue = attr.ib(default=attr.Factory(collections.deque), validator=instance_of(collections.deque))
-    _scene = attr.ib(default=None, validator=optional(instance_of(Scene)))
-    _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
+    _ctx = attr.ib(
+        validator=instance_of(weakref.ReferenceType),
+        repr=False
+    )
+    _entities = attr.ib(
+        default=attr.Factory(set),
+        validator=instance_of(set)
+    )
+    _components = attr.ib(
+        default=attr.Factory(dict),
+        validator=instance_of(dict),
+        repr=False
+    )
+    _update_systems = attr.ib(
+        default=attr.Factory(list),
+        validator=instance_of(list)
+    )
+    _render_systems = attr.ib(
+        default=attr.Factory(list),
+        validator=instance_of(list)
+    )
+    _event_systems = attr.ib(
+        default=attr.Factory(list),
+        validator=instance_of(list)
+    )
+    _event_queue = attr.ib(
+        default=attr.Factory(collections.deque),
+        validator=instance_of(collections.deque),
+        repr=False
+    )
+    _scene = attr.ib(
+        default=None,
+        validator=optional(instance_of(Scene))
+    )
+    _log = attr.ib(
+        default=logging.getLogger(__name__),
+        validator=instance_of(logging.Logger),
+        repr=False
+    )
 
     @property
-    def ctx(self):
+    def ctx(self) -> "Context":
         return self._ctx()
 
     @property
-    def systems(self):
+    def systems(self) -> list:
         return self._update_systems + self._render_systems + self._event_systems
 
     @property
-    def scene(self):
+    def scene(self) -> Scene:
         return self._scene
 
     @classmethod
-    def create(cls, ctx):
+    def create(cls, ctx: "Context") -> "World":
         """
         Create a World from a given context.
 
         :param ctx:
         :return:
         """
-        ctx = weakref.ref(ctx)
-        log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
+        return cls(
+            weakref.ref(ctx),
+            log=logging.getLogger("{}.{}".format(__name__, cls.__name__))
+        )
 
-        return cls(ctx, log=log)
-
-    def _combined_components(self, comp_types):
+    def _combined_components(self, comp_types: Tuple[Type[Component], ...]):
         """
         Combine the sets of components.
 
@@ -100,7 +131,7 @@ class World(object):
         for ent_key in entities:
             yield tuple(component[ent_key] for component in value_sets)
 
-    def _add_component(self, entity, component):
+    def _add_component(self, entity: Entity, component: Component):
         """
         Add a supported component instance to the world.
 
@@ -113,7 +144,7 @@ class World(object):
             self._components[comp_type] = dict()
         self._components[type(component)][entity] = component
 
-    def _add_components(self, entity):
+    def _add_components(self, entity: Entity):
         """
         Register all components of an entity.
 
@@ -123,7 +154,7 @@ class World(object):
         for c in entity.components:
             self._add_component(entity, c)
 
-    def _remove_component(self, entity, component):
+    def _remove_component(self, entity: Entity, component: Component):
         """
         Remove the component instance from the world.
 
@@ -136,7 +167,7 @@ class World(object):
         if len(self._components[comp_type]) == 0:
             self._components.pop(comp_type)
 
-    def _remove_components(self, entity):
+    def _remove_components(self, entity: Entity):
         """
         Remove the registered components of an entity.
 
@@ -146,47 +177,18 @@ class World(object):
         for c in entity.components:
             self._remove_component(entity, c)
 
-    def get_components(self, comp_type):
-        """
-        Get all registered components of a specified type.
-
-        :param comp_type:
-        :return:
-        """
-        if comp_type is self._components:
-            return self._components[comp_type].values()
-        else:
-            return []
-
-    def get_entities_by_component(self, component):
-        """
-        Get all registered entities with a particular component.
-
-        :param component:
-        :return:
-        """
-        comp_set = self._components.get(component.__class__, [])
-        return (e for e in comp_set if comp_set[e] == component)
-
-    def get_entities(self, entity_type):
+    def get_entities(self, entity_type: Type[Entity]):
         """
         Get all Entities of the specified class.
 
         :param entity_type:
         :return:
         """
-        return (e for e in self._entities if isinstance(e, entity_type))
+        for e in self._entities:
+            if isinstance(e, entity_type):
+                yield e
 
-    def get_systems(self, system_type):
-        """
-        Get all Systems of the specified class.
-
-        :param system_type:
-        :return:
-        """
-        return (e for e in self.systems if isinstance(e, system_type))
-
-    def add_entity(self, entity):
+    def _add_entity(self, entity: Entity):
         """
         Add an entity to the world.
 
@@ -196,7 +198,7 @@ class World(object):
         self._add_components(entity)
         self._entities.add(entity)
 
-    def add_entities(self, *entities):
+    def add_entities(self, *entities: Tuple[Entity, ...]):
         """
         Add multiple entities to the world.
 
@@ -204,9 +206,9 @@ class World(object):
         :return:
         """
         for entity in entities:
-            self.add_entity(entity)
+            self._add_entity(entity)
 
-    def set_entities(self, *entities):
+    def set_entities(self, *entities: Tuple[Entity, ...]):
         """
         Replace the current entities with the given ones.
 
@@ -218,7 +220,7 @@ class World(object):
         self.remove_entities(*for_removal)
         self.add_entities(*for_addition)
 
-    def remove_entity(self, entity):
+    def _remove_entity(self, entity: Entity):
         """
         Remove an entity and all its data from the world.
 
@@ -228,15 +230,15 @@ class World(object):
         self._remove_components(entity)
         self._entities.discard(entity)
 
-    def remove_entities(self, *entities):
+    def remove_entities(self, *entities: Tuple[Entity, ...]):
         """
-        Remove the specified Entities fomr the World.
+        Remove the specified Entities from the World.
 
         :param entities:
         :return:
         """
         for entity in entities:
-            self.remove_entity(entity)
+            self._remove_entity(entity)
 
     def remove_all_entities(self):
         """
@@ -247,7 +249,7 @@ class World(object):
         self._log.debug("Removing all Entities from this World.")
         self._entities.clear()
 
-    def add_system(self, system):
+    def _add_system(self, system: System):
         """
         Add the specified system to the world.
 
@@ -265,9 +267,11 @@ class World(object):
             else:
                 raise TypeError("The specified system cannot be used as such.")
         else:
-            raise ValueError("You cannot add multiple instances of a particular systme class.")
+            self._log.debug(
+                "Tried to add a duplicate system: '{}'.".format(type(system))
+            )
 
-    def add_systems(self, *systems):
+    def add_systems(self, *systems: Tuple[System, ...]):
         """
         Add multiple systems to the world.
 
@@ -275,9 +279,9 @@ class World(object):
         :return:
         """
         for system in systems:
-            self.add_system(system)
+            self._add_system(system)
 
-    def set_systems(self, *systems):
+    def set_systems(self, *systems: Tuple[System, ...]):
         """
         Replace the registered Systems with the specified.
 
@@ -289,7 +293,7 @@ class World(object):
         self.remove_systems(*for_removal)
         self.add_systems(*for_addition)
 
-    def remove_system(self, system):
+    def _remove_system(self, system: System):
         """
         Remove a system from the world.
 
@@ -303,7 +307,7 @@ class World(object):
         elif system in self._event_systems:
             self._event_systems.remove(system)
 
-    def remove_systems(self, *systems):
+    def remove_systems(self, *systems: Tuple[System, ...]):
         """
         Remove the specified Systems.
 
@@ -311,7 +315,7 @@ class World(object):
         :return:
         """
         for system in systems:
-            self.remove_system(system)
+            self._remove_system(system)
 
     def remove_all_systems(self):
         """
@@ -324,12 +328,12 @@ class World(object):
         self._render_systems.clear()
         self._event_systems.clear()
 
-    def update(self, t, dt):
+    def update(self, t: float, dt: float):
         """
         Processes all components within their corresponding systems, except for the render system.
 
-        :param float t:
-        :param float dt:
+        :param t:
+        :param dt:
         :return:
         """
         for system in self._update_systems:
@@ -354,7 +358,7 @@ class World(object):
                 for comp_type in system.component_types:
                     system.render(self, self._components[comp_type].values())
 
-    def dispatch(self, event):
+    def dispatch(self, event: Event):
         """
         Add an event to the queue.
 
@@ -383,7 +387,7 @@ class World(object):
                             for comp_type in system.component_types:
                                 system.process(event, self, self._components[comp_type].values())
 
-    def register_callbacks(self, window):
+    def register_callbacks(self, window: glfw._GLFWwindow):
         """
         Register the GLFW callbacks with the specified window.
 
@@ -395,7 +399,7 @@ class World(object):
         glfw.set_key_callback(window, self.callback_key)
         glfw.set_cursor_pos_callback(window, self.callback_cursor)
 
-    def unregister_callbacks(self, window):
+    def unregister_callbacks(self, window: glfw._GLFWwindow):
         """
         Clear the GLFW callbacks for the specified window.
 
@@ -407,13 +411,21 @@ class World(object):
         glfw.set_key_callback(window, None)
         glfw.set_cursor_pos_callback(window, None)
 
-    def callback_resize(self, window, width, height):
+    def callback_resize(self,
+                        window: glfw._GLFWwindow,
+                        width: int,
+                        height: int):
         for camera in self.get_entities(Camera):
             camera.shape = (width, height)
 
         gl.glViewport(0, 0, width, height)
 
-    def callback_key(self, window, key, scancode, action, mode):
+    def callback_key(self,
+                     window: glfw._GLFWwindow,
+                     key: int,
+                     scancode: int,
+                     action: int,
+                     mode: int):
         """
         Dispatch a Key press event, as sent by GLFW.
 
@@ -426,7 +438,7 @@ class World(object):
         """
         self.dispatch(KeyEvent(window, key, scancode, action, mode))
 
-    def callback_char(self, window, codepoint):
+    def callback_char(self, window: glfw._GLFWwindow, codepoint: int):
         """
         Dispatch a Character entry event, as sent by GLFW.
 
@@ -436,7 +448,7 @@ class World(object):
         """
         self.dispatch(CharEvent(window, codepoint))
 
-    def callback_cursor(self, window, xpos, ypos):
+    def callback_cursor(self, window: glfw._GLFWwindow, xpos: int, ypos: int):
         """
         Dispatch a cursor movement event, as sent by GLFW.
 
@@ -447,14 +459,15 @@ class World(object):
         """
         self.dispatch(CursorEvent(window, xpos, ypos))
 
-    def _update_scene(self, event):
+    def _update_scene(self, event: Event):
         """
 
         :param event:
         :return:
         """
         # Create the new scene
-        scene_path = self.ctx.resources / self.ctx.data.default_scenes_dir / event.name
+        scene_path = self.ctx.resources / self.ctx.data.default_scenes_dir \
+                     / event.name
         new_scene = Scene.from_json(scene_path)
 
         # Update the OpenGL context according to the scene data
@@ -466,7 +479,7 @@ class World(object):
         # Set the new scene as current
         self._scene = new_scene
 
-    def _update_context(self, old_scene, new_scene):
+    def _update_context(self, old_scene: Scene, new_scene: Scene):
         """
         Update the GLFW and OpenGL context according to the Scene change.
 
@@ -476,8 +489,15 @@ class World(object):
         """
         # Set the cursor behavior
         if not self.ctx.debug:
-            glfw.set_input_mode(self.ctx.window, glfw.CURSOR, new_scene.cursor_mode)
-            glfw.set_cursor_pos(self.ctx.window, *new_scene.cursor_origin)
+            glfw.set_input_mode(
+                self.ctx.window,
+                glfw.CURSOR,
+                new_scene.cursor_mode
+            )
+            glfw.set_cursor_pos(
+                self.ctx.window,
+                *new_scene.cursor_origin
+            )
 
         # Enable the OpenGL depth buffer
         if new_scene.enable_depth_test:
@@ -494,10 +514,16 @@ class World(object):
         else:
             gl.glDisable(gl.GL_CULL_FACE)
 
-    def _load_objects(self, scene, object_tree, class_registry, reference_tree=None):
+    def _load_objects(self,
+                      scene: Scene,
+                      object_tree: Union[Tuple[Dict[str, str]], Dict[str, Dict[str, str]]],
+                      class_registry: Dict[str, type],
+                      reference_tree: Optional[Dict[str, object]] = None) -> Union[List, Dict]:
         """
-        Load all objects from a given serialization dictionary. You must provide a reference to the World,
-        the soon-to-be active Scene, a class registry. Optionally, you may provide a reference dictionary to provide
+        Load all objects from a given serialization dictionary.
+        You must provide a reference to the World,
+        the soon-to-be active Scene, a class registry.
+        Optionally, you may provide a reference dictionary to provide
         additional lookup for serialized object references within the Scene.
 
         :param scene:
@@ -529,7 +555,10 @@ class World(object):
 
         return objects
 
-    def _parse_arguments(self, scene, obj, reference_tree=None):
+    def _parse_arguments(self,
+                         scene,
+                         obj,
+                         reference_tree=None):
         """
         Parse the arguments attached to the object serialization
         and return a dictionary of keyword arguments.
