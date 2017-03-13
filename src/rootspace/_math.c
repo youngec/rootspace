@@ -491,6 +491,28 @@ static PyTypeObject MatrixType;
 #define Matrix_CheckExact(op) (Py_TYPE(op) == &MatrixType)
 #define Matrix_DATA(op) (((Matrix*) op)->data)
 
+static Matrix* Matrix_NewInternal(Py_ssize_t shape_i, Py_ssize_t shape_j, int transposed) {
+    Matrix* matrix = (Matrix*) MatrixType.tp_alloc(&MatrixType, 0);
+    if (matrix == NULL) {
+        return NULL;
+    }
+
+    Py_ssize_t length = shape_i * shape_j;
+    matrix->data = PyMem_New(float, length);
+    if (matrix->data == NULL) {
+        Py_DECREF(matrix);
+        PyErr_SetNone(PyExc_MemoryError);
+        return NULL;
+    }
+
+    matrix->shape_i = shape_i;
+    matrix->shape_j = shape_j;
+    matrix->transposed = transposed;
+    Py_SIZE(matrix) = length;
+
+    return matrix;
+}
+
 static void Matrix_dealloc(Matrix* self) {
     PyMem_Del(self->data);
     Py_TYPE(self)->tp_free((PyObject*) self);
@@ -545,60 +567,48 @@ static PyObject* Matrix_new(PyTypeObject* type, PyObject* args, PyObject* kwargs
         return NULL;
     }
 
-    Matrix* self = (Matrix*) type->tp_alloc(type, 0);
-    if (self != NULL) {
-        self->data = PyMem_New(float, length);
-        if (self->data == NULL) {
+    Matrix* self = Matrix_NewInternal(shape_i, shape_j, transposed);
+    if (self == NULL) {
+        return NULL;
+    }
+    if (PyLong_Check(data)) {
+        float data_from_long = (float) PyLong_AsLong(data);
+        Py_ssize_t idx;
+        for (idx = 0; idx < length; idx++) {
+            self->data[idx] = data_from_long;
+        }
+    } else if (PyFloat_Check(data)) {
+        float data_from_float = (float) PyFloat_AsDouble(data);
+        Py_ssize_t idx;
+        for (idx = 0; idx < length; idx++) {
+            self->data[idx] = data_from_float;
+        }
+    } else if (PyTuple_Check(data)) {
+        if (PyTuple_Size(data) != length) {
             Py_DECREF(self);
-            PyErr_SetNone(PyExc_MemoryError);
+            PyErr_SetString(PyExc_ValueError, "The number of elements in data must correspond to the shape!");
             return NULL;
         }
-
-        if (PyLong_Check(data)) {
-            float data_from_long = (float) PyLong_AsLong(data);
-            Py_ssize_t idx;
-            for (idx = 0; idx < length; idx++) {
-                self->data[idx] = data_from_long;
-            }
-        } else if (PyFloat_Check(data)) {
-            float data_from_float = (float) PyFloat_AsDouble(data);
-            Py_ssize_t idx;
-            for (idx = 0; idx < length; idx++) {
-                self->data[idx] = data_from_float;
-            }
-        } else if (PyTuple_Check(data)) {
-            if (PyTuple_Size(data) != length) {
+        Py_ssize_t idx;
+        for (idx = 0; idx < length; idx++) {
+            PyObject* item = PyTuple_GetItem(data, idx);
+            if (PyLong_Check(item)) {
+                self->data[idx] = (float) PyLong_AsLong(item);
+            } else if (PyFloat_Check(item)) {
+                self->data[idx] = (float) PyFloat_AsDouble(item);
+            } else {
                 Py_DECREF(self);
-                PyErr_SetString(PyExc_ValueError, "The number of elements in data must correspond to the shape!");
+                PyErr_SetString(PyExc_TypeError, "Expected elements of the tuple to be either integers or floats.");
                 return NULL;
             }
-            Py_ssize_t idx;
-            for (idx = 0; idx < length; idx++) {
-                PyObject* item = PyTuple_GetItem(data, idx);
-                if (PyLong_Check(item)) {
-                    self->data[idx] = (float) PyLong_AsLong(item);
-                } else if (PyFloat_Check(item)) {
-                    self->data[idx] = (float) PyFloat_AsDouble(item);
-                } else {
-                    Py_DECREF(self);
-                    PyErr_SetString(PyExc_TypeError, "Expected elements of the tuple to be either integers or floats.");
-                    return NULL;
-                }
-            }
-        } else {
-            Py_DECREF(self);
-            PyErr_SetString(PyExc_TypeError, "Expected data to be either an integer, a float or a tuple.");
-            return NULL;
         }
-
-        self->shape_i = shape_i;
-        self->shape_j = shape_j;
-        self->transposed = transposed;
-        Py_SIZE(self) = length;
-
-        return (PyObject*) self;
+    } else {
+        Py_DECREF(self);
+        PyErr_SetString(PyExc_TypeError, "Expected data to be either an integer, a float or a tuple.");
+        return NULL;
     }
-    return NULL;
+
+    return (PyObject*) self;
 }
 
 static Py_ssize_t Matrix_Length(Matrix* self) {
@@ -631,29 +641,19 @@ static PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
     Py_ssize_t sub_length = sub_shape_i * sub_shape_j;
 
     if (sub_length > 1) {
-        Matrix* sub_matrix = (Matrix*) MatrixType.tp_alloc(&MatrixType, 0);
-        if (sub_matrix != NULL) {
-            sub_matrix->data = PyMem_New(float, sub_length);
-            if (sub_matrix->data == NULL) {
-                Py_DECREF(sub_matrix);
-                Py_DECREF(sub_idx);
-                Py_DECREF(sub_shape);
-                Py_DECREF(idx);
-                PyErr_SetNone(PyExc_MemoryError);
-                return NULL;
-            }
+        Matrix* sub_matrix = Matrix_NewInternal(sub_shape_i, sub_shape_j, 0);
+        if (sub_matrix == NULL) {
+            Py_DECREF(sub_shape);
+            Py_DECREF(sub_idx);
+            Py_DECREF(idx);
+            return NULL;
+        }
 
-            Py_ssize_t i;
-            for (i = 0; i < sub_length; i++) {
-                PyObject* idx_i_obj = PyTuple_GetItem(sub_idx, i);
-                Py_ssize_t idx_i = PyLong_AsLong(idx_i_obj);
-                sub_matrix->data[i] = self->data[idx_i];
-            }
-
-            sub_matrix->shape_i = sub_shape_i;
-            sub_matrix->shape_j = sub_shape_j;
-            sub_matrix->transposed = 0;
-            Py_SIZE(sub_matrix) = sub_length;
+        Py_ssize_t i;
+        for (i = 0; i < sub_length; i++) {
+            PyObject* idx_i_obj = PyTuple_GetItem(sub_idx, i);
+            Py_ssize_t idx_i = PyLong_AsLong(idx_i_obj);
+            sub_matrix->data[i] = self->data[idx_i];
         }
 
         Py_DECREF(sub_shape);
@@ -1331,47 +1331,79 @@ static PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op) {
     }
 }
 
+static PyObject* Matrix_Negative(Matrix* self) {
+    
+}
+
+static PyObject* Matrix_Positive(Matrix* self) {
+
+}
+
+static PyObject* Matrix_Absolute(Matrix* self) {
+
+}
+
+static PyObject* Matrix_Add(PyObject* first, PyObject* second) {
+
+}
+
+static PyObject* Matrix_Subtract(PyObject* first, PyObject* second) {
+
+}
+
+static PyObject* Matrix_Multiply(PyObject* first, PyObject* second) {
+
+}
+
+static PyObject* Matrix_TrueDivide(PyObject* first, PyObject* second) {
+
+}
+
+static PyObject* Matrix_MatMultiply(PyObject* first, PyObject* second) {
+
+}
+
 static PyNumberMethods MatrixAsNumber = {
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
+    (binaryfunc) Matrix_Add,
+    (binaryfunc) Matrix_Subtract,
+    (binaryfunc) Matrix_Multiply,
+    0,  // Matrix_Remainder
+    0,  // Matrix_Divmod
+    0,  // Matrix_Power
+    (unaryfunc) Matrix_Negative,
+    (unaryfunc) Matrix_Positive,
+    (unaryfunc) Matrix_Absolute,
+    0,  // Matrix_Bool
+    0,  // Matrix_Invert
+    0,  // Matrix_LeftShift
+    0,  // Matrix_RightShift
+    0,  // Matrix_And
+    0,  // Matrix_Xor
+    0,  // Matrix_Or
+    0,  // Matrix_Int
+    0,  // Reserved
+    0,  // Matrix_Float
 
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
+    0,  // Matrix_InplaceAdd
+    0,  // Matrix_InplaceSubtract
+    0,  // Matrix_InplaceMultiply
+    0,  // Matrix_InplaceRemainder
+    0,  // Matrix_InplacePower
+    0,  // Matrix_InplaceLeftShift
+    0,  // Matrix_InplaceRightShift
+    0,  // Matrix_InplaceAnd
+    0,  // Matrix_InplaceXor
+    0,  // Matrix_InplaceOr
 
-    0,
-    0,
-    0,
-    0,
+    0,  // Matrix_FloorDivide
+    (binaryfunc) Matrix_TrueDivide,
+    0,  // Matrix_InplaceFloorDivide
+    0,  // Matrix_InplaceTrueDivide
 
-    0,
+    0,  // Matrix_Index
 
-    0,
-    0,
+    (binaryfunc) Matrix_MatMultiply,
+    0,  // Matrix_InplaceMatMultiply
 };
 
 static PyMappingMethods MatrixAsMapping = {
@@ -1391,7 +1423,7 @@ static PyTypeObject MatrixType = {
     0,                                        /* tp_setattr */
     0,                                        /* tp_reserved */
     (reprfunc) Matrix_repr,                   /* tp_repr */
-    &MatrixAsNumber,                          /* tp_as_number */
+    0,                          /* tp_as_number */
     0,                                        /* tp_as_sequence */
     &MatrixAsMapping,                         /* tp_as_mapping */
     PyObject_HashNotImplemented,              /* tp_hash  */
