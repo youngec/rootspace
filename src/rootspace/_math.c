@@ -549,8 +549,8 @@ static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs
     Py_ssize_t length = 0;
     float* array_data = NULL;
 
-    static char* kwlist[] = {"", "", "transposed", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "(ll)O|$p", kwlist, &shape_i, &shape_j, &data, &transposed)) {
+    static char* kwlist[] = {"", "data", "transposed", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "(ll)|O$p", kwlist, &shape_i, &shape_j, &data, &transposed)) {
         return NULL;
     }
 
@@ -565,7 +565,12 @@ static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs
     if (self == NULL) {
         return NULL;
     }
-    if (PyLong_Check(data)) {
+    if (data == NULL) {
+        Py_ssize_t idx;
+        for (idx = 0; idx < length; idx++) {
+            self->data[idx] = 0.0f;
+        }
+    } else if (PyLong_Check(data)) {
         float data_from_long = (float) PyLong_AsLong(data);
         Py_ssize_t idx;
         for (idx = 0; idx < length; idx++) {
@@ -577,15 +582,15 @@ static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs
         for (idx = 0; idx < length; idx++) {
             self->data[idx] = data_from_float;
         }
-    } else if (PyTuple_Check(data)) {
-        if (PyTuple_Size(data) != length) {
+    } else if (PySequence_Check(data)) {
+        if (PySequence_Size(data) != length) {
             Py_DECREF(self);
             PyErr_SetString(PyExc_ValueError, "The number of elements in data must correspond to the shape!");
             return NULL;
         }
         Py_ssize_t idx;
         for (idx = 0; idx < length; idx++) {
-            PyObject* item = PyTuple_GetItem(data, idx);
+            PyObject* item = PySequence_GetItem(data, idx);
             if (PyLong_Check(item)) {
                 self->data[idx] = (float) PyLong_AsLong(item);
             } else if (PyFloat_Check(item)) {
@@ -598,7 +603,7 @@ static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs
         }
     } else {
         Py_DECREF(self);
-        PyErr_SetString(PyExc_TypeError, "Expected data to be either an integer, a float or a tuple.");
+        PyErr_SetString(PyExc_TypeError, "Expected data to be either an integer, a float or a sequence.");
         return NULL;
     }
 
