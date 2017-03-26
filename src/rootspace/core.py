@@ -512,7 +512,7 @@ class World(object):
     def _parse_arguments(self,
                          scene: Scene,
                          obj: Dict[str, Any],
-                         reference_tree: Optional[Dict[Any, Any]] = None) -> Dict[str, Any]:
+                         reference_tree: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Parse the arguments attached to the object serialization
         and return a dictionary of keyword arguments.
