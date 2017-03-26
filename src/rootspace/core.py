@@ -904,18 +904,18 @@ class Context(object):
         return False
 
 
-@attr.s
 class Loop(object):
     """
     The Loop runs a fixed time step implementation of the main loop.
     """
-    _name = attr.ib(validator=instance_of(str))
-    _ctx = attr.ib(default=Context, validator=subclass_of(Context), repr=False)
-    _initialize = attr.ib(default=False, validator=instance_of(bool))
-    _debug = attr.ib(default=False, validator=instance_of(bool))
-    _log = attr.ib(default=logging.getLogger(__name__), validator=instance_of(logging.Logger), repr=False)
+    def __init__(self, name: str, context_type: Type[Context], initialize: bool, debug: bool) -> None:
+        self._name = name
+        self._ctx = context_type
+        self._initialize = initialize
+        self._debug = debug
+        self._log = logging.getLogger(__name__)
 
-    def run(self):
+    def run(self) -> None:
         """
         Run the main loop.
 
@@ -931,7 +931,7 @@ class Loop(object):
             self._log.debug("Entered context {}.".format(ctx))
             self._loop(ctx)
 
-    def _loop(self, ctx):
+    def _loop(self, ctx: Context):
         """
         Enter the fixed time-step loop of the game.
 
