@@ -12,9 +12,7 @@ from pathlib import Path
 from typing import Tuple, Type, Optional, Dict, Union, List, Any
 
 import OpenGL.GL as gl
-import attr
 import glfw
-from attr.validators import instance_of, optional
 
 from .systems import SystemMeta, System, UpdateSystem, RenderSystem, EventSystem
 from .entities import EntityMeta, Entity, Camera
@@ -25,7 +23,6 @@ from .data_abstractions import KeyMap, ContextData, Scene
 from .model_parser import PlyParser
 
 
-@attr.s
 class World(object):
     """A simple application world.
 
@@ -50,45 +47,16 @@ class World(object):
     The order in which data is processed depends on the order of the
     added systems.
     """
-    _ctx = attr.ib(
-        validator=instance_of(weakref.ReferenceType),
-        repr=False
-    )
-    _entities = attr.ib(
-        default=attr.Factory(set),
-        validator=instance_of(set)
-    )
-    _components = attr.ib(
-        default=attr.Factory(dict),
-        validator=instance_of(dict),
-        repr=False
-    )
-    _update_systems = attr.ib(
-        default=attr.Factory(list),
-        validator=instance_of(list)
-    )
-    _render_systems = attr.ib(
-        default=attr.Factory(list),
-        validator=instance_of(list)
-    )
-    _event_systems = attr.ib(
-        default=attr.Factory(list),
-        validator=instance_of(list)
-    )
-    _event_queue = attr.ib(
-        default=attr.Factory(collections.deque),
-        validator=instance_of(collections.deque),
-        repr=False
-    )
-    _scene = attr.ib(
-        default=None,
-        validator=optional(instance_of(Scene))
-    )
-    _log = attr.ib(
-        default=logging.getLogger(__name__),
-        validator=instance_of(logging.Logger),
-        repr=False
-    )
+    def __init__(self, context: "Context") -> None:
+        self._ctx = weakref.ref(context)
+        self._entities = set()
+        self._components = dict()
+        self._update_systems = list()
+        self._render_systems = list()
+        self._event_systems = list()
+        self._event_queue = collections.deque()
+        self._scene: Optional[Scene] = None
+        self._log = logging.getLogger("{}.{}".format(__name__, self.__class__.__name__))
 
     @property
     def ctx(self) -> "Context":
@@ -101,19 +69,6 @@ class World(object):
     @property
     def scene(self) -> Scene:
         return self._scene
-
-    @classmethod
-    def create(cls, ctx: "Context") -> "World":
-        """
-        Create a World from a given context.
-
-        :param ctx:
-        :return:
-        """
-        return cls(
-            weakref.ref(ctx),
-            log=logging.getLogger("{}.{}".format(__name__, cls.__name__))
-        )
 
     def _combined_components(self, comp_types: Tuple[Type[Component], ...]):
         """
@@ -868,7 +823,7 @@ class Context(object):
 
             # Create the World
             self._log.debug("Creating the world.")
-            self._world = World.create(self)
+            self._world = World(self)
             ctx_mgr.callback(self._del_world)
 
             # Register the GLFW event callbacks
