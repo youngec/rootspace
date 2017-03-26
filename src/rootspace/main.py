@@ -34,6 +34,7 @@ def main() -> None:
     parser.add_argument(
         "-v", "--verbose",
         action="count",
+        default=0,
         help="increase the level of output"
     )
     parser.add_argument(
@@ -54,7 +55,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Configure the logging system.
-    log_level = get_log_level(args.verbose, args.debug)
+    log_level = get_log_level(args.verbose)
     log = configure_logger(
         project_name, log_level,
         log_path=args.log_file, with_warnings=args.debug
