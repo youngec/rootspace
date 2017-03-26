@@ -955,9 +955,8 @@ class Loop(object):
             # Determine how much time we have to perform the physics
             # simulation.
             new_time = glfw.get_time()
-            frame_time = new_time - current_time
+            frame_time = min(new_time - current_time, ctx.data.max_frame_duration)
             current_time = new_time
-            frame_time = min(frame_time, ctx.data.max_frame_duration)
             accumulator += frame_time
 
             # Run the game update until we have one DELTA_TIME left for the
