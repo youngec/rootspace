@@ -42,11 +42,6 @@ def main() -> None:
         help="enable debug features"
     )
     parser.add_argument(
-        "-p", "--profile",
-        action="store_true",
-        help="enable the profiler"
-    )
-    parser.add_argument(
         "-i", "--initialize",
         action="store_true",
         help="overwrite all user configuration"
@@ -70,11 +65,7 @@ def main() -> None:
 
     # Run the engine instance
     log.project.debug("Dispatching: {}".format(loop))
-    if args.profile:
-        import cProfile
-        cProfile.runctx("loop.run()", globals(), locals())
-    else:
-        loop.run()
+    loop.run()
 
     # Kill the logging system
     logging.shutdown()
