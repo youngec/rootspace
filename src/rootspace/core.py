@@ -21,7 +21,6 @@ from .entities import EntityMeta, Entity, Camera
 from .components import ComponentMeta, Component
 from .events import Event, KeyEvent, CharEvent, CursorEvent, SceneEvent
 from .exceptions import GLFWError
-from .utilities import subclass_of
 from .data_abstractions import KeyMap, ContextData, Scene
 from .model_parser import PlyParser
 
@@ -935,40 +934,50 @@ class Loop(object):
         """
         Enter the fixed time-step loop of the game.
 
-        The loop makes sure that the physics update is called at regular intervals based on DELTA_TIME.
+        The loop makes sure that the physics update is called at regular intervals based on ctx.data.delta_time.
         The renderer is called when enough simulation intervals have accumulated
         to let it take its time even on slow computers without jeopardizing the physics simulation.
-        The maximum duration of a frame is set to FRAME_TIME_MAX.
+        The maximum duration of a frame is set to ctx.data.max_frame_time.
 
         :param ctx:
         :return:
         """
         self._log.info("Executing within the engine context.")
 
+        # Pull in the necessary references.
+        window_should_close = glfw.window_should_close
+        get_time = glfw.get_time
+        poll_events = glfw.poll_events
+        window = ctx.window
+        process = ctx.world.process
+        update = ctx.world.update
+        render = ctx.world.render
+        delta_time = ctx.data.delta_time
+        max_frame_duration = ctx.data.max_frame_duration
+
         # Define the time for the event loop
         t = 0.0
-        current_time = glfw.get_time()
+        current_time = get_time()
         accumulator = 0.0
 
         # Create and run the event loop
-        while not glfw.window_should_close(ctx.window):
+        while not window_should_close(window):
             # Determine how much time we have to perform the physics
             # simulation.
-            new_time = glfw.get_time()
-            frame_time = min(new_time - current_time, ctx.data.max_frame_duration)
+            new_time = get_time()
+            frame_time = min(new_time - current_time, max_frame_duration)
             current_time = new_time
             accumulator += frame_time
 
-            # Run the game update until we have one DELTA_TIME left for the
+            # Run the game update until we have one delta_time for the
             # rendering step.
-            while accumulator >= ctx.data.delta_time:
+            while accumulator >= delta_time:
                 # Poll and process events
-                glfw.poll_events()
-                ctx.world.process()
-
-                ctx.world.update(t, ctx.data.delta_time)
-                t += ctx.data.delta_time
-                accumulator -= ctx.data.delta_time
+                poll_events()
+                process()
+                update(t, delta_time)
+                t += delta_time
+                accumulator -= delta_time
 
             # Clear the screen and render the world.
-            ctx.world.render()
+            render()
