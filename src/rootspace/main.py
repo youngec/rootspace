@@ -27,7 +27,8 @@ def main() -> None:
     )
     parser.add_argument(
         "-V", "--version",
-        action="store_true",
+        action="version",
+        version="{} {}".format(project_name, get_versions()["version"]),
         help="display the version and exit"
     )
     parser.add_argument(
@@ -57,29 +58,26 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.version:
-        print("{}, version {}".format(project_name, get_versions()["version"]))
+    # Configure the logging system.
+    log_level = get_log_level(args.verbose, args.debug)
+    log = configure_logger(
+        project_name, log_level,
+        log_path=args.log_file, with_warnings=args.debug
+    )
+
+    # Create the engine instance
+    loop = Loop(project_name, Context, args.initialize, args.debug)
+
+    # Run the engine instance
+    log.project.debug("Dispatching: {}".format(loop))
+    if args.profile:
+        import cProfile
+        cProfile.runctx("loop.run()", globals(), locals())
     else:
-        # Configure the logging system.
-        log_level = get_log_level(args.verbose, args.debug)
-        log = configure_logger(
-            project_name, log_level,
-            log_path=args.log_file, with_warnings=args.debug
-        )
+        loop.run()
 
-        # Create the engine instance
-        loop = Loop(project_name, Context, args.initialize, args.debug)
-
-        # Run the engine instance
-        log.project.debug("Dispatching: {}".format(loop))
-        if args.profile:
-            import cProfile
-            cProfile.runctx("loop.run()", globals(), locals())
-        else:
-            loop.run()
-
-        # Kill the logging system
-        logging.shutdown()
+    # Kill the logging system
+    logging.shutdown()
 
 
 if __name__ == "__main__":
