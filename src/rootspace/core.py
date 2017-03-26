@@ -9,7 +9,7 @@ import weakref
 import collections
 import os
 from pathlib import Path
-from typing import Tuple, Type, Optional, Dict, Union, List, Any
+from typing import Tuple, Type, Optional, Dict, Union, List, Any, Generator, Set
 
 import OpenGL.GL as gl
 import glfw
@@ -49,12 +49,12 @@ class World(object):
     """
     def __init__(self, context: "Context") -> None:
         self._ctx = weakref.ref(context)
-        self._entities = set()
-        self._components = dict()
-        self._update_systems = list()
-        self._render_systems = list()
-        self._event_systems = list()
-        self._event_queue = collections.deque()
+        self._entities: Set[Entity] = set()
+        self._components: Dict[Type[Component], Dict[Entity, Component]] = dict()
+        self._update_systems: List[UpdateSystem] = list()
+        self._render_systems: List[RenderSystem] = list()
+        self._event_systems: List[EventSystem] = list()
+        self._event_queue: collections.deque = collections.deque()
         self._scene: Optional[Scene] = None
         self._log = logging.getLogger("{}.{}".format(__name__, self.__class__.__name__))
 
@@ -70,7 +70,7 @@ class World(object):
     def scene(self) -> Scene:
         return self._scene
 
-    def _combined_components(self, comp_types: Tuple[Type[Component], ...]):
+    def _combined_components(self, comp_types: Tuple[Type[Component], ...]) -> Generator[Tuple[Component], None, None]:
         """
         Combine the sets of components.
 
@@ -85,7 +85,7 @@ class World(object):
         for ent_key in entities:
             yield tuple(component[ent_key] for component in value_sets)
 
-    def _add_component(self, entity: Entity, component: Component):
+    def _add_component(self, entity: Entity, component: Component) -> None:
         """
         Add a supported component instance to the world.
 
@@ -98,7 +98,7 @@ class World(object):
             self._components[comp_type] = dict()
         self._components[type(component)][entity] = component
 
-    def _add_components(self, entity: Entity):
+    def _add_components(self, entity: Entity) -> None:
         """
         Register all components of an entity.
 
@@ -108,7 +108,7 @@ class World(object):
         for c in entity.components:
             self._add_component(entity, c)
 
-    def _remove_component(self, entity: Entity, component: Component):
+    def _remove_component(self, entity: Entity, component: Component) -> None:
         """
         Remove the component instance from the world.
 
@@ -121,7 +121,7 @@ class World(object):
         if len(self._components[comp_type]) == 0:
             self._components.pop(comp_type)
 
-    def _remove_components(self, entity: Entity):
+    def _remove_components(self, entity: Entity) -> None:
         """
         Remove the registered components of an entity.
 
@@ -131,7 +131,7 @@ class World(object):
         for c in entity.components:
             self._remove_component(entity, c)
 
-    def get_entities(self, entity_type: Type[Entity]):
+    def get_entities(self, entity_type: Type[Entity]) -> Generator[Entity, None, None]:
         """
         Get all Entities of the specified class.
 
@@ -142,7 +142,7 @@ class World(object):
             if isinstance(e, entity_type):
                 yield e
 
-    def _add_entity(self, entity: Entity):
+    def _add_entity(self, entity: Entity) -> None:
         """
         Add an entity to the world.
 
@@ -152,7 +152,7 @@ class World(object):
         self._add_components(entity)
         self._entities.add(entity)
 
-    def add_entities(self, *entities: Tuple[Entity, ...]):
+    def add_entities(self, *entities) -> None:
         """
         Add multiple entities to the world.
 
@@ -162,7 +162,7 @@ class World(object):
         for entity in entities:
             self._add_entity(entity)
 
-    def set_entities(self, *entities: Tuple[Entity, ...]):
+    def set_entities(self, *entities) -> None:
         """
         Replace the current entities with the given ones.
 
@@ -174,7 +174,7 @@ class World(object):
         self.remove_entities(*for_removal)
         self.add_entities(*for_addition)
 
-    def _remove_entity(self, entity: Entity):
+    def _remove_entity(self, entity: Entity) -> None:
         """
         Remove an entity and all its data from the world.
 
@@ -184,7 +184,7 @@ class World(object):
         self._remove_components(entity)
         self._entities.discard(entity)
 
-    def remove_entities(self, *entities: Tuple[Entity, ...]):
+    def remove_entities(self, *entities) -> None:
         """
         Remove the specified Entities from the World.
 
@@ -194,7 +194,7 @@ class World(object):
         for entity in entities:
             self._remove_entity(entity)
 
-    def remove_all_entities(self):
+    def remove_all_entities(self) -> None:
         """
         Remove all registered Entities.
 
@@ -203,7 +203,7 @@ class World(object):
         self._log.debug("Removing all Entities from this World.")
         self._entities.clear()
 
-    def _add_system(self, system: System):
+    def _add_system(self, system: System) -> None:
         """
         Add the specified system to the world.
 
@@ -225,7 +225,7 @@ class World(object):
                 "Tried to add a duplicate system: '{}'.".format(type(system))
             )
 
-    def add_systems(self, *systems: Tuple[System, ...]):
+    def add_systems(self, *systems) -> None:
         """
         Add multiple systems to the world.
 
@@ -235,7 +235,7 @@ class World(object):
         for system in systems:
             self._add_system(system)
 
-    def set_systems(self, *systems: Tuple[System, ...]):
+    def set_systems(self, *systems) -> None:
         """
         Replace the registered Systems with the specified.
 
@@ -247,7 +247,7 @@ class World(object):
         self.remove_systems(*for_removal)
         self.add_systems(*for_addition)
 
-    def _remove_system(self, system: System):
+    def _remove_system(self, system: System) -> None:
         """
         Remove a system from the world.
 
@@ -261,7 +261,7 @@ class World(object):
         elif system in self._event_systems:
             self._event_systems.remove(system)
 
-    def remove_systems(self, *systems: Tuple[System, ...]):
+    def remove_systems(self, *systems) -> None:
         """
         Remove the specified Systems.
 
@@ -271,7 +271,7 @@ class World(object):
         for system in systems:
             self._remove_system(system)
 
-    def remove_all_systems(self):
+    def remove_all_systems(self) -> None:
         """
         Remove all systems.
 
@@ -282,7 +282,7 @@ class World(object):
         self._render_systems.clear()
         self._event_systems.clear()
 
-    def update(self, t: float, dt: float):
+    def update(self, t: float, dt: float) -> None:
         """
         Processes all components within their corresponding systems, except for the render system.
 
@@ -298,7 +298,7 @@ class World(object):
                 for comp_type in system.component_types:
                     system.update(t, dt, self, self._components[comp_type].values())
 
-    def render(self):
+    def render(self) -> None:
         """
         Process the components that correspond to the render system.
 
@@ -312,7 +312,7 @@ class World(object):
                 for comp_type in system.component_types:
                     system.render(self, self._components[comp_type].values())
 
-    def dispatch(self, event: Event):
+    def dispatch(self, event: Event) -> None:
         """
         Add an event to the queue.
 
@@ -321,7 +321,7 @@ class World(object):
         """
         self._event_queue.append(event)
 
-    def process(self):
+    def process(self) -> None:
         """
         Process all events.
 
@@ -341,7 +341,7 @@ class World(object):
                             for comp_type in system.component_types:
                                 system.process(event, self, self._components[comp_type].values())
 
-    def register_callbacks(self, window: glfw._GLFWwindow):
+    def register_callbacks(self, window: glfw._GLFWwindow) -> None:
         """
         Register the GLFW callbacks with the specified window.
 
@@ -353,7 +353,7 @@ class World(object):
         glfw.set_key_callback(window, self.callback_key)
         glfw.set_cursor_pos_callback(window, self.callback_cursor)
 
-    def unregister_callbacks(self, window: glfw._GLFWwindow):
+    def unregister_callbacks(self, window: glfw._GLFWwindow) -> None:
         """
         Clear the GLFW callbacks for the specified window.
 
@@ -368,7 +368,7 @@ class World(object):
     def callback_resize(self,
                         window: glfw._GLFWwindow,
                         width: int,
-                        height: int):
+                        height: int) -> None:
         for camera in self.get_entities(Camera):
             camera.shape = (width, height)
 
@@ -379,7 +379,7 @@ class World(object):
                      key: int,
                      scancode: int,
                      action: int,
-                     mode: int):
+                     mode: int) -> None:
         """
         Dispatch a Key press event, as sent by GLFW.
 
@@ -392,7 +392,7 @@ class World(object):
         """
         self.dispatch(KeyEvent(window, key, scancode, action, mode))
 
-    def callback_char(self, window: glfw._GLFWwindow, codepoint: int):
+    def callback_char(self, window: glfw._GLFWwindow, codepoint: int) -> None:
         """
         Dispatch a Character entry event, as sent by GLFW.
 
@@ -402,7 +402,7 @@ class World(object):
         """
         self.dispatch(CharEvent(window, codepoint))
 
-    def callback_cursor(self, window: glfw._GLFWwindow, xpos: int, ypos: int):
+    def callback_cursor(self, window: glfw._GLFWwindow, xpos: int, ypos: int) -> None:
         """
         Dispatch a cursor movement event, as sent by GLFW.
 
@@ -413,7 +413,7 @@ class World(object):
         """
         self.dispatch(CursorEvent(window, xpos, ypos))
 
-    def _update_scene(self, event: Event):
+    def _update_scene(self, event: Event) -> None:
         """
 
         :param event:
@@ -433,7 +433,7 @@ class World(object):
         # Set the new scene as current
         self._scene = new_scene
 
-    def _update_context(self, old_scene: Scene, new_scene: Scene):
+    def _update_context(self, old_scene: Scene, new_scene: Scene) -> None:
         """
         Update the GLFW and OpenGL context according to the Scene change.
 
@@ -487,7 +487,7 @@ class World(object):
         :return:
         """
         if isinstance(object_tree, dict):
-            objects = dict()
+            objects: Dict[str, Any] = dict()
             for k, v in object_tree.items():
                 cls = class_registry[v["class"]]
                 kwargs = self._parse_arguments(scene, v, reference_tree)
@@ -497,7 +497,7 @@ class World(object):
                 else:
                     objects[k] = cls(**kwargs)
         else:
-            objects = list()
+            objects: List[Any] = list()
             for v in object_tree:
                 cls = class_registry[v["class"]]
                 kwargs = self._parse_arguments(scene, v, reference_tree)
@@ -510,9 +510,9 @@ class World(object):
         return objects
 
     def _parse_arguments(self,
-                         scene,
-                         obj,
-                         reference_tree=None):
+                         scene: Scene,
+                         obj: Dict[str, Any],
+                         reference_tree: Optional[Dict[Any, Any]] = None) -> Dict[str, Any]:
         """
         Parse the arguments attached to the object serialization
         and return a dictionary of keyword arguments.
@@ -540,7 +540,7 @@ class World(object):
 
         return kwargs
 
-    def _update_world(self, old_scene, new_scene):
+    def _update_world(self, old_scene: Scene, new_scene: Scene) -> None:
         """
         Update the World according to the Scene change.
 
