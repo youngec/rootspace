@@ -9,7 +9,7 @@ import weakref
 import collections
 import os
 from pathlib import Path
-from typing import Tuple, Type, Optional, Dict, Union, List
+from typing import Tuple, Type, Optional, Dict, Union, List, Any
 
 import OpenGL.GL as gl
 import attr
@@ -705,7 +705,7 @@ class Context(object):
         return cls(name, resources_path, states_path, data, key_map, debug, log)
 
     @property
-    def resources(self):
+    def resources(self) -> Path:
         """
         Return the path to the resources directory.
 
@@ -714,7 +714,7 @@ class Context(object):
         return self._resources_root
 
     @property
-    def states(self):
+    def states(self) -> Path:
         """
         Return the path to the states directory.
 
@@ -723,7 +723,7 @@ class Context(object):
         return self._states_root
 
     @property
-    def data(self):
+    def data(self) -> ContextData:
         """
         Return the context data.
 
@@ -732,7 +732,7 @@ class Context(object):
         return self._data
 
     @property
-    def key_map(self):
+    def key_map(self) -> KeyMap:
         """
         Return the key map.
 
@@ -741,7 +741,7 @@ class Context(object):
         return self._key_map
 
     @property
-    def window(self):
+    def window(self) -> glfw._GLFWwindow:
         """
         Return a reference to the Window or None.
 
@@ -750,7 +750,7 @@ class Context(object):
         return self._window
 
     @property
-    def model_parser(self):
+    def model_parser(self) -> PlyParser:
         """
         Return a feference to the model parser or None.
 
@@ -759,7 +759,7 @@ class Context(object):
         return self._model_parser
 
     @property
-    def world(self):
+    def world(self) -> World:
         """
         Return a reference to the World or None.
 
@@ -768,7 +768,7 @@ class Context(object):
         return self._world
 
     @property
-    def debug(self):
+    def debug(self) -> bool:
         """
         Return True if debug functionality should be enabled.
 
@@ -776,7 +776,7 @@ class Context(object):
         """
         return self._debug
 
-    def _del_glfw(self):
+    def _del_glfw(self) -> None:
         """
         Close down GLFW.
 
@@ -785,7 +785,7 @@ class Context(object):
         self._log.debug("Closing down GLFW.")
         glfw.terminate()
 
-    def _del_window(self):
+    def _del_window(self) -> None:
         """
         Delete the reference to the Window.
 
@@ -795,7 +795,7 @@ class Context(object):
         glfw.destroy_window(self._window)
         self._window = None
 
-    def _del_model_parser(self):
+    def _del_model_parser(self) -> None:
         """
         Delete the reference to the model parser.
 
@@ -804,7 +804,7 @@ class Context(object):
         self._log.debug("Destroying the model parser.")
         self._model_parser = None
 
-    def _del_world(self):
+    def _del_world(self) -> None:
         """
         Delete the reference to the World.
 
@@ -813,7 +813,7 @@ class Context(object):
         self._log.debug("Deleting the reference to World.")
         self._world = None
 
-    def __enter__(self):
+    def __enter__(self) -> "Context":
         """
         Enter the context provided by this instance.
 
@@ -886,7 +886,7 @@ class Context(object):
 
             return self
 
-    def __exit__(self, exc_type, exc_val, trcbak):
+    def __exit__(self, exc_type: Type[Exception], exc_val: Exception, trcbak: Any) -> bool:
         """
         Exit the context provided by this instance.
 
