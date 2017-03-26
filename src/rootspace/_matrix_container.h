@@ -21,32 +21,26 @@ static PyTypeObject MatrixContainerType;
 #define MatrixContainer_Check(op) PyObject_TypeCheck(op, &MatrixContainerType)
 #define MatrixContainer_CheckExact(op) (Py_TYPE(op) == &MatrixContainerType)
 
-/// *Internal* Create a new MatrixContainer object and initialise the
-/// underlying data to 0. Raises a [ValueError] if 'length' is not greater or
-/// equal 1.
+/// *Internal* Create a new MatrixContainer object. Does not initialize
+/// the underlying data! Does not check for the sanity of arguments!
 static MatrixContainer* MatrixContainer_NewInternal(Py_ssize_t length) {
-    if (length <= 0) {
-        PyErr_SetString(PyExc_ValueError, "Parameter 'length' must be greater or equal 1.");
-        return NULL;
-    }
-
     MatrixContainer* container = PyObject_NewVar(MatrixContainer, &MatrixContainerType, length);
     if (container == NULL) {
         return NULL;
     }
-
-    for (Py_ssize_t i = 0; i < length; i++) {
-        container->data[i] = (MatrixDataType) 0;
-    }
-
     return container;
 }
 
 /// Create a new MatrixContainer object. Accepts only one parameter, length.
+/// Raises a [ValueError] if 'length' is not greater or equal 1.
 static PyObject* MatrixContainer_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
     Py_ssize_t length = 0;
     static char* kwlist[] = {"length", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "l", kwlist, &length)) {
+        return NULL;
+    }
+    if (length == 0) {
+        PyErr_SetString(PyExc_ValueError, "Parameter 'length' must be greater or equal 1.");
         return NULL;
     }
     return (PyObject*) MatrixContainer_NewInternal(length);
