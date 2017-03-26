@@ -4,11 +4,11 @@
 
 import contextlib
 import logging
-import pathlib
 import shutil
 import weakref
 import collections
 import os
+from pathlib import Path
 from typing import Tuple, Type, Optional, Dict, Union, List
 
 import OpenGL.GL as gl
@@ -619,50 +619,50 @@ class World(object):
         self.set_systems(*systems)
 
 
-@attr.s
 class Context(object):
     """
     The Context is used by the Engine to set the main loop parameters,
     the systems, entities, resources, states, etc.
     """
-    _name = attr.ib(validator=instance_of(str))
-    _resources_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
-    _states_root = attr.ib(validator=instance_of(pathlib.Path), repr=False)
-    _data = attr.ib(validator=instance_of(ContextData))
-    _key_map = attr.ib(validator=instance_of(KeyMap))
-    _debug = attr.ib(validator=instance_of(bool))
-    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
-    _window = attr.ib(default=None, repr=False)
-    _model_parser = attr.ib(default=None, repr=False)
-    _world = attr.ib(default=None, validator=optional(instance_of((World))))
-    _ctx_exit = attr.ib(default=None, validator=optional(instance_of(contextlib.ExitStack)), repr=False)
+    def __init__(self, name: str, rpath: Path, spath: Path, ctx_data: ContextData, key_map: KeyMap, debug: bool, log: logging.Logger) -> None:
+        self._name = name
+        self._resources_root = rpath
+        self._states_root = spath
+        self._data = ctx_data
+        self._key_map = key_map
+        self._debug = debug
+        self._log = log
+        self._window: Optional[glfw._GLFWwindow] = None
+        self._model_parser: Optional[PlyParser] = None
+        self._world: Optional[World] = None
+        self._ctx_exit: Optional[contextlib.ExitStack] = None
 
     @classmethod
-    def _ensure_config(cls, resources_path, states_path, force=False):
+    def _ensure_config(cls, rpath: Path, spath: Path, force: bool = False):
         """
         Initialize the persistent configuration of the context. If force is True,
         overwrite any existing configuration in the current user directory.
 
-        :param resources_path:
-        :param states_path:
+        :param rpath:
+        :param spath:
         :param force:
         :return:
         """
         # Specify the configuration file paths
-        config_default = resources_path / ContextData.default_config_file
-        keymap_default = resources_path / ContextData.default_keymap_file
-        config_user = states_path / ContextData.default_config_file
-        keymap_user = states_path / ContextData.default_keymap_file
+        config_default = rpath / ContextData.default_config_file
+        keymap_default = rpath / ContextData.default_keymap_file
+        config_user = spath / ContextData.default_config_file
+        keymap_user = spath / ContextData.default_keymap_file
 
         # Ensure that both directories (resources and states) are present
-        if not resources_path.exists():
-            raise FileNotFoundError(resources_path)
-        elif not resources_path.is_dir():
-            raise NotADirectoryError(resources_path)
+        if not rpath.exists():
+            raise FileNotFoundError(rpath)
+        elif not rpath.is_dir():
+            raise NotADirectoryError(rpath)
 
         # Create the user config directory, unless it exists
-        if not states_path.exists():
-            states_path.mkdir(parents=True)
+        if not spath.exists():
+            spath.mkdir(parents=True)
 
         # Copy the default configuration to the user-specific directory
         if not config_user.exists() or force:
@@ -675,7 +675,7 @@ class Context(object):
         return config_user, keymap_user
 
     @classmethod
-    def create(cls, name, user_home, engine_location, initialize=False, debug=False):
+    def create(cls, name: str, user_home: Path, engine_location: Path, initialize: bool = False, debug: bool = False) -> "Context":
         """
         Create a new project instance.
 
@@ -912,7 +912,7 @@ class Loop(object):
         self._ctx = context_type
         self._initialize = initialize
         self._debug = debug
-        self._log = logging.getLogger(__name__)
+        self._log = logging.getLogger("{}.{}".format(__name__, self.__class__.__name__))
 
     def run(self) -> None:
         """
@@ -920,8 +920,8 @@ class Loop(object):
 
         :return:
         """
-        user_home = pathlib.Path.home()
-        engine_location = pathlib.Path(__file__).parent
+        user_home = Path.home()
+        engine_location = Path(__file__).parent
 
         self._log.debug("The user home is at '{}'.".format(user_home))
         self._log.debug("The engine is located at '{}'.".format(engine_location))
