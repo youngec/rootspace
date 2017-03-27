@@ -176,7 +176,7 @@ static Py_ssize_t Matrix_Length(Matrix* self) {
 }
 
 static PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
-    PyObject* idx = complete_indices(key, self->transposed);
+    PyObject* idx = complete_indices(key);
     if (idx == NULL) {
         return NULL;
     }
@@ -238,7 +238,7 @@ static PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
 }
 
 static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
-    PyObject* idx = complete_indices(key, self->transposed);
+    PyObject* idx = complete_indices(key);
     if (idx == NULL) {
         return -1;
     }
