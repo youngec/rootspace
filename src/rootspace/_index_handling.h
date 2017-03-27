@@ -411,7 +411,7 @@ static PyObject* linearize_indices(Py_ssize_t shape_i, Py_ssize_t shape_j, PyObj
     return result;
 }
 
-static PyObject* sanitize_indices(PyObject* indices, int transposed) {
+static PyObject* complete_indices(PyObject* indices, int transposed) {
     PyObject* idx = PyTuple_New(2);
     if (idx == NULL) {
         return NULL;
@@ -483,7 +483,7 @@ static PyObject* select_all(Py_ssize_t shape_i, Py_ssize_t shape_j, int transpos
         return NULL;
     }
 
-    PyObject* idx_clean = sanitize_indices(idx_raw, transposed);
+    PyObject* idx_clean = complete_indices(idx_raw, transposed);
     if (idx_clean == NULL) {
         Py_DECREF(idx_raw);
         return NULL;
