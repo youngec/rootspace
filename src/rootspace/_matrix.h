@@ -9,8 +9,8 @@
 typedef struct {
     PyObject_HEAD
     MatrixContainer* container;
-    Py_ssize_t shape_i;
-    Py_ssize_t shape_j;
+    Py_ssize_t N;
+    Py_ssize_t M;
     int transposed;
 } Matrix;
 
@@ -24,29 +24,29 @@ static PyTypeObject MatrixType;
 
 /// The following macros allow for easier access to the Matrix shape, depending
 /// on whether the Matrix is Transposed or not.
-#define Matrix_SHAPE_I_INTERNAL(op) (((Matrix*) op)->shape_i)
-#define Matrix_SHAPE_J_INTERNAL(op) (((Matrix*) op)->shape_j)
+#define Matrix_N_INTERNAL(op) (((Matrix*) op)->N)
+#define Matrix_M_INTERNAL(op) (((Matrix*) op)->M)
 #define Matrix_TRANSPOSED(op) (((Matrix*) op)->transposed)
-#define Matrix_SHAPE_I(op) (Matrix_TRANSPOSED(op) ? Matrix_SHAPE_J_INTERNAL(op) : Matrix_SHAPE_I_INTERNAL(op))
-#define Matrix_SHAPE_J(op) (Matrix_TRANSPOSED(op) ? Matrix_SHAPE_I_INTERNAL(op) : Matrix_SHAPE_J_INTERNAL(op))
+#define Matrix_N(op) (Matrix_TRANSPOSED(op) ? Matrix_M_INTERNAL(op) : Matrix_N_INTERNAL(op))
+#define Matrix_M(op) (Matrix_TRANSPOSED(op) ? Matrix_N_INTERNAL(op) : Matrix_M_INTERNAL(op))
 
 /// *Internal* Create a new Matrix object. Accepts a two-dimensional shape
-/// (shape_i, shape_j) and a transposition flag. Does not check for the sanity
+/// (N, M) and a transposition flag. Does not check for the sanity
 /// of arguments!
-static Matrix* Matrix_NewInternal(Py_ssize_t shape_i, Py_ssize_t shape_j, int transposed) {
+static Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed) {
     Matrix* matrix = PyObject_New(Matrix, &MatrixType);
     if (matrix == NULL) {
         return NULL;
     }
 
-    matrix->container = MatrixContainer_NewInternal(shape_i * shape_j);
+    matrix->container = MatrixContainer_NewInternal(N * M);
     if (matrix->container == NULL) {
         Py_DECREF(matrix);
         return NULL;
     }
 
-    matrix->shape_i = shape_i;
-    matrix->shape_j = shape_j;
+    matrix->N = N;
+    matrix->M = M;
     matrix->transposed = transposed;
 
     return matrix;
@@ -59,21 +59,21 @@ static Matrix* Matrix_NewInternal(Py_ssize_t shape_i, Py_ssize_t shape_j, int tr
 /// of the shape. Raises a [ValueError] otherwise. Raises a [ValueError] if
 /// the two-dimensional shape is not larger or equal to (1, 1).
 static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
-    Py_ssize_t shape_i = 1;
-    Py_ssize_t shape_j = 1;
+    Py_ssize_t N = 1;
+    Py_ssize_t M = 1;
     PyObject* data = NULL;
     int transposed = 0;
     static char* kwlist[] = {"", "data", "transposed", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "(ll)|O$p", kwlist, &shape_i, &shape_j, &data, &transposed)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "(ll)|O$p", kwlist, &N, &M, &data, &transposed)) {
         return NULL;
     }
 
-    if (shape_i == 0 || shape_j == 0) {
+    if (N == 0 || M == 0) {
         PyErr_SetString(PyExc_ValueError, "Expected the parameter 'shape' to be larger or equal to (1, 1).");
         return NULL;
     }
 
-    Matrix* self = Matrix_NewInternal(shape_i, shape_j, transposed);
+    Matrix* self = Matrix_NewInternal(N, M, transposed);
     if (self == NULL) {
         return NULL;
     }
@@ -125,24 +125,24 @@ static void Matrix_Dealloc(Matrix* self) {
 
 /// Provide a human-readable string representation of a Matrix.
 static PyObject* Matrix_ToString(Matrix* self) {
-    assert((self->shape_i * self->shape_j) == Py_SIZE(self->container));
+    assert((self->N * self->M) == Py_SIZE(self->container));
 
-    PyObject* rows = PyList_New(Matrix_SHAPE_I(self));
+    PyObject* rows = PyList_New(Matrix_N(self));
     if (rows == NULL) {
         return NULL;
     }
-    for (Py_ssize_t i = 0; i < Matrix_SHAPE_I(self); i++) {
-        PyObject* row = PyList_New(Matrix_SHAPE_J(self));
+    for (Py_ssize_t i = 0; i < Matrix_N(self); i++) {
+        PyObject* row = PyList_New(Matrix_M(self));
         if (row == NULL) {
             Py_DECREF(rows);
             return NULL;
         }
-        for (Py_ssize_t j = 0; j < Matrix_SHAPE_J(self); j++) {
+        for (Py_ssize_t j = 0; j < Matrix_M(self); j++) {
             Py_ssize_t idx = 0;
             if (self->transposed) {
-                idx = linearize_scalar_indices(self->shape_i, self->shape_j, j, i);
+                idx = linearize_scalar_indices(self->N, self->M, j, i);
             } else {
-                idx = linearize_scalar_indices(self->shape_i, self->shape_j, i, j);
+                idx = linearize_scalar_indices(self->N, self->M, i, j);
             }
             PyList_SetItem(row, j, PyFloat_FromDouble((double) self->container->data[idx]));
         }
@@ -162,7 +162,7 @@ static PyObject* Matrix_ToRepresentation(Matrix* self) {
     for (Py_ssize_t idx = 0; idx < Py_SIZE(self->container); idx++) {
         PyTuple_SetItem(d, idx, PyFloat_FromDouble((double) self->container->data[idx]));
     }
-    PyObject* s = PyUnicode_FromFormat("Matrix((%u, %u), %R, transposed=%u)", self->shape_i, self->shape_j, d, self->transposed);
+    PyObject* s = PyUnicode_FromFormat("Matrix((%u, %u), %R, transposed=%u)", self->N, self->M, d, self->transposed);
     Py_DECREF(d);
     return s;
 }
@@ -170,7 +170,7 @@ static PyObject* Matrix_ToRepresentation(Matrix* self) {
 /// Return the length of the Matrix. Depends on the length of the underlying
 /// container and is always equal to the product of the Matrix shape.
 static Py_ssize_t Matrix_Length(Matrix* self) {
-    assert((self->shape_i * self->shape_j) == Py_SIZE(self->container));
+    assert((self->N * self->M) == Py_SIZE(self->container));
 
     return Py_SIZE(self->container);
 }
@@ -181,26 +181,26 @@ static PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
         return NULL;
     }
 
-    PyObject* sub_shape = get_sub_shape(self->shape_i, self->shape_j, idx);
+    PyObject* sub_shape = get_sub_shape(self->N, self->M, idx);
     if (sub_shape == NULL) {
         Py_DECREF(idx);
         return NULL;
     }
 
-    PyObject* sub_idx = linearize_indices(self->shape_i, self->shape_j, idx);
+    PyObject* sub_idx = linearize_indices(self->N, self->M, idx);
     if (sub_idx == NULL) {
         Py_DECREF(sub_shape);
         Py_DECREF(idx);
         return NULL;
     }
 
-    PyObject* sub_shape_i_obj = PyTuple_GetItem(sub_shape, 0);
-    PyObject* sub_shape_j_obj = PyTuple_GetItem(sub_shape, 1);
-    Py_ssize_t sub_shape_i = PyLong_AsLong(sub_shape_i_obj);
-    Py_ssize_t sub_shape_j = PyLong_AsLong(sub_shape_j_obj);
+    PyObject* sub_N_obj = PyTuple_GetItem(sub_shape, 0);
+    PyObject* sub_M_obj = PyTuple_GetItem(sub_shape, 1);
+    Py_ssize_t sub_N = PyLong_AsLong(sub_N_obj);
+    Py_ssize_t sub_M = PyLong_AsLong(sub_M_obj);
 
     if (Py_SIZE(sub_idx) > 1) {
-        Matrix* sub_matrix = Matrix_NewInternal(sub_shape_i, sub_shape_j, 0);
+        Matrix* sub_matrix = Matrix_NewInternal(sub_N, sub_M, 0);
         if (sub_matrix == NULL) {
             Py_DECREF(sub_shape);
             Py_DECREF(sub_idx);
@@ -243,28 +243,28 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
         return -1;
     }
 
-    PyObject* sub_shape = get_sub_shape(self->shape_i, self->shape_j, idx);
+    PyObject* sub_shape = get_sub_shape(self->N, self->M, idx);
     if (sub_shape == NULL) {
         Py_DECREF(idx);
         return -1;
     }
 
-    PyObject* sub_idx = linearize_indices(self->shape_i, self->shape_j, idx);
+    PyObject* sub_idx = linearize_indices(self->N, self->M, idx);
     if (sub_idx == NULL) {
         Py_DECREF(sub_shape);
         Py_DECREF(idx);
         return -1;
     }
 
-    PyObject* sub_shape_i_obj = PyTuple_GetItem(sub_shape, 0);
-    PyObject* sub_shape_j_obj = PyTuple_GetItem(sub_shape, 1);
-    Py_ssize_t sub_shape_i = PyLong_AsLong(sub_shape_i_obj);
-    Py_ssize_t sub_shape_j = PyLong_AsLong(sub_shape_j_obj);
-    Py_ssize_t sub_length = sub_shape_i * sub_shape_j;
+    PyObject* sub_N_obj = PyTuple_GetItem(sub_shape, 0);
+    PyObject* sub_M_obj = PyTuple_GetItem(sub_shape, 1);
+    Py_ssize_t sub_N = PyLong_AsLong(sub_N_obj);
+    Py_ssize_t sub_M = PyLong_AsLong(sub_M_obj);
+    Py_ssize_t sub_length = sub_N * sub_M;
 
     if (Matrix_Check(value)) {
         Matrix* value_obj = (Matrix*) value;
-        if (Matrix_SHAPE_I(value_obj) != sub_shape_i || Matrix_SHAPE_J(value_obj) != sub_shape_j) {
+        if (Matrix_N(value_obj) != sub_N || Matrix_M(value_obj) != sub_M) {
             Py_DECREF(sub_idx);
             Py_DECREF(sub_shape);
             Py_DECREF(idx);
@@ -272,7 +272,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
             return -1;
         }
 
-        PyObject* value_idx = select_all(value_obj->shape_i, value_obj->shape_j, value_obj->transposed);
+        PyObject* value_idx = select_all(value_obj->N, value_obj->M, value_obj->transposed);
 
         for (Py_ssize_t i = 0; i < sub_length; i++) {
             PyObject* sub_idx_obj = PyTuple_GetItem(sub_idx, i);
@@ -336,7 +336,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //     PyObject* result = Py_NotImplemented;
 //
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -444,7 +444,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //     PyObject* result = Py_NotImplemented;
 //
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -552,7 +552,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //     PyObject* result = Py_NotImplemented;
 //
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -659,7 +659,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //     PyObject* result = Py_NotImplemented;
 //
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -766,7 +766,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //     PyObject* result = Py_NotImplemented;
 //
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -874,7 +874,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //     PyObject* result = Py_NotImplemented;
 //
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -999,7 +999,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 // }
 //
 // static PyObject* Matrix_Negative(Matrix* self) {
-//     Matrix* matrix = Matrix_NewInternal(self->shape_i, self->shape_j, self->transposed);
+//     Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
 //     if (matrix == NULL) {
 //         return NULL;
 //     }
@@ -1013,7 +1013,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 // }
 //
 // static PyObject* Matrix_Positive(Matrix* self) {
-//     Matrix* matrix = Matrix_NewInternal(self->shape_i, self->shape_j, self->transposed);
+//     Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
 //     if (matrix == NULL) {
 //         return NULL;
 //     }
@@ -1027,7 +1027,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 // }
 //
 // static PyObject* Matrix_Absolute(Matrix* self) {
-//     Matrix* matrix = Matrix_NewInternal(self->shape_i, self->shape_j, self->transposed);
+//     Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
 //     if (matrix == NULL) {
 //         return NULL;
 //     }
@@ -1042,7 +1042,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 // static PyObject* Matrix_Add(PyObject* first, PyObject* second) {
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -1057,7 +1057,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 return NULL;
 //             }
 //
-//             Matrix* result = Matrix_NewInternal(fm->shape_i, fm->shape_j, fm->transposed);
+//             Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
 //
 //             Py_ssize_t i;
 //             for (i = 0; i < PyTuple_Size(flinidx); i++) {
@@ -1075,7 +1075,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //             return NULL;
 //         }
 //     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(first), Matrix_SHAPE_J_INTERNAL(first), Matrix_TRANSPOSED(first));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(first), Matrix_M_INTERNAL(first), Matrix_TRANSPOSED(first));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1088,7 +1088,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(first), Matrix_SHAPE_J_INTERNAL(first), Matrix_TRANSPOSED(first));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(first), Matrix_M_INTERNAL(first), Matrix_TRANSPOSED(first));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1101,7 +1101,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(second), Matrix_SHAPE_J_INTERNAL(second), Matrix_TRANSPOSED(second));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(second), Matrix_M_INTERNAL(second), Matrix_TRANSPOSED(second));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1114,7 +1114,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(second), Matrix_SHAPE_J_INTERNAL(second), Matrix_TRANSPOSED(second));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(second), Matrix_M_INTERNAL(second), Matrix_TRANSPOSED(second));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1135,7 +1135,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 // static PyObject* Matrix_Subtract(PyObject* first, PyObject* second) {
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -1150,7 +1150,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 return NULL;
 //             }
 //
-//             Matrix* result = Matrix_NewInternal(fm->shape_i, fm->shape_j, fm->transposed);
+//             Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
 //
 //             Py_ssize_t i;
 //             for (i = 0; i < PyTuple_Size(flinidx); i++) {
@@ -1168,7 +1168,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //             return NULL;
 //         }
 //     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(first), Matrix_SHAPE_J_INTERNAL(first), Matrix_TRANSPOSED(first));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(first), Matrix_M_INTERNAL(first), Matrix_TRANSPOSED(first));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1181,7 +1181,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(first), Matrix_SHAPE_J_INTERNAL(first), Matrix_TRANSPOSED(first));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(first), Matrix_M_INTERNAL(first), Matrix_TRANSPOSED(first));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1194,7 +1194,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(second), Matrix_SHAPE_J_INTERNAL(second), Matrix_TRANSPOSED(second));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(second), Matrix_M_INTERNAL(second), Matrix_TRANSPOSED(second));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1207,7 +1207,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(second), Matrix_SHAPE_J_INTERNAL(second), Matrix_TRANSPOSED(second));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(second), Matrix_M_INTERNAL(second), Matrix_TRANSPOSED(second));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1228,7 +1228,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 // static PyObject* Matrix_Multiply(PyObject* first, PyObject* second) {
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -1243,7 +1243,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 return NULL;
 //             }
 //
-//             Matrix* result = Matrix_NewInternal(fm->shape_i, fm->shape_j, fm->transposed);
+//             Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
 //
 //             Py_ssize_t i;
 //             for (i = 0; i < PyTuple_Size(flinidx); i++) {
@@ -1261,7 +1261,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //             return NULL;
 //         }
 //     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(first), Matrix_SHAPE_J_INTERNAL(first), Matrix_TRANSPOSED(first));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(first), Matrix_M_INTERNAL(first), Matrix_TRANSPOSED(first));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1274,7 +1274,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(first), Matrix_SHAPE_J_INTERNAL(first), Matrix_TRANSPOSED(first));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(first), Matrix_M_INTERNAL(first), Matrix_TRANSPOSED(first));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1287,7 +1287,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(second), Matrix_SHAPE_J_INTERNAL(second), Matrix_TRANSPOSED(second));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(second), Matrix_M_INTERNAL(second), Matrix_TRANSPOSED(second));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1300,7 +1300,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(second), Matrix_SHAPE_J_INTERNAL(second), Matrix_TRANSPOSED(second));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(second), Matrix_M_INTERNAL(second), Matrix_TRANSPOSED(second));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1321,7 +1321,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 // static PyObject* Matrix_TrueDivide(PyObject* first, PyObject* second) {
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+//         if (Matrix_N(first) == Matrix_N(second) && Matrix_M(first) == Matrix_M(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
 //
@@ -1336,7 +1336,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 return NULL;
 //             }
 //
-//             Matrix* result = Matrix_NewInternal(fm->shape_i, fm->shape_j, fm->transposed);
+//             Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
 //
 //             Py_ssize_t i;
 //             for (i = 0; i < PyTuple_Size(flinidx); i++) {
@@ -1363,7 +1363,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //             return NULL;
 //         }
 //     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(first), Matrix_SHAPE_J_INTERNAL(first), Matrix_TRANSPOSED(first));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(first), Matrix_M_INTERNAL(first), Matrix_TRANSPOSED(first));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1382,7 +1382,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(first), Matrix_SHAPE_J_INTERNAL(first), Matrix_TRANSPOSED(first));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(first), Matrix_M_INTERNAL(first), Matrix_TRANSPOSED(first));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1401,7 +1401,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(second), Matrix_SHAPE_J_INTERNAL(second), Matrix_TRANSPOSED(second));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(second), Matrix_M_INTERNAL(second), Matrix_TRANSPOSED(second));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1420,7 +1420,7 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         return (PyObject*) result;
 //     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I_INTERNAL(second), Matrix_SHAPE_J_INTERNAL(second), Matrix_TRANSPOSED(second));
+//         Matrix* result = Matrix_NewInternal(Matrix_N_INTERNAL(second), Matrix_M_INTERNAL(second), Matrix_TRANSPOSED(second));
 //         if (result == NULL) {
 //             return NULL;
 //         }
@@ -1447,13 +1447,13 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 
 // static PyObject* Matrix_MatMultiply(PyObject* first, PyObject* second) {
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_J(first) == Matrix_SHAPE_I(second)) {
+//         if (Matrix_M(first) == Matrix_N(second)) {
 //             Matrix* fm = (Matrix*) first;
 //             Matrix* sm = (Matrix*) second;
-//             Py_ssize_t shape_i = Matrix_SHAPE_I(first);
-//             Py_ssize_t shape_m = Matrix_SHAPE_J(first);
-//             Py_ssize_t shape_j = Matrix_SHAPE_J(second);
-//             if (shape_i == 1 && shape_j == 1) {
+//             Py_ssize_t N = Matrix_N(first);
+//             Py_ssize_t shape_m = Matrix_M(first);
+//             Py_ssize_t M = Matrix_M(second);
+//             if (N == 1 && M == 1) {
 //                 float result = 0.0f;
 //                 Py_ssize_t m;
 //                 for (m = 0; m < shape_m; m++) {
@@ -1461,22 +1461,22 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 }
 //                 return PyFloat_FromDouble((double) result);
 //             } else {
-//                 Matrix* result = Matrix_NewInternal(shape_i, shape_j, 0);
+//                 Matrix* result = Matrix_NewInternal(N, M, 0);
 //                 if (result == NULL) {
 //                     return NULL;
 //                 }
 //                 Py_ssize_t i;
-//                 for (i = 0; i < shape_i; i++) {
+//                 for (i = 0; i < N; i++) {
 //                     Py_ssize_t j;
-//                     for (j = 0; j < shape_j; j++) {
+//                     for (j = 0; j < M; j++) {
 //                         float temp = 0.0f;
 //                         Py_ssize_t m;
 //                         for (m = 0; m < shape_m; m++) {
-//                             Py_ssize_t flinidx = linearize_scalar_indices(shape_i, shape_m, i, m);
-//                             Py_ssize_t slinidx = linearize_scalar_indices(shape_m, shape_j, m, j);
+//                             Py_ssize_t flinidx = linearize_scalar_indices(N, shape_m, i, m);
+//                             Py_ssize_t slinidx = linearize_scalar_indices(shape_m, M, m, j);
 //                             temp += fm->data[flinidx] * sm->data[slinidx];
 //                         }
-//                         Py_ssize_t rlinidx = linearize_scalar_indices(shape_i, shape_j, i, j);
+//                         Py_ssize_t rlinidx = linearize_scalar_indices(N, M, i, j);
 //                         result->data[rlinidx] = temp;
 //                     }
 //                 }
