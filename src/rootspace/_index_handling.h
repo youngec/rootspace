@@ -465,4 +465,37 @@ static PyObject* sanitize_indices(PyObject* indices, int transposed) {
 
     return idx;
 }
+
+static PyObject* select_all(Py_ssize_t shape_i, Py_ssize_t shape_j, int transposed) {
+    PyObject* slice_i = PySlice_New(NULL, NULL, NULL);
+    if (slice_i == NULL) {
+        return NULL;
+    }
+    PyObject* slice_j = PySlice_New(NULL, NULL, NULL);
+    if (slice_j == NULL) {
+        Py_DECREF(slice_i);
+        return NULL;
+    }
+    PyObject* idx_raw = PyTuple_Pack(2, slice_i, slice_j);
+    if (idx_raw == NULL) {
+        Py_DECREF(slice_i);
+        Py_DECREF(slice_j);
+        return NULL;
+    }
+
+    PyObject* idx_clean = sanitize_indices(idx_raw, transposed);
+    if (idx_clean == NULL) {
+        Py_DECREF(idx_raw);
+        return NULL;
+    }
+
+    PyObject* idx_linear = linearize_indices(shape_i, shape_j, idx_clean);
+    if (idx_linear == NULL) {
+        Py_DECREF(idx_raw);
+        Py_DECREF(idx_clean);
+        return NULL;
+    }
+
+    return idx_linear;
+}
 #endif
