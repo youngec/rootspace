@@ -63,7 +63,10 @@ if __name__ == "__main__":
         pass
 
     math_opt = Extension("rootspace._math", [
-        "src/rootspace/_math.c"
+        "src/rootspace/_math.c",
+        "src/rootspace/_matrix.c",
+        "src/rootspace/_matrix_container.c",
+        "src/rootspace/_index_handling.c"
     ])
 
     setup(
