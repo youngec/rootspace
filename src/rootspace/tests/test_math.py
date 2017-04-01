@@ -606,6 +606,18 @@ def test_equations_of_motion():
 
 
 @pytest.mark.parametrize("N,M,t,idx,e", (
+    (2, 3, False, (0, 0), (1, 1)),
+    (2, 3, False, (0, (0, 1, 2)), (1, 3)),
+    (2, 3, False, (0, slice(None, None, None)), (1, 3)),
+    (2, 3, False, (0, 0), (1, 1)),
+    (2, 3, False, ((0, 1), (0, 1, 2)), (2, 3)),
+    (2, 3, False, ((0, 1), slice(None, None, None)), (2, 3)),
+))
+def test_get_sub_shape(N, M, t, idx, e):
+    assert get_sub_shape(N, M, t, idx) == e
+
+
+@pytest.mark.parametrize("N,M,t,idx,e", (
     (2, 3, False, (0, 0), (0,)),
     (2, 3, False, (0, 1), (1,)),
     (2, 3, False, (0, 2), (2,)),
@@ -779,3 +791,20 @@ def test_equations_of_motion():
 ))
 def test_linearize_indices(N, M, t, idx, e):
     assert linearize_indices(N, M, t, idx) == e
+
+
+@pytest.mark.parametrize("idx,e", (
+    (0, (0, slice(None, None, None))),
+    (((0, 1),), ((0, 1), slice(None, None, None))),
+    (slice(None, None, None), (slice(None, None, None), slice(None, None, None))),
+))
+def test_complete_indices(idx, e):
+    assert complete_indices(idx) == e
+
+
+@pytest.mark.parametrize("N,M,t,e", (
+    (2, 3, False, (0, 1, 2, 3, 4, 5)),
+    (2, 3, True, (0, 3, 1, 4, 2, 5)),
+))
+def test_select_all(N, M, t, e):
+    assert select_all(N, M, t) == e
