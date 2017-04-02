@@ -12,7 +12,6 @@ import itertools
 from typing import Tuple, Optional, Any, Union
 
 import attr
-import colorlog
 
 from .exceptions import FixmeWarning
 
@@ -232,19 +231,11 @@ def configure_logger(name: str, log_level: int, log_path: Optional[str] = None, 
     else:
         default_handler = logging.StreamHandler()
         default_handler.setLevel(log_level)
-        warnings.warn("Workaround for https://github.com/borntyping/python-colorlog/issues/36", FixmeWarning)
-        if sys.version_info.major == 3 and sys.version_info.minor == 6:
-            plain_formatter = logging.Formatter(
-                "{levelname:8s} @{name}: {message}",
-                style="{"
-            )
-            default_handler.setFormatter(plain_formatter)
-        else:
-            colored_formatter = colorlog.ColoredFormatter(
-                "{log_color}{levelname:8s}{reset} @{white}{name}{reset}: {log_color}{message}{reset}",
-                style="{"
-            )
-            default_handler.setFormatter(colored_formatter)
+        plain_formatter = logging.Formatter(
+            "{levelname:8s} @{name}: {message}",
+            style="{"
+        )
+        default_handler.setFormatter(plain_formatter)
 
     # Configure the rootspace logger
     project_logger = logging.getLogger(name)

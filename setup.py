@@ -92,7 +92,6 @@ if __name__ == "__main__":
         platforms="any",
         ext_modules=[math_opt],
         install_requires=[
-            "colorlog",
             "attrs",
             "glfw",
             "pyopengl",
