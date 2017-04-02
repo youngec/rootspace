@@ -41,29 +41,29 @@ PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
     }
 
     if (data == NULL) {
-        for (Py_ssize_t idx = 0; idx < Py_SIZE(self->container); idx++) {
-            self->container->data[idx] = (MatrixDataType) 0;
+        for (Py_ssize_t idx = 0; idx < Matrix_SIZE(self); idx++) {
+            Matrix_DATA(self)[idx] = (MatrixDataType) 0;
         }
     } else if (PyLong_Check(data)) {
-        for (Py_ssize_t idx = 0; idx < Py_SIZE(self->container); idx++) {
-            self->container->data[idx] = (MatrixDataType) PyLong_AsLong(data);
+        for (Py_ssize_t idx = 0; idx < Matrix_SIZE(self); idx++) {
+            Matrix_DATA(self)[idx] = (MatrixDataType) PyLong_AsLong(data);
         }
     } else if (PyFloat_Check(data)) {
-        for (Py_ssize_t idx = 0; idx < Py_SIZE(self->container); idx++) {
-            self->container->data[idx] = (MatrixDataType) PyFloat_AsDouble(data);
+        for (Py_ssize_t idx = 0; idx < Matrix_SIZE(self); idx++) {
+            Matrix_DATA(self)[idx] = (MatrixDataType) PyFloat_AsDouble(data);
         }
     } else if (PySequence_Check(data)) {
-        if (PySequence_Size(data) != Py_SIZE(self->container)) {
+        if (PySequence_Size(data) != Matrix_SIZE(self)) {
             Py_DECREF(self);
             PyErr_SetString(PyExc_ValueError, "The number of elements in parameter 'data' must correspond to the shape!");
             return NULL;
         }
-        for (Py_ssize_t idx = 0; idx < Py_SIZE(self->container); idx++) {
+        for (Py_ssize_t idx = 0; idx < Matrix_SIZE(self); idx++) {
             PyObject* item = PySequence_GetItem(data, idx);
             if (PyLong_Check(item)) {
-                self->container->data[idx] = (MatrixDataType) PyLong_AsLong(item);
+                Matrix_DATA(self)[idx] = (MatrixDataType) PyLong_AsLong(item);
             } else if (PyFloat_Check(item)) {
-                self->container->data[idx] = (MatrixDataType) PyFloat_AsDouble(item);
+                Matrix_DATA(self)[idx] = (MatrixDataType) PyFloat_AsDouble(item);
             } else {
                 Py_DECREF(self);
                 PyErr_SetString(PyExc_TypeError, "Expected elements of the sequence to be either integers or floats.");
@@ -84,8 +84,644 @@ void Matrix_Dealloc(Matrix* self) {
     Py_TYPE(self)->tp_free((PyObject*) self);
 }
 
+PyObject* Matrix_LessThan(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+            Matrix* fm = (Matrix*) first;
+            Matrix* sm = (Matrix*) second;
+
+            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            if (flinidx == NULL) {
+                return NULL;
+            }
+
+            PyObject* slinidx = select_all(sm->N, sm->M, sm->transposed);
+            if (slinidx == NULL) {
+                Py_DECREF(flinidx);
+                return NULL;
+            }
+
+            int comp = 1;
+            for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
+                PyObject* f_element = PyTuple_GetItem(flinidx, i);
+                Py_ssize_t f_element_value = PyLong_AsLong(f_element);
+                PyObject* s_element = PyTuple_GetItem(slinidx, i);
+                Py_ssize_t s_element_value = PyLong_AsLong(s_element);
+                if (!(Matrix_DATA(fm)[f_element_value] < Matrix_DATA(sm)[s_element_value])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            Py_DECREF(flinidx);
+            Py_DECREF(slinidx);
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] < second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] < second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value < Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value < Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
+    Py_INCREF(result);
+    return result;
+}
+
+PyObject* Matrix_LessOrEqual(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+            Matrix* fm = (Matrix*) first;
+            Matrix* sm = (Matrix*) second;
+
+            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            if (flinidx == NULL) {
+                return NULL;
+            }
+
+            PyObject* slinidx = select_all(sm->N, sm->M, sm->transposed);
+            if (slinidx == NULL) {
+                Py_DECREF(flinidx);
+                return NULL;
+            }
+
+            int comp = 1;
+            for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
+                PyObject* f_element = PyTuple_GetItem(flinidx, i);
+                Py_ssize_t f_element_value = PyLong_AsLong(f_element);
+                PyObject* s_element = PyTuple_GetItem(slinidx, i);
+                Py_ssize_t s_element_value = PyLong_AsLong(s_element);
+                if (!(Matrix_DATA(fm)[f_element_value] <= Matrix_DATA(sm)[s_element_value])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            Py_DECREF(flinidx);
+            Py_DECREF(slinidx);
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] <= second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] <= second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value <= Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value <= Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
+    Py_INCREF(result);
+    return result;
+}
+
+PyObject* Matrix_Equal(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+            Matrix* fm = (Matrix*) first;
+            Matrix* sm = (Matrix*) second;
+
+            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            if (flinidx == NULL) {
+                return NULL;
+            }
+
+            PyObject* slinidx = select_all(sm->N, sm->M, sm->transposed);
+            if (slinidx == NULL) {
+                Py_DECREF(flinidx);
+                return NULL;
+            }
+
+            int comp = 1;
+            for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
+                PyObject* f_element = PyTuple_GetItem(flinidx, i);
+                Py_ssize_t f_element_value = PyLong_AsLong(f_element);
+                PyObject* s_element = PyTuple_GetItem(slinidx, i);
+                Py_ssize_t s_element_value = PyLong_AsLong(s_element);
+                if (!(Matrix_DATA(fm)[f_element_value] == Matrix_DATA(sm)[s_element_value])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            Py_DECREF(flinidx);
+            Py_DECREF(slinidx);
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] == second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] == second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value == Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value == Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
+    Py_INCREF(result);
+    return result;
+}
+
+PyObject* Matrix_NotEqual(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+            Matrix* fm = (Matrix*) first;
+            Matrix* sm = (Matrix*) second;
+
+            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            if (flinidx == NULL) {
+                return NULL;
+            }
+
+            PyObject* slinidx = select_all(sm->N, sm->M, sm->transposed);
+            if (slinidx == NULL) {
+                Py_DECREF(flinidx);
+                return NULL;
+            }
+
+            int comp = 0;
+            for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
+                PyObject* f_element = PyTuple_GetItem(flinidx, i);
+                Py_ssize_t f_element_value = PyLong_AsLong(f_element);
+                PyObject* s_element = PyTuple_GetItem(slinidx, i);
+                Py_ssize_t s_element_value = PyLong_AsLong(s_element);
+                if (Matrix_DATA(fm)[f_element_value] != Matrix_DATA(sm)[s_element_value]) {
+                    comp = 1;
+                    break;
+                }
+            }
+            Py_DECREF(flinidx);
+            Py_DECREF(slinidx);
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            result = Py_True;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 0;
+        float second_value = (float) PyLong_AsLong(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (Matrix_DATA(first)[i] != second_value) {
+                comp = 1;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 0;
+        float second_value = (float) PyFloat_AsDouble(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (Matrix_DATA(first)[i] != second_value) {
+                comp = 1;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 0;
+        float first_value = (float) PyLong_AsLong(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (first_value != Matrix_DATA(second)[i]) {
+                comp = 1;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 0;
+        float first_value = (float) PyFloat_AsDouble(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (first_value != Matrix_DATA(second)[i]) {
+                comp = 1;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
+    Py_INCREF(result);
+    return result;
+}
+
+PyObject* Matrix_GreaterOrEqual(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+            Matrix* fm = (Matrix*) first;
+            Matrix* sm = (Matrix*) second;
+
+            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            if (flinidx == NULL) {
+                return NULL;
+            }
+
+            PyObject* slinidx = select_all(sm->N, sm->M, sm->transposed);
+            if (slinidx == NULL) {
+                Py_DECREF(flinidx);
+                return NULL;
+            }
+
+            int comp = 1;
+            for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
+                PyObject* f_element = PyTuple_GetItem(flinidx, i);
+                Py_ssize_t f_element_value = PyLong_AsLong(f_element);
+                PyObject* s_element = PyTuple_GetItem(slinidx, i);
+                Py_ssize_t s_element_value = PyLong_AsLong(s_element);
+                if (!(Matrix_DATA(fm)[f_element_value] >= Matrix_DATA(sm)[s_element_value])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            Py_DECREF(flinidx);
+            Py_DECREF(slinidx);
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] >= second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] >= second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value >= Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value >= Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
+    Py_INCREF(result);
+    return result;
+}
+
+PyObject* Matrix_GreaterThan(PyObject* first, PyObject* second) {
+    PyObject* result = Py_NotImplemented;
+
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+            Matrix* fm = (Matrix*) first;
+            Matrix* sm = (Matrix*) second;
+
+            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            if (flinidx == NULL) {
+                return NULL;
+            }
+
+            PyObject* slinidx = select_all(sm->N, sm->M, sm->transposed);
+            if (slinidx == NULL) {
+                Py_DECREF(flinidx);
+                return NULL;
+            }
+
+            int comp = 1;
+            for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
+                PyObject* f_element = PyTuple_GetItem(flinidx, i);
+                Py_ssize_t f_element_value = PyLong_AsLong(f_element);
+                PyObject* s_element = PyTuple_GetItem(slinidx, i);
+                Py_ssize_t s_element_value = PyLong_AsLong(s_element);
+                if (!(Matrix_DATA(fm)[f_element_value] > Matrix_DATA(sm)[s_element_value])) {
+                    comp = 0;
+                    break;
+                }
+            }
+            Py_DECREF(flinidx);
+            Py_DECREF(slinidx);
+            if (comp) {
+                result = Py_True;
+            } else {
+                result = Py_False;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyLong_AsLong(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] > second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        int comp = 1;
+        float second_value = (float) PyFloat_AsDouble(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(first); i++) {
+            if (!(Matrix_DATA(first)[i] > second_value)) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyLong_AsLong(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value > Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        int comp = 1;
+        float first_value = (float) PyFloat_AsDouble(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(second); i++) {
+            if (!(first_value > Matrix_DATA(second)[i])) {
+                comp = 0;
+                break;
+            }
+        }
+        if (comp) {
+            result = Py_True;
+        } else {
+            result = Py_False;
+        }
+    }
+
+    Py_INCREF(result);
+    return result;
+}
+
+PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op) {
+    switch (op) {
+        case Py_LT:
+            return Matrix_LessThan(first, second);
+        case Py_LE:
+            return Matrix_LessOrEqual(first, second);
+        case Py_EQ:
+            return Matrix_Equal(first, second);
+        case Py_NE:
+            return Matrix_NotEqual(first, second);
+        case Py_GE:
+            return Matrix_GreaterOrEqual(first, second);
+        case Py_GT:
+            return Matrix_GreaterThan(first, second);
+        default:
+            PyErr_SetString(PyExc_RuntimeError, "Unreachable code reached in Matrix_RichCompare.");
+            return NULL;
+    }
+}
+
 PyObject* Matrix_ToString(Matrix* self) {
-    assert((self->N * self->M) == Py_SIZE(self->container));
+    assert((self->N * self->M) == Matrix_SIZE(self));
 
     PyObject* rows = PyList_New(Matrix_SHAPE_I(self));
     if (rows == NULL) {
@@ -99,7 +735,7 @@ PyObject* Matrix_ToString(Matrix* self) {
         }
         for (Py_ssize_t j = 0; j < Matrix_SHAPE_J(self); j++) {
             Py_ssize_t idx = linearize_scalar_indices(self->N, self->M, self->transposed, i, j);
-            PyList_SetItem(row, j, PyFloat_FromDouble((double) self->container->data[idx]));
+            PyList_SetItem(row, j, PyFloat_FromDouble((double) Matrix_DATA(self)[idx]));
         }
         PyList_SetItem(rows, i, row);
     }
@@ -109,12 +745,12 @@ PyObject* Matrix_ToString(Matrix* self) {
 }
 
 PyObject* Matrix_ToRepresentation(Matrix* self) {
-    PyObject* d = PyTuple_New(Py_SIZE(self->container));
+    PyObject* d = PyTuple_New(Matrix_SIZE(self));
     if (d == NULL) {
         return NULL;
     }
-    for (Py_ssize_t idx = 0; idx < Py_SIZE(self->container); idx++) {
-        PyTuple_SetItem(d, idx, PyFloat_FromDouble((double) self->container->data[idx]));
+    for (Py_ssize_t idx = 0; idx < Matrix_SIZE(self); idx++) {
+        PyTuple_SetItem(d, idx, PyFloat_FromDouble((double) Matrix_DATA(self)[idx]));
     }
     PyObject* s = PyUnicode_FromFormat("Matrix((%u, %u), %R, transposed=%u)", self->N, self->M, d, self->transposed);
     Py_DECREF(d);
@@ -122,9 +758,9 @@ PyObject* Matrix_ToRepresentation(Matrix* self) {
 }
 
 Py_ssize_t Matrix_Length(Matrix* self) {
-    assert((self->N * self->M) == Py_SIZE(self->container));
+    assert((self->N * self->M) == Matrix_SIZE(self));
 
-    return Py_SIZE(self->container);
+    return Matrix_SIZE(self);
 }
 
 PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
@@ -160,10 +796,10 @@ PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
             return NULL;
         }
 
-        for (Py_ssize_t i = 0; i < Py_SIZE(sub_matrix->container); i++) {
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(sub_matrix); i++) {
             PyObject* idx_i_obj = PyTuple_GetItem(sub_idx, i);
             Py_ssize_t idx_i = PyLong_AsLong(idx_i_obj);
-            sub_matrix->container->data[i] = self->container->data[idx_i];
+            Matrix_DATA(sub_matrix)[i] = Matrix_DATA(self)[idx_i];
         }
 
         Py_DECREF(sub_shape);
@@ -179,7 +815,7 @@ PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
         Py_DECREF(sub_idx);
         Py_DECREF(idx);
 
-        return PyFloat_FromDouble(self->container->data[idx_i]);
+        return PyFloat_FromDouble(Matrix_DATA(self)[idx_i]);
     } else {
         Py_DECREF(sub_shape);
         Py_DECREF(sub_idx);
@@ -231,7 +867,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
             Py_ssize_t sub_idx_value = PyLong_AsSsize_t(sub_idx_obj);
             PyObject* value_idx_obj = PyTuple_GetItem(value_idx, i);
             Py_ssize_t value_idx_value = PyLong_AsSsize_t(value_idx_obj);
-            self->container->data[sub_idx_value] = value_obj->container->data[value_idx_value];
+            Matrix_DATA(self)[sub_idx_value] = Matrix_DATA(value_obj)[value_idx_value];
         }
     } else if (PySequence_Check(value)) {
         if (PySequence_Size(value) != sub_length) {
@@ -257,21 +893,21 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
             }
             PyObject* sub_idx_obj = PyTuple_GetItem(sub_idx, i);
             Py_ssize_t sub_idx_value = PyLong_AsSsize_t(sub_idx_obj);
-            self->container->data[sub_idx_value] = value_data;
+            Matrix_DATA(self)[sub_idx_value] = value_data;
         }
     } else if (PyLong_Check(value)) {
         MatrixDataType value_data = (MatrixDataType) PyLong_AsLong(value);
         for (Py_ssize_t i = 0; i < sub_length; i++) {
             PyObject* sub_idx_obj = PyTuple_GetItem(sub_idx, i);
             Py_ssize_t sub_idx = PyLong_AsSsize_t(sub_idx_obj);
-            self->container->data[sub_idx] = value_data;
+            Matrix_DATA(self)[sub_idx] = value_data;
         }
     } else if (PyFloat_Check(value)) {
         MatrixDataType value_data = (MatrixDataType) PyFloat_AsDouble(value);
         for (Py_ssize_t i = 0; i < sub_length; i++) {
             PyObject* sub_idx_obj = PyTuple_GetItem(sub_idx, i);
             Py_ssize_t sub_idx = PyLong_AsSsize_t(sub_idx_obj);
-            self->container->data[sub_idx] = value_data;
+            Matrix_DATA(self)[sub_idx] = value_data;
         }
     } else {
         Py_DECREF(sub_idx);
@@ -284,671 +920,6 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
     return 0;
 }
 
-// static PyObject* Matrix_LessThan(PyObject* first, PyObject* second) {
-//     PyObject* result = Py_NotImplemented;
-//
-//     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
-//             Matrix* fm = (Matrix*) first;
-//             Matrix* sm = (Matrix*) second;
-//
-//             PyObject* flinidx = select_all(fm);
-//             if (flinidx == NULL) {
-//                 return NULL;
-//             }
-//
-//             PyObject* slinidx = select_all(sm);
-//             if (slinidx == NULL) {
-//                 Py_DECREF(flinidx);
-//                 return NULL;
-//             }
-//
-//             int comp = 1;
-//             Py_ssize_t i;
-//             for (i = 0; i < PyTuple_Size(flinidx); i++) {
-//                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
-//                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
-//                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
-//                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 if (!(fm->data[f_element_value] < sm->data[s_element_value])) {
-//                     comp = 0;
-//                     break;
-//                 }
-//             }
-//             Py_DECREF(flinidx);
-//             Py_DECREF(slinidx);
-//             if (comp) {
-//                 result = Py_True;
-//             } else {
-//                 result = Py_False;
-//             }
-//         } else {
-//             PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
-//             return NULL;
-//         }
-//     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyLong_AsLong(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] < second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyFloat_AsDouble(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] < second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyLong_AsLong(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value < Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyFloat_AsDouble(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value < Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     }
-//
-//     Py_INCREF(result);
-//     return result;
-// }
-//
-// static PyObject* Matrix_LessOrEqual(PyObject* first, PyObject* second) {
-//     PyObject* result = Py_NotImplemented;
-//
-//     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
-//             Matrix* fm = (Matrix*) first;
-//             Matrix* sm = (Matrix*) second;
-//
-//             PyObject* flinidx = select_all(fm);
-//             if (flinidx == NULL) {
-//                 return NULL;
-//             }
-//
-//             PyObject* slinidx = select_all(sm);
-//             if (slinidx == NULL) {
-//                 Py_DECREF(flinidx);
-//                 return NULL;
-//             }
-//
-//             int comp = 1;
-//             Py_ssize_t i;
-//             for (i = 0; i < PyTuple_Size(flinidx); i++) {
-//                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
-//                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
-//                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
-//                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 if (!(fm->data[f_element_value] <= sm->data[s_element_value])) {
-//                     comp = 0;
-//                     break;
-//                 }
-//             }
-//             Py_DECREF(flinidx);
-//             Py_DECREF(slinidx);
-//             if (comp) {
-//                 result = Py_True;
-//             } else {
-//                 result = Py_False;
-//             }
-//         } else {
-//             PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
-//             return NULL;
-//         }
-//     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyLong_AsLong(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] <= second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyFloat_AsDouble(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] <= second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyLong_AsLong(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value <= Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyFloat_AsDouble(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value <= Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     }
-//
-//     Py_INCREF(result);
-//     return result;
-// }
-//
-// static PyObject* Matrix_Equal(PyObject* first, PyObject* second) {
-//     PyObject* result = Py_NotImplemented;
-//
-//     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
-//             Matrix* fm = (Matrix*) first;
-//             Matrix* sm = (Matrix*) second;
-//
-//             PyObject* flinidx = select_all(fm);
-//             if (flinidx == NULL) {
-//                 return NULL;
-//             }
-//
-//             PyObject* slinidx = select_all(sm);
-//             if (slinidx == NULL) {
-//                 Py_DECREF(flinidx);
-//                 return NULL;
-//             }
-//
-//             int comp = 1;
-//             Py_ssize_t i;
-//             for (i = 0; i < PyTuple_Size(flinidx); i++) {
-//                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
-//                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
-//                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
-//                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 if (!(fm->data[f_element_value] == sm->data[s_element_value])) {
-//                     comp = 0;
-//                     break;
-//                 }
-//             }
-//             Py_DECREF(flinidx);
-//             Py_DECREF(slinidx);
-//             if (comp) {
-//                 result = Py_True;
-//             } else {
-//                 result = Py_False;
-//             }
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyLong_AsLong(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] == second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyFloat_AsDouble(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] == second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyLong_AsLong(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value == Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyFloat_AsDouble(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value == Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     }
-//
-//     Py_INCREF(result);
-//     return result;
-// }
-//
-// static PyObject* Matrix_NotEqual(PyObject* first, PyObject* second) {
-//     PyObject* result = Py_NotImplemented;
-//
-//     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
-//             Matrix* fm = (Matrix*) first;
-//             Matrix* sm = (Matrix*) second;
-//
-//             PyObject* flinidx = select_all(fm);
-//             if (flinidx == NULL) {
-//                 return NULL;
-//             }
-//
-//             PyObject* slinidx = select_all(sm);
-//             if (slinidx == NULL) {
-//                 Py_DECREF(flinidx);
-//                 return NULL;
-//             }
-//
-//             int comp = 0;
-//             Py_ssize_t i;
-//             for (i = 0; i < PyTuple_Size(flinidx); i++) {
-//                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
-//                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
-//                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
-//                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 if (fm->data[f_element_value] != sm->data[s_element_value]) {
-//                     comp = 1;
-//                     break;
-//                 }
-//             }
-//             Py_DECREF(flinidx);
-//             Py_DECREF(slinidx);
-//             if (comp) {
-//                 result = Py_True;
-//             } else {
-//                 result = Py_False;
-//             }
-//         } else {
-//             result = Py_True;
-//         }
-//     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         int comp = 0;
-//         float second_value = (float) PyLong_AsLong(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (Matrix_DATA(first)[i] != second_value) {
-//                 comp = 1;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         int comp = 0;
-//         float second_value = (float) PyFloat_AsDouble(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (Matrix_DATA(first)[i] != second_value) {
-//                 comp = 1;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         int comp = 0;
-//         float first_value = (float) PyLong_AsLong(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (first_value != Matrix_DATA(second)[i]) {
-//                 comp = 1;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         int comp = 0;
-//         float first_value = (float) PyFloat_AsDouble(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (first_value != Matrix_DATA(second)[i]) {
-//                 comp = 1;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     }
-//
-//     Py_INCREF(result);
-//     return result;
-// }
-//
-// static PyObject* Matrix_GreaterOrEqual(PyObject* first, PyObject* second) {
-//     PyObject* result = Py_NotImplemented;
-//
-//     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
-//             Matrix* fm = (Matrix*) first;
-//             Matrix* sm = (Matrix*) second;
-//
-//             PyObject* flinidx = select_all(fm);
-//             if (flinidx == NULL) {
-//                 return NULL;
-//             }
-//
-//             PyObject* slinidx = select_all(sm);
-//             if (slinidx == NULL) {
-//                 Py_DECREF(flinidx);
-//                 return NULL;
-//             }
-//
-//             int comp = 1;
-//             Py_ssize_t i;
-//             for (i = 0; i < PyTuple_Size(flinidx); i++) {
-//                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
-//                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
-//                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
-//                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 if (!(fm->data[f_element_value] >= sm->data[s_element_value])) {
-//                     comp = 0;
-//                     break;
-//                 }
-//             }
-//             Py_DECREF(flinidx);
-//             Py_DECREF(slinidx);
-//             if (comp) {
-//                 result = Py_True;
-//             } else {
-//                 result = Py_False;
-//             }
-//         } else {
-//             PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
-//             return NULL;
-//         }
-//     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyLong_AsLong(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] >= second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyFloat_AsDouble(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] >= second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyLong_AsLong(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value >= Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyFloat_AsDouble(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value >= Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     }
-//
-//     Py_INCREF(result);
-//     return result;
-// }
-//
-// static PyObject* Matrix_GreaterThan(PyObject* first, PyObject* second) {
-//     PyObject* result = Py_NotImplemented;
-//
-//     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
-//             Matrix* fm = (Matrix*) first;
-//             Matrix* sm = (Matrix*) second;
-//
-//             PyObject* flinidx = select_all(fm);
-//             if (flinidx == NULL) {
-//                 return NULL;
-//             }
-//
-//             PyObject* slinidx = select_all(sm);
-//             if (slinidx == NULL) {
-//                 Py_DECREF(flinidx);
-//                 return NULL;
-//             }
-//
-//             int comp = 1;
-//             Py_ssize_t i;
-//             for (i = 0; i < PyTuple_Size(flinidx); i++) {
-//                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
-//                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
-//                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
-//                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 if (!(fm->data[f_element_value] > sm->data[s_element_value])) {
-//                     comp = 0;
-//                     break;
-//                 }
-//             }
-//             Py_DECREF(flinidx);
-//             Py_DECREF(slinidx);
-//             if (comp) {
-//                 result = Py_True;
-//             } else {
-//                 result = Py_False;
-//             }
-//         } else {
-//             PyErr_SetString(PyExc_ValueError, "Matrices cannot be compared due to a shape mismatch.");
-//             return NULL;
-//         }
-//     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyLong_AsLong(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] > second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         int comp = 1;
-//         float second_value = (float) PyFloat_AsDouble(second);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(first); i++) {
-//             if (!(Matrix_DATA(first)[i] > second_value)) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyLong_AsLong(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value > Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         int comp = 1;
-//         float first_value = (float) PyFloat_AsDouble(first);
-//         Py_ssize_t i;
-//         for (i = 0; i < Py_SIZE(second); i++) {
-//             if (!(first_value > Matrix_DATA(second)[i])) {
-//                 comp = 0;
-//                 break;
-//             }
-//         }
-//         if (comp) {
-//             result = Py_True;
-//         } else {
-//             result = Py_False;
-//         }
-//     }
-//
-//     Py_INCREF(result);
-//     return result;
-// }
-//
-// static PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op) {
-//     switch (op) {
-//         case Py_LT:
-//             return Matrix_LessThan(first, second);
-//         case Py_LE:
-//             return Matrix_LessOrEqual(first, second);
-//         case Py_EQ:
-//             return Matrix_Equal(first, second);
-//         case Py_NE:
-//             return Matrix_NotEqual(first, second);
-//         case Py_GE:
-//             return Matrix_GreaterOrEqual(first, second);
-//         case Py_GT:
-//             return Matrix_GreaterThan(first, second);
-//         default:
-//             PyErr_SetString(PyExc_RuntimeError, "Unreachable code reached in Matrix_RichCompare.");
-//             return NULL;
-//     }
-// }
 //
 // static PyObject* Matrix_Negative(Matrix* self) {
 //     Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
@@ -958,7 +929,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //     Py_ssize_t i;
 //     for (i = 0; i < Py_SIZE(matrix); i++) {
-//         matrix->data[i] = -self->data[i];
+//         Matrix_DATA(matrix)[i] = -Matrix_DATA(self)[i];
 //     }
 //
 //     return (PyObject*) matrix;
@@ -972,7 +943,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //     Py_ssize_t i;
 //     for (i = 0; i < Py_SIZE(matrix); i++) {
-//         matrix->data[i] = self->data[i];
+//         Matrix_DATA(matrix)[i] = Matrix_DATA(self)[i];
 //     }
 //
 //     return (PyObject*) matrix;
@@ -986,7 +957,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //     Py_ssize_t i;
 //     for (i = 0; i < Py_SIZE(matrix); i++) {
-//         matrix->data[i] = (float) fabs(self->data[i]);
+//         Matrix_DATA(matrix)[i] = (float) fabs(Matrix_DATA(self)[i]);
 //     }
 //
 //     return (PyObject*) matrix;
@@ -1017,7 +988,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
 //                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
 //                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 result->data[f_element_value] = fm->data[f_element_value] + sm->data[s_element_value];
+//                 Matrix_DATA(result)[f_element_value] = Matrix_DATA(fm)[f_element_value] + Matrix_DATA(sm)[s_element_value];
 //             }
 //             Py_DECREF(flinidx);
 //             Py_DECREF(slinidx);
@@ -1035,7 +1006,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float second_value = (float) PyLong_AsLong(second);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = Matrix_DATA(first)[i] + second_value;
+//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] + second_value;
 //         }
 //
 //         return (PyObject*) result;
@@ -1048,7 +1019,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float second_value = (float) PyFloat_AsDouble(second);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = Matrix_DATA(first)[i] + second_value;
+//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] + second_value;
 //         }
 //
 //         return (PyObject*) result;
@@ -1061,7 +1032,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float first_value = (float) PyLong_AsLong(first);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = first_value + Matrix_DATA(second)[i];
+//             Matrix_DATA(result)[i] = first_value + Matrix_DATA(second)[i];
 //         }
 //
 //         return (PyObject*) result;
@@ -1074,7 +1045,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float first_value = (float) PyFloat_AsDouble(first);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = first_value + Matrix_DATA(second)[i];
+//             Matrix_DATA(result)[i] = first_value + Matrix_DATA(second)[i];
 //         }
 //
 //         return (PyObject*) result;
@@ -1110,7 +1081,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
 //                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
 //                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 result->data[f_element_value] = fm->data[f_element_value] - sm->data[s_element_value];
+//                 Matrix_DATA(result)[f_element_value] = Matrix_DATA(fm)[f_element_value] - Matrix_DATA(sm)[s_element_value];
 //             }
 //             Py_DECREF(flinidx);
 //             Py_DECREF(slinidx);
@@ -1128,7 +1099,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float second_value = (float) PyLong_AsLong(second);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = Matrix_DATA(first)[i] - second_value;
+//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] - second_value;
 //         }
 //
 //         return (PyObject*) result;
@@ -1141,7 +1112,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float second_value = (float) PyFloat_AsDouble(second);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = Matrix_DATA(first)[i] - second_value;
+//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] - second_value;
 //         }
 //
 //         return (PyObject*) result;
@@ -1154,7 +1125,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float first_value = (float) PyLong_AsLong(first);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = first_value - Matrix_DATA(second)[i];
+//             Matrix_DATA(result)[i] = first_value - Matrix_DATA(second)[i];
 //         }
 //
 //         return (PyObject*) result;
@@ -1167,7 +1138,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float first_value = (float) PyFloat_AsDouble(first);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = first_value - Matrix_DATA(second)[i];
+//             Matrix_DATA(result)[i] = first_value - Matrix_DATA(second)[i];
 //         }
 //
 //         return (PyObject*) result;
@@ -1203,7 +1174,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
 //                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
 //                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 result->data[f_element_value] = fm->data[f_element_value] * sm->data[s_element_value];
+//                 Matrix_DATA(result)[f_element_value] = Matrix_DATA(fm)[f_element_value] * Matrix_DATA(sm)[s_element_value];
 //             }
 //             Py_DECREF(flinidx);
 //             Py_DECREF(slinidx);
@@ -1221,7 +1192,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float second_value = (float) PyLong_AsLong(second);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = Matrix_DATA(first)[i] * second_value;
+//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] * second_value;
 //         }
 //
 //         return (PyObject*) result;
@@ -1234,7 +1205,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float second_value = (float) PyFloat_AsDouble(second);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = Matrix_DATA(first)[i] * second_value;
+//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] * second_value;
 //         }
 //
 //         return (PyObject*) result;
@@ -1247,7 +1218,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float first_value = (float) PyLong_AsLong(first);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = first_value * Matrix_DATA(second)[i];
+//             Matrix_DATA(result)[i] = first_value * Matrix_DATA(second)[i];
 //         }
 //
 //         return (PyObject*) result;
@@ -1260,7 +1231,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //         float first_value = (float) PyFloat_AsDouble(first);
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = first_value * Matrix_DATA(second)[i];
+//             Matrix_DATA(result)[i] = first_value * Matrix_DATA(second)[i];
 //         }
 //
 //         return (PyObject*) result;
@@ -1296,9 +1267,9 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
 //                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
 //                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 float s_value = sm->data[s_element_value];
+//                 float s_value = Matrix_DATA(sm)[s_element_value];
 //                 if (s_value != 0.0f) {
-//                     result->data[f_element_value] = fm->data[f_element_value] / s_value;
+//                     Matrix_DATA(result)[f_element_value] = Matrix_DATA(fm)[f_element_value] / s_value;
 //                 } else {
 //                     Py_DECREF(flinidx);
 //                     Py_DECREF(slinidx);
@@ -1329,7 +1300,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = Matrix_DATA(first)[i] / second_value;
+//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] / second_value;
 //         }
 //
 //         return (PyObject*) result;
@@ -1348,7 +1319,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = Matrix_DATA(first)[i] / second_value;
+//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] / second_value;
 //         }
 //
 //         return (PyObject*) result;
@@ -1367,7 +1338,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = first_value / Matrix_DATA(second)[i];
+//             Matrix_DATA(result)[i] = first_value / Matrix_DATA(second)[i];
 //         }
 //
 //         return (PyObject*) result;
@@ -1386,7 +1357,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //
 //         Py_ssize_t i;
 //         for (i = 0; i < Py_SIZE(result); i++) {
-//             result->data[i] = first_value / Matrix_DATA(second)[i];
+//             Matrix_DATA(result)[i] = first_value / Matrix_DATA(second)[i];
 //         }
 //
 //         return (PyObject*) result;
@@ -1409,7 +1380,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                 float result = 0.0f;
 //                 Py_ssize_t m;
 //                 for (m = 0; m < shape_m; m++) {
-//                     result += fm->data[m] * sm->data[m];
+//                     result += Matrix_DATA(fm)[m] * Matrix_DATA(sm)[m];
 //                 }
 //                 return PyFloat_FromDouble((double) result);
 //             } else {
@@ -1426,10 +1397,10 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //                         for (m = 0; m < shape_m; m++) {
 //                             Py_ssize_t flinidx = linearize_scalar_indices(N, shape_m, i, m);
 //                             Py_ssize_t slinidx = linearize_scalar_indices(shape_m, M, m, j);
-//                             temp += fm->data[flinidx] * sm->data[slinidx];
+//                             temp += Matrix_DATA(fm)[flinidx] * Matrix_DATA(sm)[slinidx];
 //                         }
 //                         Py_ssize_t rlinidx = linearize_scalar_indices(N, M, i, j);
-//                         result->data[rlinidx] = temp;
+//                         Matrix_DATA(result)[rlinidx] = temp;
 //                     }
 //                 }
 //                 return (PyObject*) result;
@@ -1519,7 +1490,7 @@ PyTypeObject MatrixType = {
     "Arbitrary size matrix",                  /* tp_doc */
     0,                                        /* tp_traverse */
     0,                                        /* tp_clear */
-    0, //(richcmpfunc) Matrix_RichCompare,         /* tp_richcompare */
+    (richcmpfunc) Matrix_RichCompare,         /* tp_richcompare */
     0,                                        /* tp_weaklistoffset */
     0,                                        /* tp_iter */
     0,                                        /* tp_iternext */

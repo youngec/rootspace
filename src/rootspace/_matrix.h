@@ -30,6 +30,10 @@ PyTypeObject MatrixType;
 #define Matrix_SHAPE_I(op) (Matrix_TRANSPOSED(op) ? Matrix_M(op) : Matrix_N(op))
 #define Matrix_SHAPE_J(op) (Matrix_TRANSPOSED(op) ? Matrix_N(op) : Matrix_M(op))
 
+/// The following macros allow for easier access to Matrix length and data
+#define Matrix_SIZE(op) (Py_SIZE(((Matrix*) op)->container))
+#define Matrix_DATA(op) (((Matrix*) op)->container->data)
+
 /// *Internal* Create a new Matrix object. Accepts a two-dimensional shape
 /// (N, M) and a transposition flag. Does not check for the sanity
 /// of arguments!
@@ -45,6 +49,15 @@ PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs);
 
 /// Implement the Matrix destructor.
 void Matrix_Dealloc(Matrix* self);
+
+/// Implement the total ordering methods.
+PyObject* Matrix_LessThan(PyObject* first, PyObject* second);
+PyObject* Matrix_LessOrEqual(PyObject* first, PyObject* second);
+PyObject* Matrix_Equal(PyObject* first, PyObject* second);
+PyObject* Matrix_NotEqual(PyObject* first, PyObject* second);
+PyObject* Matrix_GreaterOrEqual(PyObject* first, PyObject* second);
+PyObject* Matrix_GreaterThan(PyObject* first, PyObject* second);
+PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op);
 
 /// Provide a human-readable string representation of a Matrix.
 PyObject* Matrix_ToString(Matrix* self);
