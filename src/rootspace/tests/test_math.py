@@ -56,6 +56,7 @@ class TestMatrix(object):
 
     def test_repr(self):
         assert repr(Matrix((2, 3), range(6))) == "Matrix((2, 3), (0.0, 1.0, 2.0, 3.0, 4.0, 5.0), transposed=0)"
+        assert eval(repr(Matrix((2, 3), range(6)))) == Matrix((2, 3), range(6))
 
     def test_length(self, shape):
         assert len(Matrix(shape)) == functools.reduce(operator.mul, shape)
