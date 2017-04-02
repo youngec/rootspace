@@ -1,6 +1,6 @@
 #include "_index_handling.h"
 
- Py_ssize_t linearize_scalar_indices(Py_ssize_t N, Py_ssize_t M, int transposed, Py_ssize_t i, Py_ssize_t j) {
+Py_ssize_t linearize_scalar_indices(Py_ssize_t N, Py_ssize_t M, int transposed, Py_ssize_t i, Py_ssize_t j) {
     if (!transposed && 0 <= i && i < N && 0 <= j && j < M) {
         return i * M + j;
     } else if (transposed && 0 <= j && j < N && 0 <= i && i < M) {
@@ -11,7 +11,7 @@
     }
 }
 
- PyObject* li_int_int(Py_ssize_t N, Py_ssize_t M, int transposed, Py_ssize_t i, Py_ssize_t j) {
+static PyObject* li_int_int(Py_ssize_t N, Py_ssize_t M, int transposed, Py_ssize_t i, Py_ssize_t j) {
     Py_ssize_t lin_idx = linearize_scalar_indices(N, M, transposed, i, j);
     if (lin_idx < 0) {
         return NULL;
@@ -19,7 +19,7 @@
     return Py_BuildValue("(n)", lin_idx);
 }
 
- PyObject* li_int_tuple(Py_ssize_t N, Py_ssize_t M, int transposed, Py_ssize_t i, PyObject* j) {
+static PyObject* li_int_tuple(Py_ssize_t N, Py_ssize_t M, int transposed, Py_ssize_t i, PyObject* j) {
     Py_ssize_t length = PyTuple_Size(j);
     PyObject* r = PyTuple_New(length);
     if (r == NULL) {
@@ -46,7 +46,7 @@
     return r;
 }
 
- PyObject* li_int_slice(Py_ssize_t N, Py_ssize_t M, int transposed, Py_ssize_t i, PyObject* j) {
+static PyObject* li_int_slice(Py_ssize_t N, Py_ssize_t M, int transposed, Py_ssize_t i, PyObject* j) {
     Py_ssize_t max_j = M;
     if (transposed) {
         max_j = N;
@@ -105,7 +105,7 @@
     return r;
 }
 
- PyObject* li_tuple_tuple(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, PyObject* j) {
+static PyObject* li_tuple_tuple(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, PyObject* j) {
     Py_ssize_t i_len = PyTuple_Size(i);
     Py_ssize_t j_len = PyTuple_Size(j);
     Py_ssize_t length = i_len * j_len;
@@ -150,7 +150,7 @@
     return r;
 }
 
- PyObject* li_tuple_slice(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, PyObject* j) {
+static  PyObject* li_tuple_slice(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, PyObject* j) {
     Py_ssize_t max_j = M;
     if (transposed) {
         max_j = N;
@@ -199,7 +199,7 @@
     return r;
 }
 
- PyObject* li_slice_int(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, Py_ssize_t j) {
+static PyObject* li_slice_int(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, Py_ssize_t j) {
     Py_ssize_t max_i = N;
     if (transposed) {
         max_i = M;
@@ -232,7 +232,7 @@
     return r;
 }
 
- PyObject* li_slice_tuple(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, PyObject* j) {
+static PyObject* li_slice_tuple(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, PyObject* j) {
     Py_ssize_t max_i = N;
     if (transposed) {
         max_i = M;
@@ -282,7 +282,7 @@
 
 }
 
- PyObject* li_slice_slice(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, PyObject* j) {
+static PyObject* li_slice_slice(Py_ssize_t N, Py_ssize_t M, int transposed, PyObject* i, PyObject* j) {
     Py_ssize_t max_i = N;
     Py_ssize_t max_j = M;
     if (transposed) {
@@ -552,3 +552,42 @@ PyObject* select_all(Py_ssize_t N, Py_ssize_t M, int transposed) {
     return idx_linear;
 }
 
+PyObject* math_get_sub_shape(PyObject* self, PyObject* args) {
+    Py_ssize_t N = 1;
+    Py_ssize_t M = 1;
+    int transposed = 0;
+    PyObject* indices = NULL;
+    if (!PyArg_ParseTuple(args, "nnpO", &N, &M, &transposed, &indices)) {
+        return NULL;
+    }
+    return get_sub_shape(N, M, transposed, indices);
+}
+
+PyObject* math_linearize_indices(PyObject* self, PyObject* args) {
+    Py_ssize_t N = 1;
+    Py_ssize_t M = 1;
+    int transposed = 0;
+    PyObject* indices = NULL;
+    if (!PyArg_ParseTuple(args, "nnpO", &N, &M, &transposed, &indices)) {
+        return NULL;
+    }
+    return linearize_indices(N, M, transposed, indices);
+}
+
+PyObject* math_complete_indices(PyObject* self, PyObject* args) {
+    PyObject* indices = NULL;
+    if (!PyArg_ParseTuple(args, "O", &indices)) {
+        return NULL;
+    }
+    return complete_indices(indices);
+}
+
+PyObject* math_select_all(PyObject* self, PyObject* args) {
+    Py_ssize_t N = 1;
+    Py_ssize_t M = 1;
+    int transposed = 0;
+    if (!PyArg_ParseTuple(args, "nnp", &N, &M, &transposed)) {
+        return NULL;
+    }
+    return select_all(N, M, transposed);
+}

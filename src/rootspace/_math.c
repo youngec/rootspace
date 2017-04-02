@@ -5,52 +5,65 @@
 #include "_matrix_container.h"
 #include "_matrix.h"
 
-static PyObject* math_get_sub_shape(PyObject* self, PyObject* args) {
-    Py_ssize_t N = 1;
-    Py_ssize_t M = 1;
-    int transposed = 0;
-    PyObject* indices = NULL;
-    if (!PyArg_ParseTuple(args, "nnpO", &N, &M, &transposed, &indices)) {
-        return NULL;
-    }
-    return get_sub_shape(N, M, transposed, indices);
-}
+static const char math_get_sub_shape_doc[] =
+    "For a tuple of int, tuple[Any], or slice, calculate the shape of the \n"
+    "resulting sub-matrix. Raises a TypeError if the indices parameter is \n"
+    "not a tuple, a ValueError if its length is lot 2, and a TypeError if \n"
+    "its elements are neither int, tuple, or slice. \n"
+    "\n"
+    "Parameters: \n"
+    "N: int (The number of rows in the matrix) \n"
+    "M: int (The number of columns in the matrix) \n"
+    "transposed: bool (Whether the matrix is transposed) \n"
+    "indices: 2-Tuple[Union[int, Tuple[Any], slice]] (A two-tuple of indices) \n"
+    "\n"
+    "Returns: \n"
+    "2-Tuple[int]";
 
-static PyObject* math_linearize_indices(PyObject* self, PyObject* args) {
-    Py_ssize_t N = 1;
-    Py_ssize_t M = 1;
-    int transposed = 0;
-    PyObject* indices = NULL;
-    if (!PyArg_ParseTuple(args, "nnpO", &N, &M, &transposed, &indices)) {
-        return NULL;
-    }
-    return linearize_indices(N, M, transposed, indices);
-}
+static const char math_linearize_indices_doc[] =
+    "For a tuple of int, tuple[int], or slice, calculate the corresponding \n"
+    "tuple of linear indices. Raises a TypeError if the indices parameter \n"
+    "is not a tuple, a ValueError if its length is not 2, and a TypeError \n"
+    "if its elements are neither int, tuple, or slice. Furthermore, raises \n"
+    "a TypeError if the elements of a tuple index are not of type int. \n"
+    "Lastly, raises an IndexError if indices are out of bounds. \n"
+    "\n"
+    "Parameters: \n"
+    "N: int (The number of rows in the matrix) \n"
+    "M: int (The number of columns in the matrix) \n"
+    "transposed: bool (Whether the matrix is transposed) \n"
+    "indices: 2-Tuple[Union[int, Tuple[int], slice]] (A two-tuple of indices) \n"
+    "\n"
+    "Returns: \n"
+    "Tuple[int]";
 
-static PyObject* math_complete_indices(PyObject* self, PyObject* args) {
-    PyObject* indices = NULL;
-    if (!PyArg_ParseTuple(args, "O", &indices)) {
-        return NULL;
-    }
-    return complete_indices(indices);
-}
+static const char math_complete_indices_doc[] =
+    "For a given int, tuple[int] or slice, return a corresponding two-tuple \n"
+    "of the form (indices, slice(None, None, None)). \n"
+    "\n"
+    "Parameters: \n"
+    "indices: Union[int, Tuple[int], slice] \n"
+    "\n"
+    "Returns: \n"
+    "2-Tuple[Union[int, Tuple[int], slice]]";
 
-static PyObject* math_select_all(PyObject* self, PyObject* args) {
-    Py_ssize_t N = 1;
-    Py_ssize_t M = 1;
-    int transposed = 0;
-    if (!PyArg_ParseTuple(args, "nnp", &N, &M, &transposed)) {
-        return NULL;
-    }
-    return select_all(N, M, transposed);
-}
-
+static const char math_select_all_doc[] =
+    "For a given matrix shape and transposition flag, return a tuple of \n"
+    "linear indices that select all elements. \n"
+    "\n"
+    "Parameters: \n"
+    "N: int (The number of rows in the matrix) \n"
+    "M: int (The number of columns in the matrix) \n"
+    "transposed: bool (Whether the matrix is transposed) \n"
+    "\n"
+    "Returns: \n"
+    "Tuple[int]";
 
 static PyMethodDef MathMethods[] = {
-    {"get_sub_shape", math_get_sub_shape, METH_VARARGS, "Calculate the shape of a sub-matrix selected by given indices."},
-    {"linearize_indices", math_linearize_indices, METH_VARARGS, "Calculate the tuple of linear indices from a given multi-dimensional index."},
-    {"complete_indices", math_complete_indices, METH_VARARGS, "Expand the supplied index to a two-tuple multi-dimensional index."},
-    {"select_all", math_select_all, METH_VARARGS, "Return a linear index that selects all elements, accounting for transposition."},
+    {"get_sub_shape", math_get_sub_shape, METH_VARARGS, math_get_sub_shape_doc},
+    {"linearize_indices", math_linearize_indices, METH_VARARGS, math_linearize_indices_doc},
+    {"complete_indices", math_complete_indices, METH_VARARGS, math_complete_indices_doc},
+    {"select_all", math_select_all, METH_VARARGS, math_select_all_doc},
     {NULL, NULL, 0, NULL}
 };
 
