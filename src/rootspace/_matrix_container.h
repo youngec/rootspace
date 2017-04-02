@@ -25,11 +25,4 @@ PyTypeObject MatrixContainerType;
 /// *Internal* Create a new MatrixContainer object. Does not initialize
 /// the underlying data! Does not check for the sanity of arguments!
 MatrixContainer* MatrixContainer_NewInternal(Py_ssize_t length);
-
-/// Create a new MatrixContainer object. Accepts only one parameter, length.
-/// Raises a [ValueError] if 'length' is not greater or equal 1.
-PyObject* MatrixContainer_New(PyTypeObject* type, PyObject* args, PyObject* kwargs);
-
-/// Implement the MatrixContainer object destructor.
-void MatrixContainer_Dealloc(MatrixContainer* self);
 #endif

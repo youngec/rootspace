@@ -8,7 +8,7 @@ MatrixContainer* MatrixContainer_NewInternal(Py_ssize_t length) {
     return container;
 }
 
-PyObject* MatrixContainer_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
+static PyObject* MatrixContainer_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
     Py_ssize_t length = 0;
     static char* kwlist[] = {"length", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "l", kwlist, &length)) {
@@ -21,7 +21,7 @@ PyObject* MatrixContainer_New(PyTypeObject* type, PyObject* args, PyObject* kwar
     return (PyObject*) MatrixContainer_NewInternal(length);
 }
 
-void MatrixContainer_Dealloc(MatrixContainer* self) {
+static void MatrixContainer_Dealloc(MatrixContainer* self) {
     Py_TYPE(self)->tp_free((PyObject*) self);
 }
 
