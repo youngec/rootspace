@@ -112,6 +112,52 @@ class TestMatrix(object):
         assert abs(Matrix(shape, 0)) == Matrix(shape, 0)
         assert abs(Matrix(shape, -1)) == Matrix(shape, 1)
 
+    def test_addition_neutral_element(self, shape):
+        a = Matrix(shape, range(functools.reduce(operator.mul, shape)))
+
+        assert a + Matrix(shape, 0) == a
+        assert a + 0 == a
+        assert a + 0.0 == a
+
+    def test_addition_inverse(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        b = Matrix(shape, range(1, length + 1))
+
+        assert a + -b == a - b
+        assert a + +b == a + b
+
+    def test_addition_commutativity(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        b = Matrix(shape, range(1, length + 1))
+        c = 5
+        d = 5.0
+
+        assert a + b == b + a
+        assert a + c == c + a
+        assert a + d == d + a
+
+    def test_addition_associativity(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        b = Matrix(shape, range(1, length + 1))
+        c = Matrix(shape, range(2, length + 2))
+        d = 5
+        e = 6
+        f = 5.0
+        g = 6.0
+
+        assert b + (a + c) == (b + a) + c
+        assert d + (a + e) == (d + a) + e
+        assert f + (a + g) == (f + a) + g
+
+    def test_addition_shapes(self):
+        with pytest.raises(ValueError):
+            Matrix((2, 2)) + Matrix((3, 3))
+        with pytest.raises(ValueError):
+            Matrix((2, 2)) - Matrix((3, 3))
+
     @pytest.mark.skip
     def test_shape(self, shape):
         assert Matrix(shape).shape == shape
@@ -326,58 +372,6 @@ class TestMatrix(object):
             0, 0, -100.1/99.9, -20/99.9,
             0, 0, -1, 0
         ))
-
-    @pytest.mark.skip
-    def test_addition_neutral_element(self, shape):
-        a = Matrix(shape, range(functools.reduce(operator.mul, shape)))
-
-        assert a + Matrix(a.shape, 0) == a
-        assert a + 0 == a
-        assert a + 0.0 == a
-
-    @pytest.mark.skip
-    def test_addition_inverse(self, shape):
-        length = functools.reduce(operator.mul, shape)
-        a = Matrix(shape, range(length))
-        b = Matrix(shape, range(1, length + 1))
-
-        assert -a == Matrix(a.shape, (-s for s in a))
-        assert a + -b == a - b
-        assert a + +b == a + b
-
-    @pytest.mark.skip
-    def test_addition_commutativity(self, shape):
-        length = functools.reduce(operator.mul, shape)
-        a = Matrix(shape, range(length))
-        b = Matrix(shape, range(1, length + 1))
-        c = 5
-        d = 5.0
-
-        assert a + b == b + a
-        assert a + c == c + a
-        assert a + d == d + a
-
-    @pytest.mark.skip
-    def test_addition_associativity(self, shape):
-        length = functools.reduce(operator.mul, shape)
-        a = Matrix(shape, range(length))
-        b = Matrix(shape, range(1, length + 1))
-        c = Matrix(shape, range(2, length + 2))
-        d = 5
-        e = 6
-        f = 5.0
-        g = 6.0
-
-        assert b + (a + c) == (b + a) + c
-        assert d + (a + e) == (d + a) + e
-        assert f + (a + g) == (f + a) + g
-
-    @pytest.mark.skip
-    def test_addition_shapes(self):
-        with pytest.raises(ValueError):
-            Matrix((2, 2)) + Matrix((3, 3))
-        with pytest.raises(ValueError):
-            Matrix((2, 2)) - Matrix((3, 3))
 
     @pytest.mark.skip
     def test_multiplication_neutral_element(self, shape):
