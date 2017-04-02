@@ -17,6 +17,9 @@ typedef struct {
 /// Declare the Matrix type object.
 PyTypeObject MatrixType;
 
+/// Declare the Matrix docstring
+const char Matrix_Docstring[];
+
 /// The following macros allow for non-exact and exact type checking against
 /// Matrix.
 #define Matrix_Check(op) PyObject_TypeCheck(op, &MatrixType)
@@ -38,38 +41,4 @@ PyTypeObject MatrixType;
 /// (N, M) and a transposition flag. Does not check for the sanity
 /// of arguments!
 Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed);
-
-/// Create a new Matrix object. Accepts a shape parameter, and optionally
-/// a data and transposition parameter. The data parameter must be either
-/// None, an integer, a floating point number, or a sequence. Raises a [TypeError]
-/// otherwise. Also, if data is a sequence, its length must equal the product
-/// of the shape. Raises a [ValueError] otherwise. Raises a [ValueError] if
-/// the two-dimensional shape is not larger or equal to (1, 1).
-PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs);
-
-/// Implement the Matrix destructor.
-void Matrix_Dealloc(Matrix* self);
-
-/// Implement the total ordering methods.
-PyObject* Matrix_LessThan(PyObject* first, PyObject* second);
-PyObject* Matrix_LessOrEqual(PyObject* first, PyObject* second);
-PyObject* Matrix_Equal(PyObject* first, PyObject* second);
-PyObject* Matrix_NotEqual(PyObject* first, PyObject* second);
-PyObject* Matrix_GreaterOrEqual(PyObject* first, PyObject* second);
-PyObject* Matrix_GreaterThan(PyObject* first, PyObject* second);
-PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op);
-
-/// Provide a human-readable string representation of a Matrix.
-PyObject* Matrix_ToString(Matrix* self);
-
-/// Provide an eval-able representation of a Matrix.
-PyObject* Matrix_ToRepresentation(Matrix* self);
-
-/// Return the length of the Matrix. Depends on the length of the underlying
-/// container and is always equal to the product of the Matrix shape.
-Py_ssize_t Matrix_Length(Matrix* self);
-
-PyObject* Matrix_GetItem(Matrix* self, PyObject* key);
-
-int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value);
 #endif

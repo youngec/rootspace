@@ -1,6 +1,14 @@
 #include "_matrix.h"
 #include "_index_handling.h"
 
+const char Matrix_Docstring[] =
+    "The constructor accepts a shape parameter, and optionally \n"
+    "a data and transposition parameter. The data parameter must be either \n"
+    "None, an integer, a floating point number, or a sequence. Raises a \n"
+    "TypeError otherwise. Also, if data is a sequence, its length must equal \n"
+    "the product of the shape. Raises a ValueError otherwise. Raises a \n"
+    "ValueError if the two-dimensional shape is not larger or equal to (1, 1).";
+
 Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed) {
     Matrix* matrix = PyObject_New(Matrix, &MatrixType);
     if (matrix == NULL) {
@@ -20,7 +28,7 @@ Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed) {
     return matrix;
 }
 
-PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
+static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
     Py_ssize_t N = 1;
     Py_ssize_t M = 1;
     PyObject* data = NULL;
@@ -79,12 +87,12 @@ PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
     return (PyObject*) self;
 }
 
-void Matrix_Dealloc(Matrix* self) {
+static void Matrix_Dealloc(Matrix* self) {
     Py_XDECREF(self->container);
     Py_TYPE(self)->tp_free((PyObject*) self);
 }
 
-PyObject* Matrix_LessThan(PyObject* first, PyObject* second) {
+static PyObject* Matrix_LessThan(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
 
     if (Matrix_Check(first) && Matrix_Check(second)) {
@@ -187,7 +195,7 @@ PyObject* Matrix_LessThan(PyObject* first, PyObject* second) {
     return result;
 }
 
-PyObject* Matrix_LessOrEqual(PyObject* first, PyObject* second) {
+static PyObject* Matrix_LessOrEqual(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
 
     if (Matrix_Check(first) && Matrix_Check(second)) {
@@ -290,7 +298,7 @@ PyObject* Matrix_LessOrEqual(PyObject* first, PyObject* second) {
     return result;
 }
 
-PyObject* Matrix_Equal(PyObject* first, PyObject* second) {
+static PyObject* Matrix_Equal(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
 
     if (Matrix_Check(first) && Matrix_Check(second)) {
@@ -392,7 +400,7 @@ PyObject* Matrix_Equal(PyObject* first, PyObject* second) {
     return result;
 }
 
-PyObject* Matrix_NotEqual(PyObject* first, PyObject* second) {
+static PyObject* Matrix_NotEqual(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
 
     if (Matrix_Check(first) && Matrix_Check(second)) {
@@ -494,7 +502,7 @@ PyObject* Matrix_NotEqual(PyObject* first, PyObject* second) {
     return result;
 }
 
-PyObject* Matrix_GreaterOrEqual(PyObject* first, PyObject* second) {
+static PyObject* Matrix_GreaterOrEqual(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
 
     if (Matrix_Check(first) && Matrix_Check(second)) {
@@ -597,7 +605,7 @@ PyObject* Matrix_GreaterOrEqual(PyObject* first, PyObject* second) {
     return result;
 }
 
-PyObject* Matrix_GreaterThan(PyObject* first, PyObject* second) {
+static PyObject* Matrix_GreaterThan(PyObject* first, PyObject* second) {
     PyObject* result = Py_NotImplemented;
 
     if (Matrix_Check(first) && Matrix_Check(second)) {
@@ -700,7 +708,7 @@ PyObject* Matrix_GreaterThan(PyObject* first, PyObject* second) {
     return result;
 }
 
-PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op) {
+static PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op) {
     switch (op) {
         case Py_LT:
             return Matrix_LessThan(first, second);
@@ -720,7 +728,7 @@ PyObject* Matrix_RichCompare(PyObject* first, PyObject* second, int op) {
     }
 }
 
-PyObject* Matrix_ToString(Matrix* self) {
+static PyObject* Matrix_ToString(Matrix* self) {
     assert((self->N * self->M) == Matrix_SIZE(self));
 
     PyObject* rows = PyList_New(Matrix_SHAPE_I(self));
@@ -744,7 +752,7 @@ PyObject* Matrix_ToString(Matrix* self) {
     return s;
 }
 
-PyObject* Matrix_ToRepresentation(Matrix* self) {
+static PyObject* Matrix_ToRepresentation(Matrix* self) {
     PyObject* d = PyTuple_New(Matrix_SIZE(self));
     if (d == NULL) {
         return NULL;
@@ -757,13 +765,13 @@ PyObject* Matrix_ToRepresentation(Matrix* self) {
     return s;
 }
 
-Py_ssize_t Matrix_Length(Matrix* self) {
+static Py_ssize_t Matrix_Length(Matrix* self) {
     assert((self->N * self->M) == Matrix_SIZE(self));
 
     return Matrix_SIZE(self);
 }
 
-PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
+static PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
     PyObject* idx = complete_indices(key);
     if (idx == NULL) {
         return NULL;
@@ -825,7 +833,7 @@ PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
     }
 }
 
-int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
+static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
     PyObject* idx = complete_indices(key);
     if (idx == NULL) {
         return -1;
@@ -1459,7 +1467,7 @@ int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //     0,  // Matrix_InplaceMatMultiply
 // };
 
-PyMappingMethods MatrixAsMapping = {
+static PyMappingMethods MatrixAsMapping = {
     (lenfunc) Matrix_Length,
     (binaryfunc) Matrix_GetItem,
     (objobjargproc) Matrix_SetItem
@@ -1480,14 +1488,14 @@ PyTypeObject MatrixType = {
     0, //&MatrixAsNumber,                          /* tp_as_number */
     0,                                        /* tp_as_sequence */
     &MatrixAsMapping,                         /* tp_as_mapping */
-    PyObject_HashNotImplemented,              /* tp_hash  */
+    0,                                        /* tp_hash  */
     0,                                        /* tp_call */
     (reprfunc) Matrix_ToString,                    /* tp_str */
     0,                                        /* tp_getattro */
     0,                                        /* tp_setattro */
     0,                                        /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                       /* tp_flags */
-    "Arbitrary size matrix",                  /* tp_doc */
+    Matrix_Docstring,                         /* tp_doc */
     0,                                        /* tp_traverse */
     0,                                        /* tp_clear */
     (richcmpfunc) Matrix_RichCompare,         /* tp_richcompare */
