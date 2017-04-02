@@ -4,6 +4,7 @@
 #include "_index_handling.h"
 #include "_matrix_container.h"
 #include "_matrix.h"
+#include "_matrix_iterator.h"
 
 
 static PyMethodDef MathMethods[] = {
@@ -29,7 +30,15 @@ static struct PyModuleDef MathModule = {
 /// * _MatrixContainer
 /// * Matrix
 PyMODINIT_FUNC PyInit__math(void) {
-    if (PyType_Ready(&MatrixContainerType) < 0 || PyType_Ready(&MatrixType) < 0) {
+    if (PyType_Ready(&MatrixContainerType) < 0) {
+        return NULL;
+    }
+
+    if (PyType_Ready(&MatrixType) < 0) {
+        return NULL;
+    }
+
+    if (PyType_Ready(&MatrixIteratorType) < 0) {
         return NULL;
     }
 
@@ -43,5 +52,8 @@ PyMODINIT_FUNC PyInit__math(void) {
 
     Py_INCREF(&MatrixType);
     PyModule_AddObject(m, "Matrix", (PyObject*) &MatrixType);
+
+    Py_INCREF(&MatrixIteratorType);
+    PyModule_AddObject(m, "_MatrixIterator", (PyObject*) &MatrixIteratorType);
     return m;
 }

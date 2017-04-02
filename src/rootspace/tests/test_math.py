@@ -104,6 +104,12 @@ class TestMatrix(object):
         m[:] = Matrix((3, 2), range(6), transposed=True)
         assert m[:] == Matrix((2, 3), (0, 2, 4, 1, 3, 5))
 
+    def test_iter(self):
+        a = Matrix((2, 3), range(6))
+        assert [e for r in a for e in r] == [0, 1, 2, 3, 4, 5]
+        b = Matrix((2, 3), range(6), transposed=True)
+        assert [e for r in b for e in r] == [0, 3, 1, 4, 2, 5]
+
     def test_unary_negative(self, shape):
         assert -Matrix(shape, 1) == Matrix(shape, -1)
         assert -Matrix(shape, 0) == Matrix(shape, 0)

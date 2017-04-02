@@ -41,4 +41,6 @@ extern const char Matrix_Docstring[];
 /// (N, M) and a transposition flag. Does not check for the sanity
 /// of arguments!
 Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed);
+
+PyObject* Matrix_GetItem(Matrix* self, PyObject* key);
 #endif

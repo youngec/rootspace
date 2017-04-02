@@ -1,5 +1,6 @@
 #include "_matrix.h"
 #include "_index_handling.h"
+#include "_matrix_iterator.h"
 
 const char Matrix_Docstring[] =
     "The constructor accepts a shape parameter, and optionally \n"
@@ -771,7 +772,7 @@ static Py_ssize_t Matrix_Length(Matrix* self) {
     return Matrix_SIZE(self);
 }
 
-static PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
+PyObject* Matrix_GetItem(Matrix* self, PyObject* key) {
     PyObject* idx = complete_indices(key);
     if (idx == NULL) {
         return NULL;
@@ -926,6 +927,20 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
     }
 
     return 0;
+}
+
+static PyObject* Matrix_GetIter(Matrix* self) {
+    Py_ssize_t idx = 0;
+    Py_ssize_t idx_max = 1;
+    int iter_columns = 0;
+    if (Matrix_SHAPE_I(self) > 1) {
+        idx_max = Matrix_SHAPE_I(self);
+        iter_columns = 0;
+    } else {
+        idx_max = Matrix_SHAPE_J(self);
+        iter_columns = 1;
+    }
+    return (PyObject*) MatrixIterator_NewInternal(self, idx, idx_max, iter_columns);
 }
 
 static PyObject* Matrix_Negative(Matrix* self) {
@@ -1456,7 +1471,7 @@ PyTypeObject MatrixType = {
     &MatrixAsMapping,                         /* tp_as_mapping */
     0,                                        /* tp_hash  */
     0,                                        /* tp_call */
-    (reprfunc) Matrix_ToString,                    /* tp_str */
+    (reprfunc) Matrix_ToString,               /* tp_str */
     0,                                        /* tp_getattro */
     0,                                        /* tp_setattro */
     0,                                        /* tp_as_buffer */
@@ -1466,7 +1481,7 @@ PyTypeObject MatrixType = {
     0,                                        /* tp_clear */
     (richcmpfunc) Matrix_RichCompare,         /* tp_richcompare */
     0,                                        /* tp_weaklistoffset */
-    0,                                        /* tp_iter */
+    (getiterfunc) Matrix_GetIter,             /* tp_iter */
     0,                                        /* tp_iternext */
     0,                                        /* tp_methods */
     0,                                        /* tp_members */

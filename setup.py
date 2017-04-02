@@ -66,7 +66,8 @@ if __name__ == "__main__":
         "src/rootspace/_math.c",
         "src/rootspace/_matrix.c",
         "src/rootspace/_matrix_container.c",
-        "src/rootspace/_index_handling.c"
+        "src/rootspace/_index_handling.c",
+        "src/rootspace/_matrix_iterator.c"
     ])
 
     setup(
