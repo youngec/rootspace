@@ -51,6 +51,12 @@ class TestMatrix(object):
         assert not Matrix(shape, 0) == Matrix(shape, 1)
         assert Matrix(shape, 0) != "Something entirely different"
 
+    def test_str(self):
+        assert str(Matrix((2, 3), range(6))) == "[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]"
+
+    def test_repr(self):
+        assert repr(Matrix((2, 3), range(6))) == "Matrix((2, 3), (0.0, 1.0, 2.0, 3.0, 4.0, 5.0), transposed=0)"
+
     def test_length(self, shape):
         assert len(Matrix(shape)) == functools.reduce(operator.mul, shape)
 

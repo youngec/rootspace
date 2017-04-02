@@ -928,7 +928,6 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
     return 0;
 }
 
-
 static PyObject* Matrix_Negative(Matrix* self) {
     Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
     if (matrix == NULL) {
