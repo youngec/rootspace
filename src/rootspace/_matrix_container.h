@@ -15,7 +15,10 @@ typedef struct {
 } MatrixContainer;
 
 /// Declare the MatrixContainer type object.
-PyTypeObject MatrixContainerType;
+extern PyTypeObject MatrixContainerType;
+
+/// Declare the MatrixContainer docstring.
+extern const char MatrixContainer_Docstring[];
 
 /// The following macros allow for non-exact and exact type checking against
 /// MatrixContainer.

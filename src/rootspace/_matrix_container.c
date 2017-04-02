@@ -1,5 +1,7 @@
 #include "_matrix_container.h"
 
+const char MatrixContainer_Docstring[] = "Internal matrix data container.";
+
 MatrixContainer* MatrixContainer_NewInternal(Py_ssize_t length) {
     MatrixContainer* container = PyObject_NewVar(MatrixContainer, &MatrixContainerType, length);
     if (container == NULL) {
@@ -46,7 +48,7 @@ PyTypeObject MatrixContainerType = {
     0,                                        /* tp_setattro */
     0,                                        /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                       /* tp_flags */
-    "Internal Matrix data container object.", /* tp_doc */
+    MatrixContainer_Docstring,                /* tp_doc */
     0,                                        /* tp_traverse */
     0,                                        /* tp_clear */
     0,                                        /* tp_richcompare */
