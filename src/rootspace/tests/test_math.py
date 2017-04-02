@@ -28,49 +28,6 @@ class TestMatrix(object):
     def shape(self, request):
         return request.param
 
-    @pytest.mark.skip
-    def test_shape(self, shape):
-        assert Matrix(shape).shape == shape
-        assert Matrix(shape, transposed=True).shape == shape[::-1]
-
-    def test_length(self, shape):
-        assert len(Matrix(shape)) == functools.reduce(operator.mul, shape)
-
-    @pytest.mark.skip
-    def test_is_square(self):
-        assert Matrix((4, 4)).is_square is True
-        assert Matrix((4, 1)).is_square is False
-        assert Matrix((1, 4)).is_square is False
-        assert Matrix((1, 1)).is_square is True
-
-    @pytest.mark.skip
-    def test_is_vector(self):
-        assert Matrix((4, 4)).is_vector is False
-        assert Matrix((4, 1)).is_vector is True
-        assert Matrix((1, 4)).is_vector is True
-        assert Matrix((1, 1)).is_vector is False
-
-    @pytest.mark.skip
-    def test_is_column_vector(self):
-        assert Matrix((4, 4)).is_column_vector is False
-        assert Matrix((4, 1)).is_column_vector is True
-        assert Matrix((1, 4)).is_column_vector is False
-        assert Matrix((1, 1)).is_column_vector is False
-
-    @pytest.mark.skip
-    def test_is_row_vector(self):
-        assert Matrix((4, 4)).is_row_vector is False
-        assert Matrix((4, 1)).is_row_vector is False
-        assert Matrix((1, 4)).is_row_vector is True
-        assert Matrix((1, 1)).is_row_vector is False
-
-    @pytest.mark.skip
-    def test_is_scalar(self):
-        assert Matrix((4, 4)).is_scalar is False
-        assert Matrix((4, 1)).is_scalar is False
-        assert Matrix((1, 4)).is_scalar is False
-        assert Matrix((1, 1)).is_scalar is True
-
     def test_total_ordering(self, shape):
         assert Matrix(shape, -1) < Matrix(shape, 0)
         assert Matrix(shape, -1) <= Matrix(shape, 0)
@@ -93,17 +50,6 @@ class TestMatrix(object):
         assert Matrix(shape, 0) != Matrix(shape, 1)
         assert not Matrix(shape, 0) == Matrix(shape, 1)
         assert Matrix(shape, 0) != "Something entirely different"
-
-    @pytest.mark.skip
-    def test_all_close(self, shape):
-        epsilon = 7/3 - 4/3 - 1
-        a = Matrix(shape, epsilon)
-        b = Matrix(shape, 0)
-        c = 0
-        d = 0.0
-        assert a.all_close(b) is True
-        assert a.all_close(c) is True
-        assert a.all_close(d) is True
 
     def test_getitem(self):
         m = Matrix((4, 4), range(16))
@@ -147,6 +93,60 @@ class TestMatrix(object):
         m = Matrix((2, 3), 0)
         m[:] = Matrix((3, 2), range(6), transposed=True)
         assert m[:] == Matrix((2, 3), (0, 2, 4, 1, 3, 5))
+
+    @pytest.mark.skip
+    def test_shape(self, shape):
+        assert Matrix(shape).shape == shape
+        assert Matrix(shape, transposed=True).shape == shape[::-1]
+
+    def test_length(self, shape):
+        assert len(Matrix(shape)) == functools.reduce(operator.mul, shape)
+
+    @pytest.mark.skip
+    def test_is_square(self):
+        assert Matrix((4, 4)).is_square is True
+        assert Matrix((4, 1)).is_square is False
+        assert Matrix((1, 4)).is_square is False
+        assert Matrix((1, 1)).is_square is True
+
+    @pytest.mark.skip
+    def test_is_vector(self):
+        assert Matrix((4, 4)).is_vector is False
+        assert Matrix((4, 1)).is_vector is True
+        assert Matrix((1, 4)).is_vector is True
+        assert Matrix((1, 1)).is_vector is False
+
+    @pytest.mark.skip
+    def test_is_column_vector(self):
+        assert Matrix((4, 4)).is_column_vector is False
+        assert Matrix((4, 1)).is_column_vector is True
+        assert Matrix((1, 4)).is_column_vector is False
+        assert Matrix((1, 1)).is_column_vector is False
+
+    @pytest.mark.skip
+    def test_is_row_vector(self):
+        assert Matrix((4, 4)).is_row_vector is False
+        assert Matrix((4, 1)).is_row_vector is False
+        assert Matrix((1, 4)).is_row_vector is True
+        assert Matrix((1, 1)).is_row_vector is False
+
+    @pytest.mark.skip
+    def test_is_scalar(self):
+        assert Matrix((4, 4)).is_scalar is False
+        assert Matrix((4, 1)).is_scalar is False
+        assert Matrix((1, 4)).is_scalar is False
+        assert Matrix((1, 1)).is_scalar is True
+
+    @pytest.mark.skip
+    def test_all_close(self, shape):
+        epsilon = 7/3 - 4/3 - 1
+        a = Matrix(shape, epsilon)
+        b = Matrix(shape, 0)
+        c = 0
+        d = 0.0
+        assert a.all_close(b) is True
+        assert a.all_close(c) is True
+        assert a.all_close(d) is True
 
     @pytest.mark.skip
     def test_determinant(self, shape):
