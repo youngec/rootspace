@@ -15,10 +15,10 @@ typedef struct {
 } Matrix;
 
 /// Declare the Matrix type object.
-PyTypeObject MatrixType;
+extern PyTypeObject MatrixType;
 
 /// Declare the Matrix docstring
-const char Matrix_Docstring[];
+extern const char Matrix_Docstring[];
 
 /// The following macros allow for non-exact and exact type checking against
 /// Matrix.

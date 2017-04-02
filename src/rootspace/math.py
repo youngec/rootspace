@@ -6,12 +6,10 @@ import array
 import functools
 import operator
 import itertools
-from typing import Any, Union, Tuple, NewType, Iterable, Sequence, Optional
+from typing import Any, Union, Tuple, Iterable, Sequence, Optional
+from numbers import Real
 
 from .utilities import get_sub_shape, linearize_indices
-
-Number = NewType("Number", Union[int, float])
-Numeric = NewType("Comparable", Union[int, float, "Matrix"])
 
 
 class Matrix(object):
@@ -20,7 +18,7 @@ class Matrix(object):
     """
 
     @classmethod
-    def from_iterable(cls, data: Sequence[Union[Number, Sequence[Number]]]) -> "Matrix":
+    def from_iterable(cls, data: Sequence[Union[Real, Sequence[Real]]]) -> "Matrix":
         """
         Return a matrix from a collection with shape information.
 
@@ -28,7 +26,7 @@ class Matrix(object):
         :return:
         """
         if isinstance(data, collections.abc.Sequence):
-            if all(isinstance(row, (int, float)) for row in data):
+            if all(isinstance(row, Real) for row in data):
                 return Matrix((len(data), 1), data)
             elif all(isinstance(row, collections.abc.Sequence) for row in data):
                 if functools.reduce(operator.eq, (len(row) for row in data)):
@@ -82,7 +80,7 @@ class Matrix(object):
             raise TypeError("Expected an integer or a tuple of integers.")
 
     @classmethod
-    def translation(cls, t_x: Number, t_y: Number, t_z: Number) -> "Matrix":
+    def translation(cls, t_x: Real, t_y: Real, t_z: Real) -> "Matrix":
         """
         Return an affine translation Matrix.
 
@@ -99,7 +97,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def rotation_x(cls, angle: Number) -> "Matrix":
+    def rotation_x(cls, angle: Real) -> "Matrix":
         """
         Return an affine rotation matrix about the x-axis.
 
@@ -116,7 +114,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def rotation_y(cls, angle: Number) -> "Matrix":
+    def rotation_y(cls, angle: Real) -> "Matrix":
         """
         Return an affine rotation matrix about the y-axis.
 
@@ -133,7 +131,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def rotation_z(cls, angle: Number) -> "Matrix":
+    def rotation_z(cls, angle: Real) -> "Matrix":
         """
         Return an affine rotation matrix about the z-axis.
 
@@ -150,7 +148,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def scaling(cls, s_x: Number, s_y: Number, s_z: Number) -> "Matrix":
+    def scaling(cls, s_x: Real, s_y: Real, s_z: Real) -> "Matrix":
         """
         Return an affine scaling matrix.
 
@@ -167,7 +165,7 @@ class Matrix(object):
         ))
 
     @classmethod
-    def shearing(cls, s: Number, i: int, j: int) -> "Matrix":
+    def shearing(cls, s: Real, i: int, j: int) -> "Matrix":
         """
         Return an affine shearing matrix.
 
@@ -181,9 +179,9 @@ class Matrix(object):
         return h
 
     @classmethod
-    def orthographic(cls, left: Number, right: Number,
-                     bottom: Number, top: Number,
-                     near: Number, far: Number) -> "Matrix":
+    def orthographic(cls, left: Real, right: Real,
+                     bottom: Real, top: Real,
+                     near: Real, far: Real) -> "Matrix":
         """
         Create an orthographic projection matrix.
 
@@ -210,8 +208,8 @@ class Matrix(object):
         ))
 
     @classmethod
-    def perspective(cls, field_of_view: Number, viewport_ratio: Number,
-                    near: Number, far: Number) -> "Matrix":
+    def perspective(cls, field_of_view: Real, viewport_ratio: Real,
+                    near: Real, far: Real) -> "Matrix":
         """
         Create a perspective projection matrix.
 
@@ -286,8 +284,8 @@ class Matrix(object):
     def t(self) -> "Matrix":
         return Matrix(self._shape, self.data, transposed=(not self._transposed))
 
-    def is_close(self, other: Union["Matrix", int, float],
-                 rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> "Matrix":
+    def is_close(self, other: Union["Matrix", Real],
+                 rel_tol: Real = 1e-05, abs_tol: Real = 1e-08) -> "Matrix":
         """
         Perform an element-wise approximate equality comparison.
 
@@ -313,7 +311,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def all_close(self, other: Any, rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> bool:
+    def all_close(self, other: Any, rel_tol: Real = 1e-05, abs_tol: Real = 1e-08) -> bool:
         """
         Return True if all elements compare approximately equal, False otherwise.
 
@@ -399,7 +397,7 @@ class Matrix(object):
 
     def __init__(self,
                  shape: Tuple[int, ...],
-                 data: Optional[Union[Iterable[Number], int, float]] = None,
+                 data: Optional[Union[Iterable[Real], Real]] = None,
                  data_type: str = "f",
                  transposed: bool = False
                  ):
@@ -503,7 +501,7 @@ class Matrix(object):
         for d in reversed(self._data):
             yield d
 
-    def __contains__(self, item) -> bool:
+    def __contains__(self, item: Any) -> bool:
         """
         Provide the contains interface.
 
@@ -512,7 +510,7 @@ class Matrix(object):
         """
         return item in self._data
 
-    def __getitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int, ...]]]) -> Numeric:
+    def __getitem__(self, key: Union[int, slice, Tuple[Union[int, slice, Tuple[int, ...]], ...]]) -> Union["Matrix", int]:
         """
         Provide angle-bracket element access to the matrix.
 
@@ -545,8 +543,8 @@ class Matrix(object):
         else:
             raise TypeError("Expected indices of type int, slice or tuple.")
 
-    def __setitem__(self, key: Union[int, slice, Tuple[int, slice, Tuple[int, ...]]],
-                    value: Union[int, float, "Matrix", Sequence[Number]]):
+    def __setitem__(self, key: Union[int, slice, Tuple[Union[int, slice, Tuple[int, ...]], ...]],
+                    value: Union[Real, "Matrix", Sequence[Real]]):
         """
         Provide angle-bracket element setting to the matrix.
 
@@ -588,7 +586,7 @@ class Matrix(object):
         else:
             raise TypeError("Expected indices of type int, slice or tuple, not '{}'.".format(type(key)))
 
-    def __lt__(self, other: Numeric) -> bool:
+    def __lt__(self, other: Union["Matrix", Real]) -> bool:
         """
         Implement the element-wise less than operation.
 
@@ -602,7 +600,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __le__(self, other: Numeric) -> bool:
+    def __le__(self, other: Union["Matrix", Real]) -> bool:
         """
         Implement the element-wise less than or equal to operation.
 
@@ -616,7 +614,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __eq__(self, other: Numeric) -> bool:
+    def __eq__(self, other: Union["Matrix", Real]) -> bool:
         """
         Return True if all elements of two matrices compare equal.
 
@@ -630,7 +628,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __gt__(self, other: Numeric) -> bool:
+    def __gt__(self, other: Union["Matrix", Real]) -> bool:
         """
         Implement the element-wise greater than operation.
 
@@ -644,7 +642,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __ge__(self, other: Numeric) -> bool:
+    def __ge__(self, other: Union["Matrix", Real]) -> bool:
         """
         Implement the element-wise greater than or equal to operation.
 
@@ -691,7 +689,7 @@ class Matrix(object):
             result[i, j] = abs(self[i, j])
         return result
 
-    def __add__(self, other: Numeric) -> "Matrix":
+    def __add__(self, other: Union["Matrix", Real]) -> "Matrix":
         """
         Perform a left-sided element-wise addition.
 
@@ -715,7 +713,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __radd__(self, other: Numeric) -> "Matrix":
+    def __radd__(self, other: Union["Matrix", Real]) -> "Matrix":
         """
         Perform a right-sided element-wise addition. Equivalent to __add__.
 
@@ -724,7 +722,7 @@ class Matrix(object):
         """
         return self + other
 
-    def __sub__(self, other: Numeric) -> "Matrix":
+    def __sub__(self, other: Union["Matrix", Real]) -> "Matrix":
         """
         Perform a left-sided element-wise subtraction.
 
@@ -733,7 +731,7 @@ class Matrix(object):
         """
         return self + -other
 
-    def __rsub__(self, other: Numeric) -> "Matrix":
+    def __rsub__(self, other: Union["Matrix", Real]) -> "Matrix":
         """
         Perform a right-sided element-wise subtraction.
 
@@ -742,7 +740,7 @@ class Matrix(object):
         """
         return other + -self
 
-    def __mul__(self, other: Numeric) -> "Matrix":
+    def __mul__(self, other: Union["Matrix", Real]) -> "Matrix":
         """
         Perform a left-sided element-wise multiplication.
 
@@ -766,7 +764,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __rmul__(self, other: Numeric) -> "Matrix":
+    def __rmul__(self, other: Union["Matrix", Real]) -> "Matrix":
         """
         Perform a right-sided element-wise multiplication. Equivalent to __mul__.
 
@@ -775,7 +773,7 @@ class Matrix(object):
         """
         return self * other
 
-    def __truediv__(self, other: Numeric) -> "Matrix":
+    def __truediv__(self, other: Union["Matrix", Real]) -> "Matrix":
         """
         Perform a left-sided element-wise division.
 
@@ -799,7 +797,7 @@ class Matrix(object):
         else:
             return NotImplemented
 
-    def __rtruediv__(self, other: Numeric) -> "Matrix":
+    def __rtruediv__(self, other: Union["Matrix", Real]) -> "Matrix":
         """
         Perform a right-sided element wise division.
 
@@ -856,7 +854,7 @@ class Quaternion(object):
     """
 
     @classmethod
-    def from_axis(cls, axis: "Matrix", angle: Number) -> "Quaternion":
+    def from_axis(cls, axis: "Matrix", angle: Real) -> "Quaternion":
         """
         Create a Quaternion from an axis and an angle.
 
@@ -925,19 +923,19 @@ class Quaternion(object):
         return a * s + b * t
 
     @property
-    def qi(self) -> Number:
+    def qi(self) -> Real:
         return self._data[0]
 
     @property
-    def qj(self) -> Number:
+    def qj(self) -> Real:
         return self._data[1]
 
     @property
-    def qk(self) -> Number:
+    def qk(self) -> Real:
         return self._data[2]
 
     @property
-    def qr(self) -> Number:
+    def qr(self) -> Real:
         return self._data[3]
 
     @property
@@ -1017,7 +1015,7 @@ class Quaternion(object):
         """
         return (self @ other @ self.inverse()).vector
 
-    def __init__(self, qi: Number = 0.0, qj: Number = 0.0, qk: Number = 0.0, qr: Number = 1.0, data_type: str = "f"):
+    def __init__(self, qi: Real = 0.0, qj: Real = 0.0, qk: Real = 0.0, qr: Real = 1.0, data_type: str = "f"):
         """
         Create a Quaternion from the four components:
 
