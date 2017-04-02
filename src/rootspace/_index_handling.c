@@ -26,8 +26,7 @@
         return NULL;
     }
 
-    Py_ssize_t r_idx;
-    for (r_idx = 0; r_idx < length; r_idx++) {
+    for (Py_ssize_t r_idx = 0; r_idx < length; r_idx++) {
         PyObject* j_element = PyTuple_GetItem(j, r_idx);
         if (PyLong_Check(j_element)) {
             Py_ssize_t j_element_value = PyLong_AsSsize_t(j_element);
@@ -66,8 +65,7 @@
         return NULL;
     }
 
-    Py_ssize_t r_idx;
-    for (r_idx = 0; r_idx < length; r_idx++) {
+    for (Py_ssize_t r_idx = 0; r_idx < length; r_idx++) {
         Py_ssize_t j_idx = r_idx * step + start;
         Py_ssize_t lin_idx = linearize_scalar_indices(N, M, transposed, i, j_idx);
         if (lin_idx < 0) {
@@ -87,8 +85,7 @@
         return NULL;
     }
 
-    Py_ssize_t r_idx;
-    for (r_idx = 0; r_idx < length; r_idx++) {
+    for (Py_ssize_t r_idx = 0; r_idx < length; r_idx++) {
         PyObject* i_element = PyTuple_GetItem(i, r_idx);
         if (PyLong_Check(i_element)) {
             Py_ssize_t i_element_value = PyLong_AsSsize_t(i_element);
@@ -118,13 +115,11 @@
         return NULL;
     }
 
-    Py_ssize_t i_idx;
-    for (i_idx = 0; i_idx < i_len; i_idx++) {
+    for (Py_ssize_t i_idx = 0; i_idx < i_len; i_idx++) {
         PyObject* i_element = PyTuple_GetItem(i, i_idx);
         if (PyLong_Check(i_element)) {
             Py_ssize_t i_element_value = PyLong_AsSsize_t(i_element);
-            Py_ssize_t j_idx;
-            for (j_idx = 0; j_idx < j_len; j_idx++) {
+            for (Py_ssize_t j_idx = 0; j_idx < j_len; j_idx++) {
                 PyObject* j_element = PyTuple_GetItem(j, j_idx);
                 if (PyLong_Check(j_element)) {
                     Py_ssize_t j_element_value = PyLong_AsSsize_t(j_element);
@@ -176,13 +171,11 @@
         return NULL;
     }
 
-    Py_ssize_t i_idx;
-    for (i_idx = 0; i_idx < i_len; i_idx++) {
+    for (Py_ssize_t i_idx = 0; i_idx < i_len; i_idx++) {
         PyObject* i_element = PyTuple_GetItem(i, i_idx);
         if (PyLong_Check(i_element)) {
             Py_ssize_t i_element_value = PyLong_AsSsize_t(i_element);
-            Py_ssize_t j_idx;
-            for (j_idx = 0; j_idx < j_len; j_idx++) {
+            for (Py_ssize_t j_idx = 0; j_idx < j_len; j_idx++) {
                 Py_ssize_t j_element_value = j_idx * j_step + j_start;
                 Py_ssize_t lin_idx = linearize_scalar_indices(N, M, transposed, i_element_value, j_element_value);
                 if (lin_idx < 0) {
@@ -226,8 +219,7 @@
         return NULL;
     }
 
-    Py_ssize_t r_idx;
-    for (r_idx = 0; r_idx < length; r_idx++) {
+    for (Py_ssize_t r_idx = 0; r_idx < length; r_idx++) {
         Py_ssize_t i_idx = r_idx * step + start;
         Py_ssize_t lin_idx = linearize_scalar_indices(N, M, transposed, i_idx, j);
         if (lin_idx < 0) {
@@ -261,11 +253,9 @@
         return NULL;
     }
 
-    Py_ssize_t i_idx;
-    for (i_idx = 0; i_idx < i_len; i_idx++) {
+    for (Py_ssize_t i_idx = 0; i_idx < i_len; i_idx++) {
         Py_ssize_t i_element_value = i_idx * i_step + i_start;
-        Py_ssize_t j_idx;
-        for (j_idx = 0; j_idx < j_len; j_idx++) {
+        for (Py_ssize_t j_idx = 0; j_idx < j_len; j_idx++) {
             PyObject* j_element = PyTuple_GetItem(j, j_idx);
             if (PyLong_Check(j_element)) {
                 Py_ssize_t j_element_value = PyLong_AsSsize_t(j_element);
@@ -323,11 +313,9 @@
         return NULL;
     }
 
-    Py_ssize_t i_idx;
-    for (i_idx = 0; i_idx < i_len; i_idx++) {
+    for (Py_ssize_t i_idx = 0; i_idx < i_len; i_idx++) {
         Py_ssize_t i_element_value = i_idx * i_step + i_start;
-        Py_ssize_t j_idx;
-        for (j_idx = 0; j_idx < j_len; j_idx++) {
+        for (Py_ssize_t j_idx = 0; j_idx < j_len; j_idx++) {
             Py_ssize_t j_element_value = j_idx * j_step + j_start;
             Py_ssize_t lin_idx = linearize_scalar_indices(N, M, transposed, i_element_value, j_element_value);
             if (lin_idx < 0) {
