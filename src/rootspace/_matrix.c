@@ -928,49 +928,40 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
     return 0;
 }
 
-//
-// static PyObject* Matrix_Negative(Matrix* self) {
-//     Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
-//     if (matrix == NULL) {
-//         return NULL;
-//     }
-//
-//     Py_ssize_t i;
-//     for (i = 0; i < Py_SIZE(matrix); i++) {
-//         Matrix_DATA(matrix)[i] = -Matrix_DATA(self)[i];
-//     }
-//
-//     return (PyObject*) matrix;
-// }
-//
-// static PyObject* Matrix_Positive(Matrix* self) {
-//     Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
-//     if (matrix == NULL) {
-//         return NULL;
-//     }
-//
-//     Py_ssize_t i;
-//     for (i = 0; i < Py_SIZE(matrix); i++) {
-//         Matrix_DATA(matrix)[i] = Matrix_DATA(self)[i];
-//     }
-//
-//     return (PyObject*) matrix;
-// }
-//
-// static PyObject* Matrix_Absolute(Matrix* self) {
-//     Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
-//     if (matrix == NULL) {
-//         return NULL;
-//     }
-//
-//     Py_ssize_t i;
-//     for (i = 0; i < Py_SIZE(matrix); i++) {
-//         Matrix_DATA(matrix)[i] = (float) fabs(Matrix_DATA(self)[i]);
-//     }
-//
-//     return (PyObject*) matrix;
-// }
-//
+
+static PyObject* Matrix_Negative(Matrix* self) {
+    Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
+    if (matrix == NULL) {
+        return NULL;
+    }
+    for (Py_ssize_t i = 0; i < Matrix_SIZE(matrix); i++) {
+        Matrix_DATA(matrix)[i] = -Matrix_DATA(self)[i];
+    }
+    return (PyObject*) matrix;
+}
+
+static PyObject* Matrix_Positive(Matrix* self) {
+    Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
+    if (matrix == NULL) {
+        return NULL;
+    }
+    for (Py_ssize_t i = 0; i < Matrix_SIZE(matrix); i++) {
+        Matrix_DATA(matrix)[i] = Matrix_DATA(self)[i];
+    }
+    return (PyObject*) matrix;
+}
+
+static PyObject* Matrix_Absolute(Matrix* self) {
+    Matrix* matrix = Matrix_NewInternal(self->N, self->M, self->transposed);
+    if (matrix == NULL) {
+        return NULL;
+    }
+    for (Py_ssize_t i = 0; i < Matrix_SIZE(matrix); i++) {
+        Matrix_DATA(matrix)[i] = (MatrixDataType) fabs(Matrix_DATA(self)[i]);
+    }
+    return (PyObject*) matrix;
+}
+
 // static PyObject* Matrix_Add(PyObject* first, PyObject* second) {
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
 //         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
@@ -1424,48 +1415,48 @@ static int Matrix_SetItem(Matrix* self, PyObject* key, PyObject* value) {
 //     }
 // }
 //
-// static PyNumberMethods MatrixAsNumber = {
-//     (binaryfunc) Matrix_Add,
-//     (binaryfunc) Matrix_Subtract,
-//     (binaryfunc) Matrix_Multiply,
-//     0,  // Matrix_Remainder
-//     0,  // Matrix_Divmod
-//     0,  // Matrix_Power
-//     (unaryfunc) Matrix_Negative,
-//     (unaryfunc) Matrix_Positive,
-//     (unaryfunc) Matrix_Absolute,
-//     0,  // Matrix_Bool
-//     0,  // Matrix_Invert
-//     0,  // Matrix_LeftShift
-//     0,  // Matrix_RightShift
-//     0,  // Matrix_And
-//     0,  // Matrix_Xor
-//     0,  // Matrix_Or
-//     0,  // Matrix_Int
-//     0,  // Reserved
-//     0,  // Matrix_Float
-//
-//     0,  // Matrix_InplaceAdd
-//     0,  // Matrix_InplaceSubtract
-//     0,  // Matrix_InplaceMultiply
-//     0,  // Matrix_InplaceRemainder
-//     0,  // Matrix_InplacePower
-//     0,  // Matrix_InplaceLeftShift
-//     0,  // Matrix_InplaceRightShift
-//     0,  // Matrix_InplaceAnd
-//     0,  // Matrix_InplaceXor
-//     0,  // Matrix_InplaceOr
-//
-//     0,  // Matrix_FloorDivide
-//     (binaryfunc) Matrix_TrueDivide,
-//     0,  // Matrix_InplaceFloorDivide
-//     0,  // Matrix_InplaceTrueDivide
-//
-//     0,  // Matrix_Index
-//
-//     (binaryfunc) Matrix_MatMultiply,
-//     0,  // Matrix_InplaceMatMultiply
-// };
+static PyNumberMethods MatrixAsNumber = {
+    0,  // (binaryfunc) Matrix_Add,
+    0,  // (binaryfunc) Matrix_Subtract,
+    0,  // (binaryfunc) Matrix_Multiply,
+    0,  // Matrix_Remainder
+    0,  // Matrix_Divmod
+    0,  // Matrix_Power
+    (unaryfunc) Matrix_Negative,
+    (unaryfunc) Matrix_Positive,
+    (unaryfunc) Matrix_Absolute,
+    0,  // Matrix_Bool
+    0,  // Matrix_Invert
+    0,  // Matrix_LeftShift
+    0,  // Matrix_RightShift
+    0,  // Matrix_And
+    0,  // Matrix_Xor
+    0,  // Matrix_Or
+    0,  // Matrix_Int
+    0,  // Reserved
+    0,  // Matrix_Float
+
+    0,  // Matrix_InplaceAdd
+    0,  // Matrix_InplaceSubtract
+    0,  // Matrix_InplaceMultiply
+    0,  // Matrix_InplaceRemainder
+    0,  // Matrix_InplacePower
+    0,  // Matrix_InplaceLeftShift
+    0,  // Matrix_InplaceRightShift
+    0,  // Matrix_InplaceAnd
+    0,  // Matrix_InplaceXor
+    0,  // Matrix_InplaceOr
+
+    0,  // Matrix_FloorDivide
+    0,  // (binaryfunc) Matrix_TrueDivide,
+    0,  // Matrix_InplaceFloorDivide
+    0,  // Matrix_InplaceTrueDivide
+
+    0,  // Matrix_Index
+
+    0,  // (binaryfunc) Matrix_MatMultiply,
+    0,  // Matrix_InplaceMatMultiply
+};
 
 static PyMappingMethods MatrixAsMapping = {
     (lenfunc) Matrix_Length,
@@ -1485,7 +1476,7 @@ PyTypeObject MatrixType = {
     0,                                        /* tp_setattr */
     0,                                        /* tp_reserved */
     (reprfunc) Matrix_ToRepresentation,       /* tp_repr */
-    0, //&MatrixAsNumber,                          /* tp_as_number */
+    &MatrixAsNumber,                          /* tp_as_number */
     0,                                        /* tp_as_sequence */
     &MatrixAsMapping,                         /* tp_as_mapping */
     0,                                        /* tp_hash  */

@@ -97,6 +97,21 @@ class TestMatrix(object):
         m[:] = Matrix((3, 2), range(6), transposed=True)
         assert m[:] == Matrix((2, 3), (0, 2, 4, 1, 3, 5))
 
+    def test_unary_negative(self, shape):
+        assert -Matrix(shape, 1) == Matrix(shape, -1)
+        assert -Matrix(shape, 0) == Matrix(shape, 0)
+        assert -Matrix(shape, -1) == Matrix(shape, 1)
+
+    def test_unary_positive(self, shape):
+        assert +Matrix(shape, 1) == Matrix(shape, 1)
+        assert +Matrix(shape, 0) == Matrix(shape, 0)
+        assert +Matrix(shape, -1) == Matrix(shape, -1)
+
+    def test_unary_absolute(self, shape):
+        assert abs(Matrix(shape, 1)) == Matrix(shape, 1)
+        assert abs(Matrix(shape, 0)) == Matrix(shape, 0)
+        assert abs(Matrix(shape, -1)) == Matrix(shape, 1)
+
     @pytest.mark.skip
     def test_shape(self, shape):
         assert Matrix(shape).shape == shape
