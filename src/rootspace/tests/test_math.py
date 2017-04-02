@@ -72,20 +72,27 @@ class TestMatrix(object):
         assert Matrix((1, 1)).is_scalar is True
 
     def test_total_ordering(self, shape):
-        length = functools.reduce(operator.mul, shape)
-        a = Matrix(shape, 0)
-        b = Matrix(shape, -1)
-        c = Matrix(shape, range(1, length + 1))
+        assert Matrix(shape, -1) < Matrix(shape, 0)
+        assert Matrix(shape, -1) <= Matrix(shape, 0)
+        assert Matrix(shape, 0) == Matrix(shape, 0)
+        assert Matrix(shape, 1) >= Matrix(shape, 0)
+        assert Matrix(shape, 1) > Matrix(shape, 0)
 
-        assert a == a
-        assert a >= a
-        assert a <= a
-        assert a > b
-        assert a >= b
-        assert b < a
-        assert b <= a
-        assert a != b
-        assert a != c
+        assert Matrix(shape, -1) < 0
+        assert Matrix(shape, -1) <= 0
+        assert Matrix(shape, 0) == 0
+        assert Matrix(shape, 1) >= 0
+        assert Matrix(shape, 1) > 0
+
+        assert Matrix(shape, -1) < 0.0
+        assert Matrix(shape, -1) <= 0.0
+        assert Matrix(shape, 0) == 0.0
+        assert Matrix(shape, 1) >= 0.0
+        assert Matrix(shape, 1) > 0.0
+
+        assert Matrix(shape, 0) != Matrix(shape, 1)
+        assert not Matrix(shape, 0) == Matrix(shape, 1)
+        assert Matrix(shape, 0) != "Something entirely different"
 
     @pytest.mark.skip
     def test_all_close(self, shape):
@@ -136,6 +143,10 @@ class TestMatrix(object):
         m = Matrix((4, 4), range(16))
         m[0, (0, 1, 3)] = 100
         assert m[0, (0, 1, 3)] == Matrix((1, 3), 100)
+
+        m = Matrix((2, 3), 0)
+        m[:] = Matrix((3, 2), range(6), transposed=True)
+        assert m[:] == Matrix((2, 3), (0, 2, 4, 1, 3, 5))
 
     @pytest.mark.skip
     def test_determinant(self, shape):
