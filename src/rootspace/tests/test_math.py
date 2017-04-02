@@ -51,6 +51,9 @@ class TestMatrix(object):
         assert not Matrix(shape, 0) == Matrix(shape, 1)
         assert Matrix(shape, 0) != "Something entirely different"
 
+    def test_length(self, shape):
+        assert len(Matrix(shape)) == functools.reduce(operator.mul, shape)
+
     def test_getitem(self):
         m = Matrix((4, 4), range(16))
 
@@ -98,9 +101,6 @@ class TestMatrix(object):
     def test_shape(self, shape):
         assert Matrix(shape).shape == shape
         assert Matrix(shape, transposed=True).shape == shape[::-1]
-
-    def test_length(self, shape):
-        assert len(Matrix(shape)) == functools.reduce(operator.mul, shape)
 
     @pytest.mark.skip
     def test_is_square(self):
