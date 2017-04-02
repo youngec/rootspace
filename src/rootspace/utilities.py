@@ -7,13 +7,10 @@ import re
 import uuid
 import warnings
 import weakref
-import sys
 import itertools
 from typing import Tuple, Optional, Any, Union
 
 import attr
-
-from .exceptions import FixmeWarning
 
 __docformat__ = "restructuredtext"
 FIRST_CAP_RE = re.compile(r"(.)([A-Z][a-z]+)")
