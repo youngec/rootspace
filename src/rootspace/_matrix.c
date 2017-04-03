@@ -10,6 +10,22 @@ const char Matrix_Docstring[] =
     "the product of the shape. Raises a ValueError otherwise. Raises a \n"
     "ValueError if the two-dimensional shape is not larger or equal to (1, 1).";
 
+int is_close(double a, double b, double rel_tol, double abs_tol) {
+    // Catch total equality early.
+    if (a == b) {
+        return 1;
+    }
+
+    // Catch the occurrence of infinity.
+    if (isinf(a) || isinf(b)) {
+        return 0;
+    }
+
+    double diff = fabs(b - a);
+
+    return (((diff <= rel_tol * fabs(b)) || (diff <= rel_tol * fabs(a))) || (diff < abs_tol));
+}
+
 Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed) {
     Matrix* matrix = PyObject_New(Matrix, &MatrixType);
     if (matrix == NULL) {
@@ -994,6 +1010,11 @@ static PyObject* Matrix_Add(PyObject* first, PyObject* second) {
             }
 
             Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
+            if (result == NULL) {
+                Py_DECREF(flinidx);
+                Py_DECREF(slinidx);
+                return NULL;
+            }
 
             for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
@@ -1006,7 +1027,7 @@ static PyObject* Matrix_Add(PyObject* first, PyObject* second) {
             Py_DECREF(slinidx);
             return (PyObject*) result;
         } else {
-            PyErr_SetString(PyExc_ValueError, "Cannot perform addition on Matrices of differing shapes.");
+            PyErr_SetString(PyExc_ValueError, "Cannot perform operation on Matrices of differing shapes.");
             return NULL;
         }
     } else if (Matrix_Check(first) && PyLong_Check(second)) {
@@ -1082,6 +1103,11 @@ static PyObject* Matrix_Subtract(PyObject* first, PyObject* second) {
             }
 
             Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
+            if (result == NULL) {
+                Py_DECREF(flinidx);
+                Py_DECREF(slinidx);
+                return NULL;
+            }
 
             for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
@@ -1094,7 +1120,7 @@ static PyObject* Matrix_Subtract(PyObject* first, PyObject* second) {
             Py_DECREF(slinidx);
             return (PyObject*) result;
         } else {
-            PyErr_SetString(PyExc_ValueError, "Cannot perform addition on Matrices of differing shapes.");
+            PyErr_SetString(PyExc_ValueError, "Cannot perform operation on Matrices of differing shapes.");
             return NULL;
         }
     } else if (Matrix_Check(first) && PyLong_Check(second)) {
@@ -1151,215 +1177,225 @@ static PyObject* Matrix_Subtract(PyObject* first, PyObject* second) {
         return result;
     }
 }
-//
-// static PyObject* Matrix_Multiply(PyObject* first, PyObject* second) {
-//     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
-//             Matrix* fm = (Matrix*) first;
-//             Matrix* sm = (Matrix*) second;
-//
-//             PyObject* flinidx = select_all(fm);
-//             if (flinidx == NULL) {
-//                 return NULL;
-//             }
-//
-//             PyObject* slinidx = select_all(sm);
-//             if (slinidx == NULL) {
-//                 Py_DECREF(flinidx);
-//                 return NULL;
-//             }
-//
-//             Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
-//
-//             for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
-//                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
-//                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
-//                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
-//                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 Matrix_DATA(result)[f_element_value] = Matrix_DATA(fm)[f_element_value] * Matrix_DATA(sm)[s_element_value];
-//             }
-//             Py_DECREF(flinidx);
-//             Py_DECREF(slinidx);
-//             return (PyObject*) result;
-//         } else {
-//             PyErr_SetString(PyExc_ValueError, "Cannot perform addition on Matrices of differing shapes.");
-//             return NULL;
-//         }
-//     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_N(first), Matrix_M(first), Matrix_TRANSPOSED(first));
-//         if (result == NULL) {
-//             return NULL;
-//         }
-//
-//         MatrixDataType second_value = (MatrixDataType) PyLong_AsLong(second);
-//         for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
-//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] * second_value;
-//         }
-//
-//         return (PyObject*) result;
-//     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_N(first), Matrix_M(first), Matrix_TRANSPOSED(first));
-//         if (result == NULL) {
-//             return NULL;
-//         }
-//
-//         MatrixDataType second_value = (MatrixDataType) PyFloat_AsDouble(second);
-//         for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
-//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] * second_value;
-//         }
-//
-//         return (PyObject*) result;
-//     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_N(second), Matrix_M(second), Matrix_TRANSPOSED(second));
-//         if (result == NULL) {
-//             return NULL;
-//         }
-//
-//         MatrixDataType first_value = (MatrixDataType) PyLong_AsLong(first);
-//         for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
-//             Matrix_DATA(result)[i] = first_value * Matrix_DATA(second)[i];
-//         }
-//
-//         return (PyObject*) result;
-//     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_N(second), Matrix_M(second), Matrix_TRANSPOSED(second));
-//         if (result == NULL) {
-//             return NULL;
-//         }
-//
-//         MatrixDataType first_value = (MatrixDataType) PyFloat_AsDouble(first);
-//         for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
-//             Matrix_DATA(result)[i] = first_value * Matrix_DATA(second)[i];
-//         }
-//
-//         return (PyObject*) result;
-//     } else {
-//         PyObject* result = Py_NotImplemented;
-//         Py_INCREF(result);
-//         return result;
-//     }
-// }
-//
-// static PyObject* Matrix_TrueDivide(PyObject* first, PyObject* second) {
-//     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
-//             Matrix* fm = (Matrix*) first;
-//             Matrix* sm = (Matrix*) second;
-//
-//             PyObject* flinidx = select_all(fm);
-//             if (flinidx == NULL) {
-//                 return NULL;
-//             }
-//
-//             PyObject* slinidx = select_all(sm);
-//             if (slinidx == NULL) {
-//                 Py_DECREF(flinidx);
-//                 return NULL;
-//             }
-//
-//             Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
-//
-//             for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
-//                 PyObject* f_element = PyTuple_GetItem(flinidx, i);
-//                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
-//                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
-//                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-//                 MatrixDataType s_value = Matrix_DATA(sm)[s_element_value];
-//                 if (s_value != 0.0f) {
-//                     Matrix_DATA(result)[f_element_value] = Matrix_DATA(fm)[f_element_value] / s_value;
-//                 } else {
-//                     Py_DECREF(flinidx);
-//                     Py_DECREF(slinidx);
-//                     Py_DECREF(result);
-//                     PyErr_SetNone(PyExc_ZeroDivisionError);
-//                     return NULL;
-//                 }
-//             }
-//             Py_DECREF(flinidx);
-//             Py_DECREF(slinidx);
-//             return (PyObject*) result;
-//         } else {
-//             PyErr_SetString(PyExc_ValueError, "Cannot perform addition on Matrices of differing shapes.");
-//             return NULL;
-//         }
-//     } else if (Matrix_Check(first) && PyLong_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_N(first), Matrix_M(first), Matrix_TRANSPOSED(first));
-//         if (result == NULL) {
-//             return NULL;
-//         }
-//
-//         MatrixDataType second_value = (MatrixDataType) PyLong_AsLong(second);
-//         if (second_value == 0.0f) {
-//             Py_DECREF(result);
-//             PyErr_SetNone(PyExc_ZeroDivisionError);
-//             return NULL;
-//         }
-//
-//         for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
-//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] / second_value;
-//         }
-//
-//         return (PyObject*) result;
-//     } else if (Matrix_Check(first) && PyFloat_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_N(first), Matrix_M(first), Matrix_TRANSPOSED(first));
-//         if (result == NULL) {
-//             return NULL;
-//         }
-//
-//         MatrixDataType second_value = (MatrixDataType) PyFloat_AsDouble(second);
-//         if (second_value == 0.0f) {
-//             Py_DECREF(result);
-//             PyErr_SetNone(PyExc_ZeroDivisionError);
-//             return NULL;
-//         }
-//
-//         for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
-//             Matrix_DATA(result)[i] = Matrix_DATA(first)[i] / second_value;
-//         }
-//
-//         return (PyObject*) result;
-//     } else if (PyLong_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_N(second), Matrix_M(second), Matrix_TRANSPOSED(second));
-//         if (result == NULL) {
-//             return NULL;
-//         }
-//
-//         MatrixDataType first_value = (MatrixDataType) PyLong_AsLong(first);
-//         if (first_value == 0.0f) {
-//             Py_DECREF(result);
-//             PyErr_SetNone(PyExc_ZeroDivisionError);
-//             return NULL;
-//         }
-//
-//         for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
-//             Matrix_DATA(result)[i] = first_value / Matrix_DATA(second)[i];
-//         }
-//
-//         return (PyObject*) result;
-//     } else if (PyFloat_Check(first) && Matrix_Check(second)) {
-//         Matrix* result = Matrix_NewInternal(Matrix_N(second), Matrix_M(second), Matrix_TRANSPOSED(second));
-//         if (result == NULL) {
-//             return NULL;
-//         }
-//
-//         MatrixDataType first_value = (MatrixDataType) PyFloat_AsDouble(first);
-//         if (first_value == 0.0f) {
-//             Py_DECREF(result);
-//             PyErr_SetNone(PyExc_ZeroDivisionError);
-//             return NULL;
-//         }
-//
-//         for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
-//             Matrix_DATA(result)[i] = first_value / Matrix_DATA(second)[i];
-//         }
-//
-//         return (PyObject*) result;
-//     } else {
-//         PyObject* result = Py_NotImplemented;
-//         Py_INCREF(result);
-//         return result;
-//     }
-// }
+
+static PyObject* Matrix_Multiply(PyObject* first, PyObject* second) {
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+            Matrix* fm = (Matrix*) first;
+            Matrix* sm = (Matrix*) second;
+
+            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            if (flinidx == NULL) {
+                return NULL;
+            }
+
+            PyObject* slinidx = select_all(sm->N, sm->M, sm->transposed);
+            if (slinidx == NULL) {
+                Py_DECREF(flinidx);
+                return NULL;
+            }
+
+            Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
+            if (result == NULL) {
+                Py_DECREF(flinidx);
+                Py_DECREF(slinidx);
+                return NULL;
+            }
+
+            for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
+                PyObject* f_element = PyTuple_GetItem(flinidx, i);
+                Py_ssize_t f_element_value = PyLong_AsLong(f_element);
+                PyObject* s_element = PyTuple_GetItem(slinidx, i);
+                Py_ssize_t s_element_value = PyLong_AsLong(s_element);
+                Matrix_DATA(result)[f_element_value] = Matrix_DATA(fm)[f_element_value] * Matrix_DATA(sm)[s_element_value];
+            }
+            Py_DECREF(flinidx);
+            Py_DECREF(slinidx);
+            return (PyObject*) result;
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Cannot perform operation on Matrices of differing shapes.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        Matrix* result = Matrix_NewInternal(Matrix_N(first), Matrix_M(first), Matrix_TRANSPOSED(first));
+        if (result == NULL) {
+            return NULL;
+        }
+
+        MatrixDataType second_value = (MatrixDataType) PyLong_AsLong(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
+            Matrix_DATA(result)[i] = Matrix_DATA(first)[i] * second_value;
+        }
+
+        return (PyObject*) result;
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        Matrix* result = Matrix_NewInternal(Matrix_N(first), Matrix_M(first), Matrix_TRANSPOSED(first));
+        if (result == NULL) {
+            return NULL;
+        }
+
+        MatrixDataType second_value = (MatrixDataType) PyFloat_AsDouble(second);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
+            Matrix_DATA(result)[i] = Matrix_DATA(first)[i] * second_value;
+        }
+
+        return (PyObject*) result;
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        Matrix* result = Matrix_NewInternal(Matrix_N(second), Matrix_M(second), Matrix_TRANSPOSED(second));
+        if (result == NULL) {
+            return NULL;
+        }
+
+        MatrixDataType first_value = (MatrixDataType) PyLong_AsLong(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
+            Matrix_DATA(result)[i] = first_value * Matrix_DATA(second)[i];
+        }
+
+        return (PyObject*) result;
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        Matrix* result = Matrix_NewInternal(Matrix_N(second), Matrix_M(second), Matrix_TRANSPOSED(second));
+        if (result == NULL) {
+            return NULL;
+        }
+
+        MatrixDataType first_value = (MatrixDataType) PyFloat_AsDouble(first);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
+            Matrix_DATA(result)[i] = first_value * Matrix_DATA(second)[i];
+        }
+
+        return (PyObject*) result;
+    } else {
+        PyObject* result = Py_NotImplemented;
+        Py_INCREF(result);
+        return result;
+    }
+}
+
+static PyObject* Matrix_TrueDivide(PyObject* first, PyObject* second) {
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        if (Matrix_SHAPE_I(first) == Matrix_SHAPE_I(second) && Matrix_SHAPE_J(first) == Matrix_SHAPE_J(second)) {
+            Matrix* fm = (Matrix*) first;
+            Matrix* sm = (Matrix*) second;
+
+            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            if (flinidx == NULL) {
+                return NULL;
+            }
+
+            PyObject* slinidx = select_all(sm->N, sm->M, sm->transposed);
+            if (slinidx == NULL) {
+                Py_DECREF(flinidx);
+                return NULL;
+            }
+
+            Matrix* result = Matrix_NewInternal(fm->N, fm->M, fm->transposed);
+            if (result == NULL) {
+                Py_DECREF(flinidx);
+                Py_DECREF(slinidx);
+                return NULL;
+            }
+
+            for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
+                PyObject* f_element = PyTuple_GetItem(flinidx, i);
+                Py_ssize_t f_element_value = PyLong_AsLong(f_element);
+                PyObject* s_element = PyTuple_GetItem(slinidx, i);
+                Py_ssize_t s_element_value = PyLong_AsLong(s_element);
+                MatrixDataType s_value = Matrix_DATA(sm)[s_element_value];
+                if (s_value != 0.0f) {
+                    Matrix_DATA(result)[f_element_value] = Matrix_DATA(fm)[f_element_value] / s_value;
+                } else {
+                    Py_DECREF(flinidx);
+                    Py_DECREF(slinidx);
+                    Py_DECREF(result);
+                    PyErr_SetNone(PyExc_ZeroDivisionError);
+                    return NULL;
+                }
+            }
+            Py_DECREF(flinidx);
+            Py_DECREF(slinidx);
+            return (PyObject*) result;
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Cannot perform operation on Matrices of differing shapes.");
+            return NULL;
+        }
+    } else if (Matrix_Check(first) && PyLong_Check(second)) {
+        Matrix* result = Matrix_NewInternal(Matrix_N(first), Matrix_M(first), Matrix_TRANSPOSED(first));
+        if (result == NULL) {
+            return NULL;
+        }
+
+        MatrixDataType second_value = (MatrixDataType) PyLong_AsLong(second);
+        if (second_value == 0.0f) {
+            Py_DECREF(result);
+            PyErr_SetNone(PyExc_ZeroDivisionError);
+            return NULL;
+        }
+
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
+            Matrix_DATA(result)[i] = Matrix_DATA(first)[i] / second_value;
+        }
+
+        return (PyObject*) result;
+    } else if (Matrix_Check(first) && PyFloat_Check(second)) {
+        Matrix* result = Matrix_NewInternal(Matrix_N(first), Matrix_M(first), Matrix_TRANSPOSED(first));
+        if (result == NULL) {
+            return NULL;
+        }
+
+        MatrixDataType second_value = (MatrixDataType) PyFloat_AsDouble(second);
+        if (second_value == 0.0f) {
+            Py_DECREF(result);
+            PyErr_SetNone(PyExc_ZeroDivisionError);
+            return NULL;
+        }
+
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
+            Matrix_DATA(result)[i] = Matrix_DATA(first)[i] / second_value;
+        }
+
+        return (PyObject*) result;
+    } else if (PyLong_Check(first) && Matrix_Check(second)) {
+        Matrix* result = Matrix_NewInternal(Matrix_N(second), Matrix_M(second), Matrix_TRANSPOSED(second));
+        if (result == NULL) {
+            return NULL;
+        }
+
+        MatrixDataType first_value = (MatrixDataType) PyLong_AsLong(first);
+        if (first_value == 0.0f) {
+            Py_DECREF(result);
+            PyErr_SetNone(PyExc_ZeroDivisionError);
+            return NULL;
+        }
+
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
+            Matrix_DATA(result)[i] = first_value / Matrix_DATA(second)[i];
+        }
+
+        return (PyObject*) result;
+    } else if (PyFloat_Check(first) && Matrix_Check(second)) {
+        Matrix* result = Matrix_NewInternal(Matrix_N(second), Matrix_M(second), Matrix_TRANSPOSED(second));
+        if (result == NULL) {
+            return NULL;
+        }
+
+        MatrixDataType first_value = (MatrixDataType) PyFloat_AsDouble(first);
+        if (first_value == 0.0f) {
+            Py_DECREF(result);
+            PyErr_SetNone(PyExc_ZeroDivisionError);
+            return NULL;
+        }
+
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(result); i++) {
+            Matrix_DATA(result)[i] = first_value / Matrix_DATA(second)[i];
+        }
+
+        return (PyObject*) result;
+    } else {
+        PyObject* result = Py_NotImplemented;
+        Py_INCREF(result);
+        return result;
+    }
+}
 
 // static PyObject* Matrix_MatMultiply(PyObject* first, PyObject* second) {
 //     if (Matrix_Check(first) && Matrix_Check(second)) {
@@ -1405,10 +1441,103 @@ static PyObject* Matrix_Subtract(PyObject* first, PyObject* second) {
 //     }
 // }
 //
+
+static PyObject* Matrix_AllClose(PyObject* self, PyObject* args, PyObject* kwargs) {
+    PyObject* other = NULL;
+    double rel_tol = 1e-05;
+    double abs_tol = 1e-08;
+    static char* kwlist[] = {"", "rel_tol", "abs_tol", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|dd", kwlist, &other, &rel_tol, &abs_tol)) {
+        return NULL;
+    }
+
+    if (rel_tol < 0.0 || abs_tol < 0.0) {
+        PyErr_SetString(PyExc_ValueError, "Tolerances must be non-negative.");
+        return NULL;
+    }
+
+    if (Matrix_Check(self) && Matrix_Check(other)) {
+        if (Matrix_SHAPE_I(self) == Matrix_SHAPE_I(other) && Matrix_SHAPE_J(self) == Matrix_SHAPE_J(other)) {
+            Matrix* fm = (Matrix*) self;
+            Matrix* sm = (Matrix*) other;
+
+            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            if (flinidx == NULL) {
+                return NULL;
+            }
+
+            PyObject* slinidx = select_all(sm->N, sm->M, sm->transposed);
+            if (slinidx == NULL) {
+                Py_DECREF(flinidx);
+                return NULL;
+            }
+
+            int comp = 1;
+            for (Py_ssize_t i = 0; i < PyTuple_Size(flinidx); i++) {
+                PyObject* f_element = PyTuple_GetItem(flinidx, i);
+                Py_ssize_t f_element_value = PyLong_AsLong(f_element);
+                PyObject* s_element = PyTuple_GetItem(slinidx, i);
+                Py_ssize_t s_element_value = PyLong_AsLong(s_element);
+                if (!is_close(Matrix_DATA(fm)[f_element_value], Matrix_DATA(sm)[s_element_value], rel_tol, abs_tol)) {
+                    comp = 0;
+                    break;
+                }
+            }
+            Py_DECREF(flinidx);
+            Py_DECREF(slinidx);
+            if (comp) {
+                Py_INCREF(Py_True);
+                return Py_True;
+            } else {
+                Py_INCREF(Py_False);
+                return Py_False;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Cannot perform operation on Matrices of differing shapes.");
+            return NULL;
+        }
+    } else if (Matrix_Check(self) && PyLong_Check(other)) {
+        int result = 1;
+        MatrixDataType other_value = (MatrixDataType) PyLong_AsLong(other);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(self); i++) {
+            if (!is_close(Matrix_DATA(self)[i], other_value, rel_tol, abs_tol)) {
+                result = 0;
+                break;
+            }
+        }
+        if (result) {
+            Py_INCREF(Py_True);
+            return Py_True;
+        } else {
+            Py_INCREF(Py_False);
+            return Py_False;
+        }
+    } else if (Matrix_Check(self) && PyFloat_Check(other)) {
+        int result = 1;
+        MatrixDataType other_value = (MatrixDataType) PyFloat_AsDouble(other);
+        for (Py_ssize_t i = 0; i < Matrix_SIZE(self); i++) {
+            if (!is_close(Matrix_DATA(self)[i], other_value, (MatrixDataType) rel_tol, (MatrixDataType) abs_tol)) {
+                result = 0;
+                break;
+            }
+        }
+        if (result) {
+            Py_INCREF(Py_True);
+            return Py_True;
+        } else {
+            Py_INCREF(Py_False);
+            return Py_False;
+        }
+    } else {
+        Py_INCREF(Py_NotImplemented);
+        return Py_NotImplemented;
+    }
+}
+
 static PyNumberMethods MatrixAsNumber = {
     (binaryfunc) Matrix_Add,
     (binaryfunc) Matrix_Subtract,
-    0,  // (binaryfunc) Matrix_Multiply,
+    (binaryfunc) Matrix_Multiply,
     0,  // Matrix_Remainder
     0,  // Matrix_Divmod
     0,  // Matrix_Power
@@ -1438,7 +1567,7 @@ static PyNumberMethods MatrixAsNumber = {
     0,  // Matrix_InplaceOr
 
     0,  // Matrix_FloorDivide
-    0,  // (binaryfunc) Matrix_TrueDivide,
+    (binaryfunc) Matrix_TrueDivide,
     0,  // Matrix_InplaceFloorDivide
     0,  // Matrix_InplaceTrueDivide
 
@@ -1452,6 +1581,11 @@ static PyMappingMethods MatrixAsMapping = {
     (lenfunc) Matrix_Length,
     (binaryfunc) Matrix_GetItem,
     (objobjargproc) Matrix_SetItem
+};
+
+static PyMethodDef MatrixMethods[] = {
+    {"all_close", Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "missing docstring"},
+    {NULL, NULL, 0, NULL}
 };
 
 /// Define the Matrix type object (MatrixType).
@@ -1483,7 +1617,7 @@ PyTypeObject MatrixType = {
     0,                                        /* tp_weaklistoffset */
     (getiterfunc) Matrix_GetIter,             /* tp_iter */
     0,                                        /* tp_iternext */
-    0,                                        /* tp_methods */
+    MatrixMethods,                            /* tp_methods */
     0,                                        /* tp_members */
     0,                                        /* tp_getset */
     0,                                        /* tp_base */

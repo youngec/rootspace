@@ -42,5 +42,9 @@ extern const char Matrix_Docstring[];
 /// of arguments!
 Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed);
 
+/// Matrix_GetItem is used by MatrixIterator in MatrixIterator_Next.
 PyObject* Matrix_GetItem(Matrix* self, PyObject* key);
+
+/// Implemented the Python math module isclose function.
+int is_close(double a, double b, double rel_tol, double abs_tol);
 #endif

@@ -110,6 +110,16 @@ class TestMatrix(object):
         b = Matrix((2, 3), range(6), transposed=True)
         assert [e for r in b for e in r] == [0, 3, 1, 4, 2, 5]
 
+    def test_all_close(self, shape):
+        epsilon = 7/3 - 4/3 - 1
+        a = Matrix(shape, epsilon)
+        b = Matrix(shape, 0)
+        c = 0
+        d = 0.0
+        assert a.all_close(b) is True
+        assert a.all_close(c) is True
+        assert a.all_close(d) is True
+
     def test_unary_negative(self, shape):
         assert -Matrix(shape, 1) == Matrix(shape, -1)
         assert -Matrix(shape, 0) == Matrix(shape, 0)
@@ -171,7 +181,6 @@ class TestMatrix(object):
         with pytest.raises(ValueError):
             Matrix((2, 2)) - Matrix((3, 3))
 
-    @pytest.mark.skip
     def test_multiplication_neutral_element(self, shape):
         length = functools.reduce(operator.mul, shape)
         a = Matrix(shape, range(length))
@@ -180,20 +189,19 @@ class TestMatrix(object):
         assert a * 1 == a
         assert a * 1.0 == a
 
-    @pytest.mark.skip
     def test_multiplication_inverse(self, shape):
         length = functools.reduce(operator.mul, shape)
         a = Matrix(shape, range(1, length + 1))
         b = Matrix(shape, range(4, length + 4))
+        a_inv = Matrix(shape, [1 / i for i in range(1, length + 1)])
 
-        assert all_close(Matrix(shape, 1) / a, Matrix(a.shape, (1 / s for s in a)))
-        assert all_close(1 / a, Matrix(a.shape, (1 / s for s in a)))
-        assert all_close(1.0 / a, Matrix(a.shape, (1 / s for s in a)))
+        assert all_close(Matrix(shape, 1) / a, a_inv)
+        assert all_close(1 / a, a_inv)
+        assert all_close(1.0 / a, a_inv)
         assert all_close(a * (Matrix(shape, 1) / b), a / b)
         assert all_close(a * (1 / b), a / b)
         assert all_close(a * (1.0 / b), a / b)
 
-    @pytest.mark.skip
     def test_multiplication_commutativity(self, shape):
         length = functools.reduce(operator.mul, shape)
         a = Matrix(shape, range(1, length + 1))
@@ -205,7 +213,6 @@ class TestMatrix(object):
         assert a * c == c * a
         assert a * d == d * a
 
-    @pytest.mark.skip
     def test_multiplication_associativity(self, shape):
         length = functools.reduce(operator.mul, shape)
         a = Matrix(shape, range(length))
@@ -220,7 +227,6 @@ class TestMatrix(object):
         assert d * (a * e) == (d * a) * e
         assert f * (a * g) == (f * a) * g
 
-    @pytest.mark.skip
     def test_distributivity(self, shape):
         length = functools.reduce(operator.mul, shape)
         a = Matrix(shape, range(length))
@@ -229,7 +235,6 @@ class TestMatrix(object):
 
         assert a * (b + c) == a * b + a * c
 
-    @pytest.mark.skip
     def test_multiplication_shapes(self):
         with pytest.raises(ValueError):
             Matrix((2, 2)) * Matrix((3, 3))
@@ -275,17 +280,6 @@ class TestMatrix(object):
         assert Matrix((4, 1)).is_scalar is False
         assert Matrix((1, 4)).is_scalar is False
         assert Matrix((1, 1)).is_scalar is True
-
-    @pytest.mark.skip
-    def test_all_close(self, shape):
-        epsilon = 7/3 - 4/3 - 1
-        a = Matrix(shape, epsilon)
-        b = Matrix(shape, 0)
-        c = 0
-        d = 0.0
-        assert a.all_close(b) is True
-        assert a.all_close(c) is True
-        assert a.all_close(d) is True
 
     @pytest.mark.skip
     def test_determinant(self, shape):
