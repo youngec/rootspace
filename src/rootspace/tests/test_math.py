@@ -279,6 +279,8 @@ class TestMatrix(object):
     def test_shape(self, shape):
         assert Matrix(shape).shape == shape
         assert Matrix(shape, transposed=True).shape == shape[::-1]
+        with pytest.raises(AttributeError):
+            Matrix(shape).shape = 1
 
     @pytest.mark.skip
     def test_is_square(self):
