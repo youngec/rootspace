@@ -1533,7 +1533,11 @@ static PyObject* Matrix_AllClose(PyObject* self, PyObject* args, PyObject* kwarg
     }
 }
 
-static PyNumberMethods MatrixAsNumber = {
+static PyObject* Matrix_GetShape(Matrix* self, void* closure) {
+    return Py_BuildValue("(nn)", Matrix_SHAPE_I(self), Matrix_SHAPE_J(self));
+}
+
+static PyNumberMethods Matrix_AsNumber = {
     (binaryfunc) Matrix_Add,
     (binaryfunc) Matrix_Subtract,
     (binaryfunc) Matrix_Multiply,
@@ -1576,21 +1580,26 @@ static PyNumberMethods MatrixAsNumber = {
     0,  // Matrix_InplaceMatMultiply
 };
 
-static PyMappingMethods MatrixAsMapping = {
+static PyMappingMethods Matrix_AsMapping = {
     (lenfunc) Matrix_Length,
     (binaryfunc) Matrix_GetItem,
     (objobjargproc) Matrix_SetItem
 };
 
-static PyMethodDef MatrixMethods[] = {
+static PyMethodDef Matrix_Methods[] = {
     {"all_close", Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "missing docstring"},
     {NULL, NULL, 0, NULL}
+};
+
+static PyGetSetDef Matrix_GetSetters[] = {
+    {"shape", (getter) Matrix_GetShape, NULL, "Return the shape of the matrix as a 2-tuple.", NULL},
+    {NULL}
 };
 
 /// Define the Matrix type object (MatrixType).
 PyTypeObject MatrixType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_math.Matrix",                            /* tp_name */
+    "_math.Matrix",                           /* tp_name */
     sizeof(Matrix),                           /* tp_basicsize */
     0,                                        /* tp_itemsize */
     (destructor) Matrix_Dealloc,              /* tp_dealloc */
@@ -1599,9 +1608,9 @@ PyTypeObject MatrixType = {
     0,                                        /* tp_setattr */
     0,                                        /* tp_reserved */
     (reprfunc) Matrix_ToRepresentation,       /* tp_repr */
-    &MatrixAsNumber,                          /* tp_as_number */
+    &Matrix_AsNumber,                         /* tp_as_number */
     0,                                        /* tp_as_sequence */
-    &MatrixAsMapping,                         /* tp_as_mapping */
+    &Matrix_AsMapping,                        /* tp_as_mapping */
     0,                                        /* tp_hash  */
     0,                                        /* tp_call */
     (reprfunc) Matrix_ToString,               /* tp_str */
@@ -1616,9 +1625,9 @@ PyTypeObject MatrixType = {
     0,                                        /* tp_weaklistoffset */
     (getiterfunc) Matrix_GetIter,             /* tp_iter */
     0,                                        /* tp_iternext */
-    MatrixMethods,                            /* tp_methods */
+    Matrix_Methods,                           /* tp_methods */
     0,                                        /* tp_members */
-    0,                                        /* tp_getset */
+    Matrix_GetSetters,                        /* tp_getset */
     0,                                        /* tp_base */
     0,                                        /* tp_dict */
     0,                                        /* tp_descr_get */

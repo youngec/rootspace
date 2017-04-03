@@ -276,7 +276,6 @@ class TestMatrix(object):
     def test_dot_product_vectors(self):
         assert Matrix((1, 3), 1) @ Matrix((3, 1), 1) == 3
 
-    @pytest.mark.skip
     def test_shape(self, shape):
         assert Matrix(shape).shape == shape
         assert Matrix(shape, transposed=True).shape == shape[::-1]
