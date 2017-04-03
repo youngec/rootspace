@@ -1397,50 +1397,49 @@ static PyObject* Matrix_TrueDivide(PyObject* first, PyObject* second) {
     }
 }
 
-// static PyObject* Matrix_MatMultiply(PyObject* first, PyObject* second) {
-//     if (Matrix_Check(first) && Matrix_Check(second)) {
-//         if (Matrix_SHAPE_J(first) == Matrix_SHAPE_I(second)) {
-//             Matrix* fm = (Matrix*) first;
-//             Matrix* sm = (Matrix*) second;
-//             Py_ssize_t N = Matrix_SHAPE_I(first);
-//             Py_ssize_t shape_m = Matrix_SHAPE_J(first);
-//             Py_ssize_t M = Matrix_SHAPE_J(second);
-//             if (N == 1 && M == 1) {
-//                 MatrixDataType result = 0.0f;
-//                 for (Py_ssize_t m = 0; m < shape_m; m++) {
-//                     result += Matrix_DATA(fm)[m] * Matrix_DATA(sm)[m];
-//                 }
-//                 return PyFloat_FromDouble((double) result);
-//             } else {
-//                 Matrix* result = Matrix_NewInternal(N, M, 0);
-//                 if (result == NULL) {
-//                     return NULL;
-//                 }
-//                 for (Py_ssize_t i = 0; i < N; i++) {
-//                     for (Py_ssize_t j = 0; j < M; j++) {
-//                         MatrixDataType temp = 0.0f;
-//                         for (Py_ssize_t m = 0; m < shape_m; m++) {
-//                             Py_ssize_t flinidx = linearize_scalar_indices(N, shape_m, i, m);
-//                             Py_ssize_t slinidx = linearize_scalar_indices(shape_m, M, m, j);
-//                             temp += Matrix_DATA(fm)[flinidx] * Matrix_DATA(sm)[slinidx];
-//                         }
-//                         Py_ssize_t rlinidx = linearize_scalar_indices(N, M, i, j);
-//                         Matrix_DATA(result)[rlinidx] = temp;
-//                     }
-//                 }
-//                 return (PyObject*) result;
-//             }
-//         } else {
-//             PyErr_SetString(PyExc_ValueError, "Shape mismatch; the last dimension of the first and the first dimension of the second operand must be equal.");
-//             return NULL;
-//         }
-//     } else {
-//         PyObject* result = Py_NotImplemented;
-//         Py_INCREF(result);
-//         return result;
-//     }
-// }
-//
+static PyObject* Matrix_MatMultiply(PyObject* first, PyObject* second) {
+    if (Matrix_Check(first) && Matrix_Check(second)) {
+        if (Matrix_SHAPE_J(first) == Matrix_SHAPE_I(second)) {
+            Matrix* fm = (Matrix*) first;
+            Matrix* sm = (Matrix*) second;
+            Py_ssize_t N = Matrix_SHAPE_I(first);
+            Py_ssize_t K = Matrix_SHAPE_J(first);
+            Py_ssize_t M = Matrix_SHAPE_J(second);
+            if (N == 1 && M == 1) {
+                MatrixDataType result = 0.0;
+                for (Py_ssize_t k = 0; k < K; k++) {
+                    result += Matrix_DATA(fm)[k] * Matrix_DATA(sm)[k];
+                }
+                return PyFloat_FromDouble((double) result);
+            } else {
+                Matrix* result = Matrix_NewInternal(N, M, 0);
+                if (result == NULL) {
+                    return NULL;
+                }
+                for (Py_ssize_t i = 0; i < N; i++) {
+                    for (Py_ssize_t j = 0; j < M; j++) {
+                        MatrixDataType temp = 0.0;
+                        for (Py_ssize_t k = 0; k < K; k++) {
+                            Py_ssize_t flinidx = linearize_scalar_indices(fm->N, fm->M, fm->transposed, i, k);
+                            Py_ssize_t slinidx = linearize_scalar_indices(sm->N, sm->M, sm->transposed, k, j);
+                            temp += Matrix_DATA(fm)[flinidx] * Matrix_DATA(sm)[slinidx];
+                        }
+                        Py_ssize_t rlinidx = linearize_scalar_indices(N, M, 0, i, j);
+                        Matrix_DATA(result)[rlinidx] = temp;
+                    }
+                }
+                return (PyObject*) result;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Shape mismatch; the last dimension of the first and the first dimension of the second operand must be equal.");
+            return NULL;
+        }
+    } else {
+        PyObject* result = Py_NotImplemented;
+        Py_INCREF(result);
+        return result;
+    }
+}
 
 static PyObject* Matrix_AllClose(PyObject* self, PyObject* args, PyObject* kwargs) {
     PyObject* other = NULL;
@@ -1573,7 +1572,7 @@ static PyNumberMethods MatrixAsNumber = {
 
     0,  // Matrix_Index
 
-    0,  // (binaryfunc) Matrix_MatMultiply,
+    (binaryfunc) Matrix_MatMultiply,
     0,  // Matrix_InplaceMatMultiply
 };
 
