@@ -241,6 +241,41 @@ class TestMatrix(object):
         with pytest.raises(ValueError):
             Matrix((2, 2)) / Matrix((3, 3))
 
+    def test_dot_product_neutral_element(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), (1, 0, 0, 1))
+
+        assert a @ b == a
+        assert a @ b == b @ a
+
+    def test_dot_product_inverse(self):
+        a = Matrix((2, 2), (4, 3, 2, 1))
+        b = Matrix((2, 2), (-0.5, 1.5, 1, -2))
+
+        assert a @ b == Matrix((2, 2), (1, 0, 0, 1))
+        assert b @ a == Matrix((2, 2), (1, 0, 0, 1))
+
+    def test_dot_product_associativity(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = Matrix((2, 2), range(2, 6))
+
+        assert b @ (a @ c) == (b @ a) @ c
+
+    def test_dot_distributivity(self):
+        a = Matrix((2, 2), range(4))
+        b = Matrix((2, 2), range(1, 5))
+        c = Matrix((2, 2), range(2, 6))
+
+        assert a @ (b + c) == a @ b + a @ c
+
+    def test_dot_product_shapes(self):
+        with pytest.raises(ValueError):
+            Matrix((4, 3)) @ Matrix((2, 2))
+
+    def test_dot_product_vectors(self):
+        assert Matrix((1, 3), 1) @ Matrix((3, 1), 1) == 3
+
     @pytest.mark.skip
     def test_shape(self, shape):
         assert Matrix(shape).shape == shape
@@ -444,47 +479,6 @@ class TestMatrix(object):
             0, 0, -100.1/99.9, -20/99.9,
             0, 0, -1, 0
         ))
-
-    @pytest.mark.skip
-    def test_dot_product_neutral_element(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix.identity(2)
-
-        assert a @ b == a
-        assert a @ b == b @ a
-
-    @pytest.mark.skip
-    def test_dot_product_inverse(self):
-        a = Matrix((2, 2), (4, 3, 2, 1))
-        b = Matrix((2, 2), (-0.5, 1.5, 1, -2))
-
-        assert a @ b == Matrix.identity(2)
-        assert b @ a == Matrix.identity(2)
-
-    @pytest.mark.skip
-    def test_dot_product_associativity(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-        c = Matrix((2, 2), range(2, 6))
-
-        assert b @ (a @ c) == (b @ a) @ c
-
-    @pytest.mark.skip
-    def test_dot_distributivity(self):
-        a = Matrix((2, 2), range(4))
-        b = Matrix((2, 2), range(1, 5))
-        c = Matrix((2, 2), range(2, 6))
-
-        assert a @ (b + c) == a @ b + a @ c
-
-    @pytest.mark.skip
-    def test_dot_product_shapes(self):
-        with pytest.raises(ValueError):
-            Matrix((4, 3)) @ Matrix((2, 2))
-
-    @pytest.mark.skip
-    def test_dot_product_vectors(self):
-        assert Matrix((1, 3), 1) @ Matrix((3, 1), 1) == 3
 
 
 @pytest.mark.skip
