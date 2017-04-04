@@ -294,20 +294,6 @@ class TestMatrix(object):
         for p in range(1, 3):
             assert Matrix(shape, 1).norm(p) == math.pow(sum(functools.reduce(operator.mul, shape) * [math.pow(abs(1), p)]), 1/p)
 
-    @pytest.mark.skip
-    def test_determinant(self, shape):
-        a = Matrix(shape)
-        if a.is_square and not a.is_scalar:
-            if a.shape[0] <= 4:
-                assert a.determinant() == 1
-            else:
-                with pytest.raises(NotImplementedError):
-                    a.determinant()
-        else:
-            with pytest.raises(ValueError):
-                a.determinant()
-
-    @pytest.mark.skip
     def test_cross(self, shape):
         if shape == (3, 1) or shape == (1, 3):
             a = Matrix(shape, (1, 0, 0))

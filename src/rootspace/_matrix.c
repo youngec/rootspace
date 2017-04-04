@@ -1553,6 +1553,40 @@ static PyObject* Matrix_Norm(Matrix* self, PyObject* args, PyObject* kwargs) {
     return Py_BuildValue("d", temp);
 }
 
+static PyObject* Matrix_Cross(Matrix* self, PyObject* args) {
+    Matrix* other = NULL;
+    if (!PyArg_ParseTuple(args, "O!", &MatrixType, &other)) {
+        return NULL;
+    }
+    int self_is_3d_col_vec = ((Matrix_SHAPE_I(self) == 3) && (Matrix_SHAPE_J(self) == 1));
+    int other_is_3d_col_vec = ((Matrix_SHAPE_I(other) == 3) && (Matrix_SHAPE_J(other) == 1));
+    int self_is_3d_row_vec = ((Matrix_SHAPE_I(self) == 1) && (Matrix_SHAPE_J(self) == 3));
+    int other_is_3d_row_vec = ((Matrix_SHAPE_I(other) == 1) && (Matrix_SHAPE_J(other) == 3));
+
+    if ((self_is_3d_col_vec && other_is_3d_col_vec) || (self_is_3d_row_vec && other_is_3d_row_vec)) {
+        Matrix* result = Matrix_NewInternal(Matrix_SHAPE_I(self), Matrix_SHAPE_J(self), 0);
+        if (result == NULL) {
+            return NULL;
+        }
+
+        MatrixDataType s0 = Matrix_DATA(self)[0];
+        MatrixDataType s1 = Matrix_DATA(self)[1];
+        MatrixDataType s2 = Matrix_DATA(self)[2];
+        MatrixDataType o0 = Matrix_DATA(other)[0];
+        MatrixDataType o1 = Matrix_DATA(other)[1];
+        MatrixDataType o2 = Matrix_DATA(other)[2];
+
+        Matrix_DATA(result)[0] = s1 * o2 - s2 * o1;
+        Matrix_DATA(result)[1] = s2 * o0 - s0 * o2;
+        Matrix_DATA(result)[2] = s0 * o1 - s1 * o0;
+
+        return result;
+    } else {
+        PyErr_SetString(PyExc_ValueError, "Expected a vector with three dimensions.");
+        return NULL;
+    }
+}
+
 static PyObject* Matrix_GetShape(Matrix* self, void* closure) {
     return Py_BuildValue("(nn)", Matrix_SHAPE_I(self), Matrix_SHAPE_J(self));
 }
@@ -1618,6 +1652,7 @@ static PyMappingMethods Matrix_AsMapping = {
 static PyMethodDef Matrix_Methods[] = {
     {"all_close", (ternaryfunc) Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
     {"norm", (ternaryfunc) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
+    {"cross", (binaryfunc) Matrix_Cross, METH_VARARGS, "Calculate the cross product of two vectors."},
     {NULL, NULL, 0, NULL}
 };
 
