@@ -290,6 +290,10 @@ class TestMatrix(object):
         for i, j in itertools.product(range(a.shape[0]), range(a.shape[1])):
             assert a[i, j] == a.t[j, i]
 
+    def test_norm(self, shape):
+        for p in range(1, 3):
+            assert Matrix(shape, 1).norm(p) == math.pow(sum(functools.reduce(operator.mul, shape) * [math.pow(abs(1), p)]), 1/p)
+
     @pytest.mark.skip
     def test_determinant(self, shape):
         a = Matrix(shape)
@@ -302,10 +306,6 @@ class TestMatrix(object):
         else:
             with pytest.raises(ValueError):
                 a.determinant()
-
-    @pytest.mark.skip
-    def test_norm(self, shape):
-        assert Matrix(shape, 1).norm() == math.pow(sum(functools.reduce(operator.mul, shape) * [math.pow(abs(1), 2)]), 0.5)
 
     @pytest.mark.skip
     def test_cross(self, shape):

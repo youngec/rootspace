@@ -1444,7 +1444,7 @@ static PyObject* Matrix_MatMultiply(PyObject* first, PyObject* second) {
     }
 }
 
-static PyObject* Matrix_AllClose(PyObject* self, PyObject* args, PyObject* kwargs) {
+static PyObject* Matrix_AllClose(Matrix* self, PyObject* args, PyObject* kwargs) {
     PyObject* other = NULL;
     double rel_tol = 1e-05;
     double abs_tol = 1e-08;
@@ -1536,6 +1536,26 @@ static PyObject* Matrix_AllClose(PyObject* self, PyObject* args, PyObject* kwarg
     }
 }
 
+static PyObject* Matrix_Norm(Matrix* self, PyObject* args, PyObject* kwargs) {
+    double p = 2.0;
+    static char* kwlist[] = {"p", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|d", kwlist, &p)) {
+        return NULL;
+    }
+
+    if (p == 0.0) {
+        PyErr_SetString(PyExc_ValueError, "The parameter 'p' must be non-zero.");
+        return NULL;
+    }
+
+    double temp = 0.0;
+    for (Py_ssize_t i = 0; i < Matrix_SIZE(self); i++) {
+        temp += pow(fabs(Matrix_DATA(self)[i]), p);
+    }
+    temp = pow(temp, 1 / p);
+    return Py_BuildValue("d", temp);
+}
+
 static PyObject* Matrix_GetShape(Matrix* self, void* closure) {
     return Py_BuildValue("(nn)", Matrix_SHAPE_I(self), Matrix_SHAPE_J(self));
 }
@@ -1599,7 +1619,8 @@ static PyMappingMethods Matrix_AsMapping = {
 };
 
 static PyMethodDef Matrix_Methods[] = {
-    {"all_close", Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "missing docstring"},
+    {"all_close", Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
+    {"norm", Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
     {NULL, NULL, 0, NULL}
 };
 
