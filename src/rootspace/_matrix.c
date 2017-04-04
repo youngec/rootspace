@@ -1458,12 +1458,11 @@ static PyObject* Matrix_AllClose(Matrix* self, PyObject* args, PyObject* kwargs)
         return NULL;
     }
 
-    if (Matrix_Check(self) && Matrix_Check(other)) {
+    if (Matrix_Check(other)) {
         if (Matrix_SHAPE_I(self) == Matrix_SHAPE_I(other) && Matrix_SHAPE_J(self) == Matrix_SHAPE_J(other)) {
-            Matrix* fm = (Matrix*) self;
             Matrix* sm = (Matrix*) other;
 
-            PyObject* flinidx = select_all(fm->N, fm->M, fm->transposed);
+            PyObject* flinidx = select_all(self->N, self->M, self->transposed);
             if (flinidx == NULL) {
                 return NULL;
             }
@@ -1480,7 +1479,7 @@ static PyObject* Matrix_AllClose(Matrix* self, PyObject* args, PyObject* kwargs)
                 Py_ssize_t f_element_value = PyLong_AsLong(f_element);
                 PyObject* s_element = PyTuple_GetItem(slinidx, i);
                 Py_ssize_t s_element_value = PyLong_AsLong(s_element);
-                if (!is_close(Matrix_DATA(fm)[f_element_value], Matrix_DATA(sm)[s_element_value], rel_tol, abs_tol)) {
+                if (!is_close(Matrix_DATA(self)[f_element_value], Matrix_DATA(sm)[s_element_value], rel_tol, abs_tol)) {
                     comp = 0;
                     break;
                 }
@@ -1498,7 +1497,7 @@ static PyObject* Matrix_AllClose(Matrix* self, PyObject* args, PyObject* kwargs)
             PyErr_SetString(PyExc_ValueError, "Cannot perform operation on Matrices of differing shapes.");
             return NULL;
         }
-    } else if (Matrix_Check(self) && PyLong_Check(other)) {
+    } else if (PyLong_Check(other)) {
         int result = 1;
         MatrixDataType other_value = (MatrixDataType) PyLong_AsLong(other);
         for (Py_ssize_t i = 0; i < Matrix_SIZE(self); i++) {
@@ -1514,7 +1513,7 @@ static PyObject* Matrix_AllClose(Matrix* self, PyObject* args, PyObject* kwargs)
             Py_INCREF(Py_False);
             return Py_False;
         }
-    } else if (Matrix_Check(self) && PyFloat_Check(other)) {
+    } else if (PyFloat_Check(other)) {
         int result = 1;
         MatrixDataType other_value = (MatrixDataType) PyFloat_AsDouble(other);
         for (Py_ssize_t i = 0; i < Matrix_SIZE(self); i++) {
@@ -1617,8 +1616,8 @@ static PyMappingMethods Matrix_AsMapping = {
 };
 
 static PyMethodDef Matrix_Methods[] = {
-    {"all_close", Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
-    {"norm", Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
+    {"all_close", (ternaryfunc) Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
+    {"norm", (ternaryfunc) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
     {NULL, NULL, 0, NULL}
 };
 
