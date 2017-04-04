@@ -557,7 +557,7 @@ PyObject* math_get_sub_shape(PyObject* self, PyObject* args) {
     Py_ssize_t M = 1;
     int transposed = 0;
     PyObject* indices = NULL;
-    if (!PyArg_ParseTuple(args, "nnpO", &N, &M, &transposed, &indices)) {
+    if (!PyArg_ParseTuple(args, "nnpO!", &N, &M, &transposed, &PyTuple_Type, &indices)) {
         return NULL;
     }
     return get_sub_shape(N, M, transposed, indices);
@@ -582,7 +582,7 @@ PyObject* math_linearize_indices(PyObject* self, PyObject* args) {
     Py_ssize_t M = 1;
     int transposed = 0;
     PyObject* indices = NULL;
-    if (!PyArg_ParseTuple(args, "nnpO", &N, &M, &transposed, &indices)) {
+    if (!PyArg_ParseTuple(args, "nnpO!", &N, &M, &transposed, &PyTuple_Type, &indices)) {
         return NULL;
     }
     return linearize_indices(N, M, transposed, indices);
