@@ -37,9 +37,14 @@ extern const char Matrix_Docstring[];
 #define Matrix_SIZE(op) (Py_SIZE(((Matrix*) op)->container))
 #define Matrix_DATA(op) (((Matrix*) op)->container->data)
 
-/// *Internal* Create a new Matrix object. Accepts a two-dimensional shape
-/// (N, M) and a transposition flag. Does not check for the sanity
-/// of arguments!
+/// *Internal* Create a new Matrix object and populate the structure with
+/// the function arguments.
+/// Does not check for the sanity of arguments!
+Matrix* Matrix_NewInternalShallow(Py_ssize_t N, Py_ssize_t M, int transposed, MatrixContainer* container);
+
+/// *Internal* Create a new Matrix object and the underlying container object.
+/// Accepts a two-dimensional shape (N, M) and a transposition flag.
+/// Does not check for the sanity of arguments!
 Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed);
 
 /// Matrix_GetItem is used by MatrixIterator in MatrixIterator_Next.

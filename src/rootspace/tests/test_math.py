@@ -282,40 +282,13 @@ class TestMatrix(object):
         with pytest.raises(AttributeError):
             Matrix(shape).shape = 1
 
-    @pytest.mark.skip
-    def test_is_square(self):
-        assert Matrix((4, 4)).is_square is True
-        assert Matrix((4, 1)).is_square is False
-        assert Matrix((1, 4)).is_square is False
-        assert Matrix((1, 1)).is_square is True
-
-    @pytest.mark.skip
-    def test_is_vector(self):
-        assert Matrix((4, 4)).is_vector is False
-        assert Matrix((4, 1)).is_vector is True
-        assert Matrix((1, 4)).is_vector is True
-        assert Matrix((1, 1)).is_vector is False
-
-    @pytest.mark.skip
-    def test_is_column_vector(self):
-        assert Matrix((4, 4)).is_column_vector is False
-        assert Matrix((4, 1)).is_column_vector is True
-        assert Matrix((1, 4)).is_column_vector is False
-        assert Matrix((1, 1)).is_column_vector is False
-
-    @pytest.mark.skip
-    def test_is_row_vector(self):
-        assert Matrix((4, 4)).is_row_vector is False
-        assert Matrix((4, 1)).is_row_vector is False
-        assert Matrix((1, 4)).is_row_vector is True
-        assert Matrix((1, 1)).is_row_vector is False
-
-    @pytest.mark.skip
-    def test_is_scalar(self):
-        assert Matrix((4, 4)).is_scalar is False
-        assert Matrix((4, 1)).is_scalar is False
-        assert Matrix((1, 4)).is_scalar is False
-        assert Matrix((1, 1)).is_scalar is True
+    def test_transpose(self, shape):
+        length = functools.reduce(operator.mul, shape)
+        a = Matrix(shape, range(length))
+        assert a == a.t.t
+        assert a.shape == a.t.shape[::-1]
+        for i, j in itertools.product(range(a.shape[0]), range(a.shape[1])):
+            assert a[i, j] == a.t[j, i]
 
     @pytest.mark.skip
     def test_determinant(self, shape):
@@ -350,15 +323,6 @@ class TestMatrix(object):
         else:
             with pytest.raises(ValueError):
                 Matrix(shape).cross(Matrix(shape))
-
-    @pytest.mark.skip
-    def test_transpose(self, shape):
-        length = functools.reduce(operator.mul, shape)
-        a = Matrix(shape, range(length))
-        assert a == a.t.t
-        assert a.shape == a.t.shape[::-1]
-        for i, j in itertools.product(range(a.shape[0]), range(a.shape[1])):
-            assert a[i, j] == a.t[j, i]
 
     @pytest.mark.skip
     def test_from_iterable(self):

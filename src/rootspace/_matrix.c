@@ -26,23 +26,26 @@ int is_close(double a, double b, double rel_tol, double abs_tol) {
     return (((diff <= rel_tol * fabs(b)) || (diff <= rel_tol * fabs(a))) || (diff < abs_tol));
 }
 
-Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed) {
+Matrix* Matrix_NewInternalShallow(Py_ssize_t N, Py_ssize_t M, int transposed, MatrixContainer* container) {
     Matrix* matrix = PyObject_New(Matrix, &MatrixType);
     if (matrix == NULL) {
         return NULL;
     }
 
-    matrix->container = MatrixContainer_NewInternal(N * M);
-    if (matrix->container == NULL) {
-        Py_DECREF(matrix);
-        return NULL;
-    }
-
+    matrix->container = container;
     matrix->N = N;
     matrix->M = M;
     matrix->transposed = transposed;
 
     return matrix;
+}
+
+Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed) {
+    MatrixContainer* container = MatrixContainer_NewInternal(N * M);
+    if (container == NULL) {
+        return NULL;
+    }
+    return Matrix_NewInternalShallow(N, M, transposed, container);
 }
 
 static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
@@ -1537,6 +1540,15 @@ static PyObject* Matrix_GetShape(Matrix* self, void* closure) {
     return Py_BuildValue("(nn)", Matrix_SHAPE_I(self), Matrix_SHAPE_J(self));
 }
 
+static PyObject* Matrix_GetTransposed(Matrix* self, void* closure) {
+    Py_INCREF(self->container);
+    Matrix* transposed = Matrix_NewInternalShallow(self->N, self->M, !self->transposed, self->container);
+    if (transposed == NULL) {
+        Py_DECREF(self->container);
+    }
+    return (PyObject*) transposed;
+}
+
 static PyNumberMethods Matrix_AsNumber = {
     (binaryfunc) Matrix_Add,
     (binaryfunc) Matrix_Subtract,
@@ -1593,6 +1605,7 @@ static PyMethodDef Matrix_Methods[] = {
 
 static PyGetSetDef Matrix_GetSetters[] = {
     {"shape", (getter) Matrix_GetShape, NULL, "Return the shape of the matrix as a 2-tuple.", NULL},
+    {"t", (getter) Matrix_GetTransposed, NULL, "Return the transposed of the matrix.", NULL},
     {NULL}
 };
 
