@@ -1542,12 +1542,10 @@ static PyObject* Matrix_Norm(Matrix* self, PyObject* args, PyObject* kwargs) {
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|d", kwlist, &p)) {
         return NULL;
     }
-
     if (p == 0.0) {
         PyErr_SetString(PyExc_ValueError, "The parameter 'p' must be non-zero.");
         return NULL;
     }
-
     double temp = 0.0;
     for (Py_ssize_t i = 0; i < Matrix_SIZE(self); i++) {
         temp += pow(fabs(Matrix_DATA(self)[i]), p);
