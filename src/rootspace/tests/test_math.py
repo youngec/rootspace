@@ -310,6 +310,9 @@ class TestMatrix(object):
             with pytest.raises(ValueError):
                 Matrix(shape).cross(Matrix(shape))
 
+    def test_to_bytes(self, ):
+        assert Matrix((2, 3), (0, 1, 2, 3, 4, 5)).to_bytes() == b'\x00\x00\x00\x00\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@\x00\x00\xa0@'
+
     def test_identity(self):
         for d in range(1, 5):
             assert Matrix.identity(d) == Matrix((d, d), [1 if i in range(0, d * d, d + 1) else 0 for i in range(d * d)])
