@@ -346,6 +346,15 @@ class TestMatrix(object):
             0, 0, -1, 0
         ))
 
+    def test_ex(self):
+        assert Matrix.ex() == Matrix((3, 1), (1, 0, 0))
+
+    def test_ey(self):
+        assert Matrix.ey() == Matrix((3, 1), (0, 1, 0))
+
+    def test_ez(self):
+        assert Matrix.ez() == Matrix((3, 1), (0, 0, 1))
+
     @pytest.mark.skip
     def test_from_iterable(self):
         data = (
