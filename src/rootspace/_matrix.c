@@ -1629,6 +1629,25 @@ static PyObject* Matrix_Translation(PyTypeObject* cls, PyObject* args) {
     return (PyObject*) self;
 }
 
+static PyObject* Matrix_Scaling(PyTypeObject* cls, PyObject* args) {
+    double sx = 1.0;
+    double sy = 1.0;
+    double sz = 1.0;
+    if (!PyArg_ParseTuple(args, "ddd", &sx, &sy, &sz)) {
+        return NULL;
+    }
+    Matrix* self = Matrix_IdentityInternal(4);
+    if (self == NULL) {
+        return NULL;
+    }
+
+    Matrix_DATA(self)[0] = (MatrixDataType) sx;
+    Matrix_DATA(self)[5] = (MatrixDataType) sy;
+    Matrix_DATA(self)[10] = (MatrixDataType) sz;
+
+    return (PyObject*) self;
+}
+
 static PyObject* Matrix_GetShape(Matrix* self, void* closure) {
     return Py_BuildValue("(nn)", Matrix_SHAPE_I(self), Matrix_SHAPE_J(self));
 }
@@ -1697,6 +1716,7 @@ static PyMethodDef Matrix_Methods[] = {
     {"cross", (PyCFunction) Matrix_Cross, METH_VARARGS, "Calculate the cross product of two vectors."},
     {"identity", (PyCFunction) Matrix_Identity, METH_VARARGS | METH_CLASS, "Create an identity matrix."},
     {"translation", (PyCFunction) Matrix_Translation, METH_VARARGS | METH_CLASS, "Create a translation matrix."},
+    {"scaling", (PyCFunction) Matrix_Scaling, METH_VARARGS | METH_CLASS, "Create a scaling matrix."},
     {NULL, NULL, 0, NULL}
 };
 

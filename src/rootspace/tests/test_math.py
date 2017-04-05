@@ -322,40 +322,6 @@ class TestMatrix(object):
             0, 0, 0, 1
         ))
 
-    @pytest.mark.skip
-    def test_rotation_x(self):
-        c = math.cos(math.pi)
-        s = math.sin(math.pi)
-        assert Matrix.rotation_x(math.pi) == Matrix((4, 4), (
-            1, 0, 0, 0,
-            0, c, -s, 0,
-            0, s, c, 0,
-            0, 0, 0, 1
-        ))
-
-    @pytest.mark.skip
-    def test_rotation_y(self):
-        c = math.cos(math.pi)
-        s = math.sin(math.pi)
-        assert Matrix.rotation_y(math.pi) == Matrix((4, 4), (
-            c, 0, s, 0,
-            0, 1, 0, 0,
-            -s, 0, c, 0,
-            0, 0, 0, 1
-        ))
-
-    @pytest.mark.skip
-    def test_rotation_z(self):
-        c = math.cos(math.pi)
-        s = math.sin(math.pi)
-        assert Matrix.rotation_z(math.pi) == Matrix((4, 4), (
-            c, -s, 0, 0,
-            s, c, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-        ))
-
-    @pytest.mark.skip
     def test_scaling(self):
         assert Matrix.scaling(2, 2, 2) == Matrix((4, 4), (
             2, 0, 0, 0,
