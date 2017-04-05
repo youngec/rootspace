@@ -1580,11 +1580,30 @@ static PyObject* Matrix_Cross(Matrix* self, PyObject* args) {
         Matrix_DATA(result)[1] = s2 * o0 - s0 * o2;
         Matrix_DATA(result)[2] = s0 * o1 - s1 * o0;
 
-        return result;
+        return (PyObject*) result;
     } else {
         PyErr_SetString(PyExc_ValueError, "Expected a vector with three dimensions.");
         return NULL;
     }
+}
+
+static PyObject* Matrix_Identity(PyTypeObject* cls, PyObject* args) {
+    Py_ssize_t d = 1;
+    if (!PyArg_ParseTuple(args, "n", &d)) {
+        return NULL;
+    }
+    Matrix* self = Matrix_NewInternal(d, d, 0);
+    if (self == NULL) {
+        return NULL;
+    }
+    for (Py_ssize_t i = 0; i < Matrix_SIZE(self); i++) {
+        if (i == ((d + 1) * (i % d))) {
+            Matrix_DATA(self)[i] = 1.0;
+        } else {
+            Matrix_DATA(self)[i] = 0.0;
+        }
+    }
+    return (PyObject*) self;
 }
 
 static PyObject* Matrix_GetShape(Matrix* self, void* closure) {
@@ -1650,9 +1669,10 @@ static PyMappingMethods Matrix_AsMapping = {
 };
 
 static PyMethodDef Matrix_Methods[] = {
-    {"all_close", (ternaryfunc) Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
-    {"norm", (ternaryfunc) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
-    {"cross", (binaryfunc) Matrix_Cross, METH_VARARGS, "Calculate the cross product of two vectors."},
+    {"all_close", (PyCFunction) Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
+    {"norm", (PyCFunction) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
+    {"cross", (PyCFunction) Matrix_Cross, METH_VARARGS, "Calculate the cross product of two vectors."},
+    {"identity", (PyCFunction) Matrix_Identity, METH_VARARGS | METH_CLASS, "Create an identity matrix."},
     {NULL, NULL, 0, NULL}
 };
 

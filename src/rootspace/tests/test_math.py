@@ -310,6 +310,10 @@ class TestMatrix(object):
             with pytest.raises(ValueError):
                 Matrix(shape).cross(Matrix(shape))
 
+    def test_identity(self):
+        for d in range(1, 5):
+            assert Matrix.identity(d) == Matrix((d, d), [1 if i in range(0, d * d, d + 1) else 0 for i in range(d * d)])
+
     @pytest.mark.skip
     def test_from_iterable(self):
         data = (
@@ -332,16 +336,6 @@ class TestMatrix(object):
 
         with pytest.raises(ValueError):
             Matrix.from_iterable(data)
-
-    @pytest.mark.skip
-    def test_identity(self):
-        assert Matrix.identity(4) == Matrix((4, 4))
-        assert Matrix.identity(4) == Matrix((4, 4), (
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-        ))
 
     @pytest.mark.skip
     def test_zeros(self):
