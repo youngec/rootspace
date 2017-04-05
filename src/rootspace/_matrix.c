@@ -1764,6 +1764,16 @@ static PyObject* Matrix_GetTransposed(Matrix* self, void* closure) {
     return (PyObject*) transposed;
 }
 
+static PyObject* Matrix_Is3dVector(Matrix*self, void* closure) {
+    if ((self->N == 3 && self->M == 1) || (self->N == 1 && self->M == 3)) {
+        Py_INCREF(Py_True);
+        return Py_True;
+    } else {
+        Py_INCREF(Py_False);
+        return Py_False;
+    }
+}
+
 static PyNumberMethods Matrix_AsNumber = {
     (binaryfunc) Matrix_Add,
     (binaryfunc) Matrix_Subtract,
@@ -1832,6 +1842,7 @@ static PyMethodDef Matrix_Methods[] = {
 static PyGetSetDef Matrix_GetSetters[] = {
     {"shape", (getter) Matrix_GetShape, NULL, "Return the shape of the matrix as a 2-tuple.", NULL},
     {"t", (getter) Matrix_GetTransposed, NULL, "Return the transposed of the matrix.", NULL},
+    {"is_3d_vector", (getter) Matrix_Is3dVector, NULL, "Return True if the Matrix is a 3D vector.", NULL},
     {NULL}
 };
 

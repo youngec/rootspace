@@ -290,6 +290,12 @@ class TestMatrix(object):
         for i, j in itertools.product(range(a.shape[0]), range(a.shape[1])):
             assert a[i, j] == a.t[j, i]
 
+    def test_is_3d_vector(self, shape):
+        if shape == (3, 1) or shape == (1, 3):
+            assert Matrix(shape).is_3d_vector is True
+        else:
+            assert Matrix(shape).is_3d_vector is False
+
     def test_norm(self, shape):
         for p in range(1, 3):
             assert Matrix(shape, 1).norm(p) == math.pow(sum(functools.reduce(operator.mul, shape) * [math.pow(abs(1), p)]), 1/p)
