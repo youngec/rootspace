@@ -272,7 +272,7 @@ class OpenGlProgram(object):
         loc = self.uniform_location(name)
         if isinstance(value, Matrix):
             if value.shape == (4, 4):
-                gl.glUniformMatrix4fv(loc, 1, True, bytes(value))
+                gl.glUniformMatrix4fv(loc, 1, True, value.to_bytes())
             else:
                 raise NotImplementedError("Cannot set any other matrix shapes yet.")
         elif isinstance(value, int):

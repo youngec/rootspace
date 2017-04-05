@@ -1602,6 +1602,15 @@ static PyObject* Matrix_Cross(Matrix* self, PyObject* args) {
     }
 }
 
+static PyObject* Matrix_ToBytes(Matrix* self, PyObject* args) {
+    if (Matrix_SIZE(self) < (PY_SSIZE_T_MAX / (&MatrixContainerType)->tp_itemsize)) {
+        return PyBytes_FromStringAndSize(self->container->data, Matrix_SIZE(self) * (&MatrixContainerType)->tp_itemsize);
+    } else {
+        PyErr_SetNone(PyExc_MemoryError);
+        return NULL;
+    }
+}
+
 static PyObject* Matrix_Identity(PyTypeObject* cls, PyObject* args) {
     Py_ssize_t d = 1;
     if (!PyArg_ParseTuple(args, "n", &d)) {
@@ -1808,6 +1817,7 @@ static PyMethodDef Matrix_Methods[] = {
     {"all_close", (PyCFunction) Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
     {"norm", (PyCFunction) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
     {"cross", (PyCFunction) Matrix_Cross, METH_VARARGS, "Calculate the cross product of two vectors."},
+    {"to_bytes", (PyCFunction) Matrix_ToBytes, METH_NOARGS, "Return a bytes representation of the matrix."},
     {"identity", (PyCFunction) Matrix_Identity, METH_VARARGS | METH_CLASS, "Create an identity matrix."},
     {"translation", (PyCFunction) Matrix_Translation, METH_VARARGS | METH_CLASS, "Create a translation matrix."},
     {"scaling", (PyCFunction) Matrix_Scaling, METH_VARARGS | METH_CLASS, "Create a scaling matrix."},

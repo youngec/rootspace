@@ -10,842 +10,843 @@ from typing import Any, Union, Tuple, Iterable, Sequence, Optional
 from numbers import Real
 
 from .utilities import get_sub_shape, linearize_indices
-
-
-class Matrix(object):
-    """
-    The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
-    """
-
-    @classmethod
-    def from_iterable(cls, data: Sequence[Union[Real, Sequence[Real]]]) -> "Matrix":
-        """
-        Return a matrix from a collection with shape information.
-
-        :param data:
-        :return:
-        """
-        if isinstance(data, collections.abc.Sequence):
-            if all(isinstance(row, Real) for row in data):
-                return Matrix((len(data), 1), data)
-            elif all(isinstance(row, collections.abc.Sequence) for row in data):
-                if functools.reduce(operator.eq, (len(row) for row in data)):
-                    shape = (len(data), len(data[0]))
-                    return Matrix(shape, (column for row in data for column in row))
-                else:
-                    raise ValueError("Elements of data do not have the same length.")
-            else:
-                raise TypeError("Expected integers, floats or collections as elements of data.")
-        else:
-            raise TypeError("Expected a collection, got '{}'.".format(data))
-
-    @classmethod
-    def identity(cls, d: int) -> "Matrix":
-        """
-        Return an identity matrix of shape d x d.
-
-        :param d:
-        :return:
-        """
-        return cls((d, d))
-
-    @classmethod
-    def zeros(cls, shape: Union[int, Tuple[int, ...]]) -> "Matrix":
-        """
-        Create a matrix with zeros.
-
-        :param shape:
-        :return:
-        """
-        if isinstance(shape, int):
-            return Matrix((shape, 1), 0)
-        elif isinstance(shape, tuple):
-            return Matrix(shape, 0)
-        else:
-            raise TypeError("Expected an integer or a tuple of integers.")
-
-    @classmethod
-    def ones(cls, shape: Union[int, Tuple[int, ...]]) -> "Matrix":
-        """
-        Create a matrix with ones.
-
-        :param shape:
-        :return:
-        """
-        if isinstance(shape, int):
-            return Matrix((shape, 1), 1)
-        elif isinstance(shape, tuple):
-            return Matrix(shape, 1)
-        else:
-            raise TypeError("Expected an integer or a tuple of integers.")
-
-    @classmethod
-    def translation(cls, t_x: Real, t_y: Real, t_z: Real) -> "Matrix":
-        """
-        Return an affine translation Matrix.
-
-        :param t_x:
-        :param t_y:
-        :param t_z:
-        :return:
-        """
-        return cls((4, 4), (
-            1, 0, 0, t_x,
-            0, 1, 0, t_y,
-            0, 0, 1, t_z,
-            0, 0, 0, 1
-        ))
-
-    @classmethod
-    def rotation_x(cls, angle: Real) -> "Matrix":
-        """
-        Return an affine rotation matrix about the x-axis.
-
-        :param angle:
-        :return:
-        """
-        c = math.cos(angle)
-        s = math.sin(angle)
-        return cls((4, 4), (
-            1, 0, 0, 0,
-            0, c, -s, 0,
-            0, s, c, 0,
-            0, 0, 0, 1
-        ))
-
-    @classmethod
-    def rotation_y(cls, angle: Real) -> "Matrix":
-        """
-        Return an affine rotation matrix about the y-axis.
-
-        :param angle:
-        :return:
-        """
-        c = math.cos(angle)
-        s = math.sin(angle)
-        return cls((4, 4), (
-            c, 0, s, 0,
-            0, 1, 0, 0,
-            -s, 0, c, 0,
-            0, 0, 0, 1
-        ))
-
-    @classmethod
-    def rotation_z(cls, angle: Real) -> "Matrix":
-        """
-        Return an affine rotation matrix about the z-axis.
-
-        :param angle:
-        :return:
-        """
-        c = math.cos(angle)
-        s = math.sin(angle)
-        return cls((4, 4), (
-            c, -s, 0, 0,
-            s, c, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-        ))
-
-    @classmethod
-    def scaling(cls, s_x: Real, s_y: Real, s_z: Real) -> "Matrix":
-        """
-        Return an affine scaling matrix.
-
-        :param s_x:
-        :param s_y:
-        :param s_z:
-        :return:
-        """
-        return cls((4, 4), (
-            s_x, 0, 0, 0,
-            0, s_y, 0, 0,
-            0, 0, s_z, 0,
-            0, 0, 0, 1
-        ))
-
-    @classmethod
-    def shearing(cls, s: Real, i: int, j: int) -> "Matrix":
-        """
-        Return an affine shearing matrix.
-
-        :param s:
-        :param i:
-        :param j:
-        :return:
-        """
-        h = cls.identity(4)
-        h[i, j] = s
-        return h
-
-    @classmethod
-    def orthographic(cls, left: Real, right: Real,
-                     bottom: Real, top: Real,
-                     near: Real, far: Real) -> "Matrix":
-        """
-        Create an orthographic projection matrix.
-
-        :param left:
-        :param right:
-        :param bottom:
-        :param top:
-        :param near:
-        :param far:
-        :return:
-        """
-        l = left
-        r = right
-        b = bottom
-        t = top
-        n = near
-        f = far
-
-        return cls((4, 4), (
-            2 / (r - l), 0, 0, -(r + l) / (r - l),
-            0, 2 / (t - b), 0, -(t + b) / (t - b),
-            0, 0, -2 / (f - n), -(f + n) / (f - n),
-            0, 0, 0, 1
-        ))
-
-    @classmethod
-    def perspective(cls, field_of_view: Real, viewport_ratio: Real,
-                    near: Real, far: Real) -> "Matrix":
-        """
-        Create a perspective projection matrix.
-
-        :param field_of_view:
-        :param viewport_ratio:
-        :param near:
-        :param far:
-        :return:
-        """
-        y_scale = 1 / math.tan(field_of_view / 2)
-        x_scale = y_scale / viewport_ratio
-        z_sum = near + far
-        z_diff = near - far
-        z_prod = near * far
-
-        return cls((4, 4), (
-            x_scale, 0, 0, 0,
-            0, y_scale, 0, 0,
-            0, 0, z_sum / z_diff, 2 * z_prod / z_diff,
-            0, 0, -1, 0
-        ))
-
-    @property
-    def is_scalar(self) -> bool:
-        return len(self) == 1
-
-    @classmethod
-    def ex(cls):
-        return cls((3, 1), (1, 0, 0))
-
-    @classmethod
-    def ey(cls):
-        return cls((3, 1), (0, 1, 0))
-
-    @classmethod
-    def ez(cls):
-        return cls((3, 1), (0, 0, 1))
-
-    @property
-    def shape(self) -> Tuple[int, ...]:
-        return self._shape if not self._transposed else self._shape[::-1]
-
-    @property
-    def data(self) -> array.ArrayType:
-        return self._data
-
-    @property
-    def is_square(self) -> bool:
-        return functools.reduce(operator.eq, self.shape)
-
-    @property
-    def is_vector(self) -> bool:
-        return len([None for s in self.shape if s > 1]) == 1
-
-    @property
-    def is_column_vector(self) -> bool:
-        return self.is_vector and self.shape[0] > 1
-
-    @property
-    def is_row_vector(self) -> bool:
-        return self.is_vector and self.shape[0] == 1
-
-    @property
-    def is_4d_vector(self) -> bool:
-        return self.is_vector and self.shape == (4, 1) or self.shape == (1, 4)
-
-    @property
-    def is_3d_vector(self) -> bool:
-        return self.is_vector and self.shape == (3, 1) or self.shape == (1, 3)
-
-    @property
-    def t(self) -> "Matrix":
-        return Matrix(self._shape, self.data, transposed=(not self._transposed))
-
-    def is_close(self, other: Union["Matrix", Real],
-                 rel_tol: Real = 1e-05, abs_tol: Real = 1e-08) -> "Matrix":
-        """
-        Perform an element-wise approximate equality comparison.
-
-        :param other:
-        :param rel_tol:
-        :param abs_tol:
-        :raise TypeError:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            if self.shape == other.shape:
-                result = Matrix(self.shape, 0, data_type="B")
-                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                    result[i, j] = math.isclose(self[i, j], other[i, j], rel_tol=rel_tol, abs_tol=abs_tol)
-                return result
-            else:
-                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
-        elif isinstance(other, (int, float)):
-            result = Matrix(self.shape, 0, data_type="B")
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = math.isclose(self[i, j], other, rel_tol=rel_tol, abs_tol=abs_tol)
-            return result
-        else:
-            return NotImplemented
-
-    def all_close(self, other: Any, rel_tol: Real = 1e-05, abs_tol: Real = 1e-08) -> bool:
-        """
-        Return True if all elements compare approximately equal, False otherwise.
-
-        :param other:
-        :param rel_tol:
-        :param abs_tol:
-        :return:
-        """
-        return all(self.is_close(other, rel_tol, abs_tol))
-
-    def determinant(self) -> float:
-        """
-        Calculate the determinant.
-
-        :raise NotImplementedError:
-        :raise ValueError:
-        :return:
-        """
-
-        def det2(a):
-            return a[0, 0] * a[1, 1] - a[0, 1] * a[1, 0]
-
-        def det3(a):
-            return a[0, 0] * det2(a[1:3, 1:3]) - \
-                   a[0, 1] * det2(a[1:3, 0:3:2]) + \
-                   a[0, 2] * det2(a[1:3, 0:2])
-
-        def det4(a):
-            return a[0, 0] * det3(a[1:4, 1:4]) - \
-                   a[0, 1] * det3(a[1:4, (0, 2, 3)]) + \
-                   a[0, 2] * det3(a[1:4, (0, 1, 3)]) - \
-                   a[0, 3] * det3(a[1:4, 0:3])
-
-        if self.is_square and not self.is_scalar:
-            if self.shape[0] == 2:
-                return det2(self)
-            elif self.shape[0] == 3:
-                return det3(self)
-            elif self.shape[0] == 4:
-                return det4(self)
-            else:
-                raise NotImplementedError("Cannot calculate the determinant for dimensions larger than 4x4.")
-        else:
-            raise ValueError("The determinant is not defined for non-square matrices or scalar matrices.")
-
-    def norm(self, p: int = 2) -> float:
-        """
-        Calculate the norm of the Matrix.
-
-        :param p:
-        :return:
-        """
-        return math.pow(sum(math.pow(abs(d), p) for d in self), 1 / p)
-
-    def cross(self, other: "Matrix") -> "Matrix":
-        """
-        Calculate the cross-product of two vectors.
-
-        :param other:
-        :raise ValueError:
-        :raise TypeError:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            if self.is_3d_vector and other.is_3d_vector:
-                s = self
-                if self.is_row_vector:
-                    s = self.t
-
-                o = other
-                if self.is_row_vector:
-                    o = other.t
-
-                return Matrix(self.shape, (
-                    s[1] * o[2] - s[2] * o[1],
-                    s[2] * o[0] - s[0] * o[2],
-                    s[0] * o[1] - s[1] * o[0]
-                ))
-            else:
-                raise ValueError("Expected a vector with three dimensions, got '{}'.".format(other))
-        else:
-            raise TypeError("unsupported operand type(s) for cross() '{}' and '{}'".format(type(self), type(other)))
-
-    def __init__(self,
-                 shape: Tuple[int, ...],
-                 data: Optional[Union[Iterable[Real], Real]] = None,
-                 data_type: str = "f",
-                 transposed: bool = False
-                 ):
-        """
-        Create a Matrix instance from a shape and either an iterable, a scalar number, or no arguments.
-        Using only the shape creates an identity matrix if the shape is square.
-
-        :param shape:
-        :param data:
-        :param data_type:
-        :param transposed:
-        """
-        self._transposed = transposed
-
-        # Set the shape of the matrix
-        if isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(s, int) and s > 0 for s in shape):
-            self._shape = shape
-        else:
-            raise ValueError("The parameter 'shape' must be a 2-tuple of positive integers.")
-
-        # Set the matrix data
-        length = shape[0] * shape[1]
-        if data is not None:
-            if isinstance(data, array.ArrayType):
-                self._data = data
-                if len(self._data) != length:
-                    raise ValueError("Expected an ArrayType of length '{}', got '{}'.".format(length, len(self._data)))
-            elif isinstance(data, collections.abc.Iterable):
-                self._data = array.array(data_type, data)
-                if len(self._data) != length:
-                    raise ValueError("Expected an iterable of length '{}', got '{}'.".format(length, len(self._data)))
-            elif isinstance(data, (int, float)):
-                self._data = array.array(data_type, length * [data])
-            else:
-                raise TypeError("Expected either an ArrayType, an iterable or a scalar number as positional argument.")
-        else:
-            if shape[0] == shape[1]:
-                self._data = array.array(data_type,
-                                         (1 if i in range(0, length, shape[0] + 1) else 0 for i in range(length)))
-            else:
-                self._data = array.array(data_type, (0 for _ in range(length)))
-
-    def __str__(self) -> str:
-        """
-        Return a human-readable representation.
-
-        :return:
-        """
-        lines = list()
-        for i in range(self.shape[0]):
-            d = self[i, :]
-            if isinstance(d, Matrix):
-                lines.append("[{}]".format(", ".join("{:.2e}".format(e) for e in d)))
-            else:
-                lines.append("[{}]".format(d))
-
-        return "[{}]".format("; ".join(lines))
-
-    def __repr__(self) -> str:
-        """
-        Return a eval-compatible representation.
-
-        :return:
-        """
-        return "{}({}, ({}), data_type={}, transposed={})".format(
-            self.__class__.__name__, self._shape, ", ".join("{:e}".format(e) for e in self),
-            self._data.typecode, self._transposed
-        )
-
-    def __bytes__(self) -> bytes:
-        """
-        Return a bytes representation of the matrix.
-
-        :return:
-        """
-        return self._data.tobytes()
-
-    def __len__(self) -> int:
-        """
-        Return the number of matrix elements.
-
-        :return:
-        """
-        return functools.reduce(operator.mul, self._shape)
-
-    def __iter__(self):
-        """
-        Provide an iterator interface.
-
-        :return:
-        """
-        for d in self._data:
-            yield d
-
-    def __reversed__(self):
-        """
-        Provide a reverse iterator.
-
-        :return:
-        """
-        for d in reversed(self._data):
-            yield d
-
-    def __contains__(self, item: Any) -> bool:
-        """
-        Provide the contains interface.
-
-        :param item:
-        :return:
-        """
-        return item in self._data
-
-    def __getitem__(self, key: Union[int, slice, Tuple[Union[int, slice, Tuple[int, ...]], ...]]) -> Union["Matrix", int]:
-        """
-        Provide angle-bracket element access to the matrix.
-
-        :param key:
-        :raise TypeError:
-        :return:
-        """
-        if isinstance(key, (int, slice)):
-            # noinspection PyTypeChecker
-            key = (key, slice(None))
-        elif isinstance(key, tuple):
-            if len(key) == 1:
-                # noinspection PyTypeChecker
-                key = (key[0], slice(None))
-
-        if isinstance(key, tuple):
-            # Flip the keys if the matrix is transposed
-            key = key if not self._transposed else key[::-1]
-
-            # Calculate the shape of the resulting sub-matrix
-            sub_shape = get_sub_shape(self._shape, key)
-
-            # Calculate the linear indices into the super-matrix.
-            sub_idx = linearize_indices(self._shape, key)
-
-            if len(sub_idx) == 1:
-                return self._data[sub_idx[0]]
-            else:
-                return Matrix(sub_shape, (self._data[i] for i in sub_idx))
-        else:
-            raise TypeError("Expected indices of type int, slice or tuple.")
-
-    def __setitem__(self, key: Union[int, slice, Tuple[Union[int, slice, Tuple[int, ...]], ...]],
-                    value: Union[Real, "Matrix", Sequence[Real]]):
-        """
-        Provide angle-bracket element setting to the matrix.
-
-        :param key:
-        :param value:
-        :raise ValueError:
-        :raise TypeError:
-        :return:
-        """
-        if isinstance(key, (int, slice)):
-            # noinspection PyTypeChecker
-            key = (key, slice(None))
-        elif isinstance(key, tuple) and len(key) == 1:
-            # noinspection PyTypeChecker
-            key = (key[0], slice(None))
-
-        if isinstance(key, tuple):
-            # Flip the keys if the matrix is transposed
-            key = key if not self._transposed else key[::-1]
-
-            # Calculate the shape of the resulting sub-matrix
-            sub_shape = get_sub_shape(self._shape, key)
-
-            # Calculate the linear indices into the super-matrix.
-            sub_idx = linearize_indices(self._shape, key)
-
-            if isinstance(value, Matrix) and value.shape == sub_shape:
-                for j, i in enumerate(sub_idx):
-                    self._data[i] = value.data[j]
-            elif isinstance(value, collections.abc.Sequence) and len(value) == functools.reduce(operator.mul,
-                                                                                                sub_shape):
-                for j, i in enumerate(sub_idx):
-                    self._data[i] = value[j]
-            elif isinstance(value, (int, float)):
-                for i in sub_idx:
-                    self._data[i] = value
-            else:
-                raise ValueError("The shape/length of the value must equal the shape/length of the indexed range.")
-        else:
-            raise TypeError("Expected indices of type int, slice or tuple, not '{}'.".format(type(key)))
-
-    def __lt__(self, other: Union["Matrix", Real]) -> bool:
-        """
-        Implement the element-wise less than operation.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            return self.shape == other.shape and all(s < o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return all(s < other for s in self)
-        else:
-            return NotImplemented
-
-    def __le__(self, other: Union["Matrix", Real]) -> bool:
-        """
-        Implement the element-wise less than or equal to operation.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            return self.shape == other.shape and all(s <= o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return all(s <= other for s in self)
-        else:
-            return NotImplemented
-
-    def __eq__(self, other: Union["Matrix", Real]) -> bool:
-        """
-        Return True if all elements of two matrices compare equal.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            return self.shape == other.shape and all(s == o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return all(s == other for s in self)
-        else:
-            return NotImplemented
-
-    def __gt__(self, other: Union["Matrix", Real]) -> bool:
-        """
-        Implement the element-wise greater than operation.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            return self.shape == other.shape and all(s > o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return all(s > other for s in self)
-        else:
-            return NotImplemented
-
-    def __ge__(self, other: Union["Matrix", Real]) -> bool:
-        """
-        Implement the element-wise greater than or equal to operation.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            return self.shape == other.shape and all(s >= o for s, o in zip(self, other))
-        elif isinstance(other, (int, float)):
-            return all(s >= other for s in self)
-        else:
-            return NotImplemented
-
-    def __neg__(self) -> "Matrix":
-        """
-        Perform an element-wise negation.
-
-        :return:
-        """
-        result = Matrix(self.shape, 0)
-        for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-            result[i, j] = -self[i, j]
-        return result
-
-    def __pos__(self) -> "Matrix":
-        """
-        Perform an element-wise positive unary operation.
-
-        :return:
-        """
-        result = Matrix(self.shape, 0)
-        for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-            result[i, j] = +self[i, j]
-        return result
-
-    def __abs__(self) -> "Matrix":
-        """
-        Perform the abs() unary operation.
-
-        :return:
-        """
-        result = Matrix(self.shape, 0)
-        for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-            result[i, j] = abs(self[i, j])
-        return result
-
-    def __add__(self, other: Union["Matrix", Real]) -> "Matrix":
-        """
-        Perform a left-sided element-wise addition.
-
-        :param other:
-        :raise ValueError:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            if self.shape == other.shape:
-                result = Matrix(self.shape, 0)
-                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                    result[i, j] = self[i, j] + other[i, j]
-                return result
-            else:
-                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
-        elif isinstance(other, (int, float)):
-            result = Matrix(self.shape, 0)
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = self[i, j] + other
-            return result
-        else:
-            return NotImplemented
-
-    def __radd__(self, other: Union["Matrix", Real]) -> "Matrix":
-        """
-        Perform a right-sided element-wise addition. Equivalent to __add__.
-
-        :param other:
-        :return:
-        """
-        return self + other
-
-    def __sub__(self, other: Union["Matrix", Real]) -> "Matrix":
-        """
-        Perform a left-sided element-wise subtraction.
-
-        :param other:
-        :return:
-        """
-        return self + -other
-
-    def __rsub__(self, other: Union["Matrix", Real]) -> "Matrix":
-        """
-        Perform a right-sided element-wise subtraction.
-
-        :param other:
-        :return:
-        """
-        return other + -self
-
-    def __mul__(self, other: Union["Matrix", Real]) -> "Matrix":
-        """
-        Perform a left-sided element-wise multiplication.
-
-        :param other:
-        :raise ValueError:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            if self.shape == other.shape:
-                result = Matrix(self.shape, 0)
-                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                    result[i, j] = self[i, j] * other[i, j]
-                return result
-            else:
-                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
-        elif isinstance(other, (int, float)):
-            result = Matrix(self.shape, 0)
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = self[i, j] * other
-            return result
-        else:
-            return NotImplemented
-
-    def __rmul__(self, other: Union["Matrix", Real]) -> "Matrix":
-        """
-        Perform a right-sided element-wise multiplication. Equivalent to __mul__.
-
-        :param other:
-        :return:
-        """
-        return self * other
-
-    def __truediv__(self, other: Union["Matrix", Real]) -> "Matrix":
-        """
-        Perform a left-sided element-wise division.
-
-        :param other:
-        :raise ValueError:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            if self.shape == other.shape:
-                result = Matrix(self.shape, 0)
-                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                    result[i, j] = self[i, j] / other[i, j]
-                return result
-            else:
-                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
-        elif isinstance(other, (int, float)):
-            result = Matrix(self.shape, 0)
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = self[i, j] / other
-            return result
-        else:
-            return NotImplemented
-
-    def __rtruediv__(self, other: Union["Matrix", Real]) -> "Matrix":
-        """
-        Perform a right-sided element wise division.
-
-        :param other:
-        :raise ValueError:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            if self.shape == other.shape:
-                result = Matrix(self.shape, 0)
-                for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                    result[i, j] = other[i, j] / self[i, j]
-                return result
-            else:
-                raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
-        elif isinstance(other, (int, float)):
-            result = Matrix(self.shape, 0)
-            for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                result[i, j] = other / self[i, j]
-            return result
-        else:
-            return NotImplemented
-
-    def __matmul__(self, other: "Matrix") -> "Matrix":
-        """
-        Perform a left-sided matrix multiplication.
-
-        :param other:
-        :raise ValueError:
-        :return:
-        """
-        if isinstance(other, Matrix):
-            if self.shape[-1] == other.shape[0] and self.shape[-1] > 1:
-                result_shape = self.shape[:-1] + other.shape[1:]
-                if result_shape == (1, 1):
-                    return sum(a * b for a, b in zip(self, other))
-                else:
-                    result = Matrix(result_shape, 0)
-                    for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
-                        result[i, j] = sum(a * b for a, b in zip(self[i, :], other[:, j]))
-
-                    return result
-            else:
-                raise ValueError(
-                    "Last dimension of '{}' and first dimension of '{}' do not match or are 1.".format(self.shape,
-                                                                                                       other.shape))
-        else:
-            return NotImplemented
+from ._math import Matrix
+
+
+# class Matrix(object):
+#     """
+#     The base class for Matrices of real numbers. The internal data structure uses row-major ordering.
+#     """
+#
+#     @classmethod
+#     def from_iterable(cls, data: Sequence[Union[Real, Sequence[Real]]]) -> "Matrix":
+#         """
+#         Return a matrix from a collection with shape information.
+#
+#         :param data:
+#         :return:
+#         """
+#         if isinstance(data, collections.abc.Sequence):
+#             if all(isinstance(row, Real) for row in data):
+#                 return Matrix((len(data), 1), data)
+#             elif all(isinstance(row, collections.abc.Sequence) for row in data):
+#                 if functools.reduce(operator.eq, (len(row) for row in data)):
+#                     shape = (len(data), len(data[0]))
+#                     return Matrix(shape, (column for row in data for column in row))
+#                 else:
+#                     raise ValueError("Elements of data do not have the same length.")
+#             else:
+#                 raise TypeError("Expected integers, floats or collections as elements of data.")
+#         else:
+#             raise TypeError("Expected a collection, got '{}'.".format(data))
+#
+#     @classmethod
+#     def identity(cls, d: int) -> "Matrix":
+#         """
+#         Return an identity matrix of shape d x d.
+#
+#         :param d:
+#         :return:
+#         """
+#         return cls((d, d))
+#
+#     @classmethod
+#     def zeros(cls, shape: Union[int, Tuple[int, ...]]) -> "Matrix":
+#         """
+#         Create a matrix with zeros.
+#
+#         :param shape:
+#         :return:
+#         """
+#         if isinstance(shape, int):
+#             return Matrix((shape, 1), 0)
+#         elif isinstance(shape, tuple):
+#             return Matrix(shape, 0)
+#         else:
+#             raise TypeError("Expected an integer or a tuple of integers.")
+#
+#     @classmethod
+#     def ones(cls, shape: Union[int, Tuple[int, ...]]) -> "Matrix":
+#         """
+#         Create a matrix with ones.
+#
+#         :param shape:
+#         :return:
+#         """
+#         if isinstance(shape, int):
+#             return Matrix((shape, 1), 1)
+#         elif isinstance(shape, tuple):
+#             return Matrix(shape, 1)
+#         else:
+#             raise TypeError("Expected an integer or a tuple of integers.")
+#
+#     @classmethod
+#     def translation(cls, t_x: Real, t_y: Real, t_z: Real) -> "Matrix":
+#         """
+#         Return an affine translation Matrix.
+#
+#         :param t_x:
+#         :param t_y:
+#         :param t_z:
+#         :return:
+#         """
+#         return cls((4, 4), (
+#             1, 0, 0, t_x,
+#             0, 1, 0, t_y,
+#             0, 0, 1, t_z,
+#             0, 0, 0, 1
+#         ))
+#
+#     @classmethod
+#     def rotation_x(cls, angle: Real) -> "Matrix":
+#         """
+#         Return an affine rotation matrix about the x-axis.
+#
+#         :param angle:
+#         :return:
+#         """
+#         c = math.cos(angle)
+#         s = math.sin(angle)
+#         return cls((4, 4), (
+#             1, 0, 0, 0,
+#             0, c, -s, 0,
+#             0, s, c, 0,
+#             0, 0, 0, 1
+#         ))
+#
+#     @classmethod
+#     def rotation_y(cls, angle: Real) -> "Matrix":
+#         """
+#         Return an affine rotation matrix about the y-axis.
+#
+#         :param angle:
+#         :return:
+#         """
+#         c = math.cos(angle)
+#         s = math.sin(angle)
+#         return cls((4, 4), (
+#             c, 0, s, 0,
+#             0, 1, 0, 0,
+#             -s, 0, c, 0,
+#             0, 0, 0, 1
+#         ))
+#
+#     @classmethod
+#     def rotation_z(cls, angle: Real) -> "Matrix":
+#         """
+#         Return an affine rotation matrix about the z-axis.
+#
+#         :param angle:
+#         :return:
+#         """
+#         c = math.cos(angle)
+#         s = math.sin(angle)
+#         return cls((4, 4), (
+#             c, -s, 0, 0,
+#             s, c, 0, 0,
+#             0, 0, 1, 0,
+#             0, 0, 0, 1
+#         ))
+#
+#     @classmethod
+#     def scaling(cls, s_x: Real, s_y: Real, s_z: Real) -> "Matrix":
+#         """
+#         Return an affine scaling matrix.
+#
+#         :param s_x:
+#         :param s_y:
+#         :param s_z:
+#         :return:
+#         """
+#         return cls((4, 4), (
+#             s_x, 0, 0, 0,
+#             0, s_y, 0, 0,
+#             0, 0, s_z, 0,
+#             0, 0, 0, 1
+#         ))
+#
+#     @classmethod
+#     def shearing(cls, s: Real, i: int, j: int) -> "Matrix":
+#         """
+#         Return an affine shearing matrix.
+#
+#         :param s:
+#         :param i:
+#         :param j:
+#         :return:
+#         """
+#         h = cls.identity(4)
+#         h[i, j] = s
+#         return h
+#
+#     @classmethod
+#     def orthographic(cls, left: Real, right: Real,
+#                      bottom: Real, top: Real,
+#                      near: Real, far: Real) -> "Matrix":
+#         """
+#         Create an orthographic projection matrix.
+#
+#         :param left:
+#         :param right:
+#         :param bottom:
+#         :param top:
+#         :param near:
+#         :param far:
+#         :return:
+#         """
+#         l = left
+#         r = right
+#         b = bottom
+#         t = top
+#         n = near
+#         f = far
+#
+#         return cls((4, 4), (
+#             2 / (r - l), 0, 0, -(r + l) / (r - l),
+#             0, 2 / (t - b), 0, -(t + b) / (t - b),
+#             0, 0, -2 / (f - n), -(f + n) / (f - n),
+#             0, 0, 0, 1
+#         ))
+#
+#     @classmethod
+#     def perspective(cls, field_of_view: Real, viewport_ratio: Real,
+#                     near: Real, far: Real) -> "Matrix":
+#         """
+#         Create a perspective projection matrix.
+#
+#         :param field_of_view:
+#         :param viewport_ratio:
+#         :param near:
+#         :param far:
+#         :return:
+#         """
+#         y_scale = 1 / math.tan(field_of_view / 2)
+#         x_scale = y_scale / viewport_ratio
+#         z_sum = near + far
+#         z_diff = near - far
+#         z_prod = near * far
+#
+#         return cls((4, 4), (
+#             x_scale, 0, 0, 0,
+#             0, y_scale, 0, 0,
+#             0, 0, z_sum / z_diff, 2 * z_prod / z_diff,
+#             0, 0, -1, 0
+#         ))
+#
+#     @property
+#     def is_scalar(self) -> bool:
+#         return len(self) == 1
+#
+#     @classmethod
+#     def ex(cls):
+#         return cls((3, 1), (1, 0, 0))
+#
+#     @classmethod
+#     def ey(cls):
+#         return cls((3, 1), (0, 1, 0))
+#
+#     @classmethod
+#     def ez(cls):
+#         return cls((3, 1), (0, 0, 1))
+#
+#     @property
+#     def shape(self) -> Tuple[int, ...]:
+#         return self._shape if not self._transposed else self._shape[::-1]
+#
+#     @property
+#     def data(self) -> array.ArrayType:
+#         return self._data
+#
+#     @property
+#     def is_square(self) -> bool:
+#         return functools.reduce(operator.eq, self.shape)
+#
+#     @property
+#     def is_vector(self) -> bool:
+#         return len([None for s in self.shape if s > 1]) == 1
+#
+#     @property
+#     def is_column_vector(self) -> bool:
+#         return self.is_vector and self.shape[0] > 1
+#
+#     @property
+#     def is_row_vector(self) -> bool:
+#         return self.is_vector and self.shape[0] == 1
+#
+#     @property
+#     def is_4d_vector(self) -> bool:
+#         return self.is_vector and self.shape == (4, 1) or self.shape == (1, 4)
+#
+#     @property
+#     def is_3d_vector(self) -> bool:
+#         return self.is_vector and self.shape == (3, 1) or self.shape == (1, 3)
+#
+#     @property
+#     def t(self) -> "Matrix":
+#         return Matrix(self._shape, self.data, transposed=(not self._transposed))
+#
+#     def is_close(self, other: Union["Matrix", Real],
+#                  rel_tol: Real = 1e-05, abs_tol: Real = 1e-08) -> "Matrix":
+#         """
+#         Perform an element-wise approximate equality comparison.
+#
+#         :param other:
+#         :param rel_tol:
+#         :param abs_tol:
+#         :raise TypeError:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             if self.shape == other.shape:
+#                 result = Matrix(self.shape, 0, data_type="B")
+#                 for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                     result[i, j] = math.isclose(self[i, j], other[i, j], rel_tol=rel_tol, abs_tol=abs_tol)
+#                 return result
+#             else:
+#                 raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
+#         elif isinstance(other, (int, float)):
+#             result = Matrix(self.shape, 0, data_type="B")
+#             for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                 result[i, j] = math.isclose(self[i, j], other, rel_tol=rel_tol, abs_tol=abs_tol)
+#             return result
+#         else:
+#             return NotImplemented
+#
+#     def all_close(self, other: Any, rel_tol: Real = 1e-05, abs_tol: Real = 1e-08) -> bool:
+#         """
+#         Return True if all elements compare approximately equal, False otherwise.
+#
+#         :param other:
+#         :param rel_tol:
+#         :param abs_tol:
+#         :return:
+#         """
+#         return all(self.is_close(other, rel_tol, abs_tol))
+#
+#     def determinant(self) -> float:
+#         """
+#         Calculate the determinant.
+#
+#         :raise NotImplementedError:
+#         :raise ValueError:
+#         :return:
+#         """
+#
+#         def det2(a):
+#             return a[0, 0] * a[1, 1] - a[0, 1] * a[1, 0]
+#
+#         def det3(a):
+#             return a[0, 0] * det2(a[1:3, 1:3]) - \
+#                    a[0, 1] * det2(a[1:3, 0:3:2]) + \
+#                    a[0, 2] * det2(a[1:3, 0:2])
+#
+#         def det4(a):
+#             return a[0, 0] * det3(a[1:4, 1:4]) - \
+#                    a[0, 1] * det3(a[1:4, (0, 2, 3)]) + \
+#                    a[0, 2] * det3(a[1:4, (0, 1, 3)]) - \
+#                    a[0, 3] * det3(a[1:4, 0:3])
+#
+#         if self.is_square and not self.is_scalar:
+#             if self.shape[0] == 2:
+#                 return det2(self)
+#             elif self.shape[0] == 3:
+#                 return det3(self)
+#             elif self.shape[0] == 4:
+#                 return det4(self)
+#             else:
+#                 raise NotImplementedError("Cannot calculate the determinant for dimensions larger than 4x4.")
+#         else:
+#             raise ValueError("The determinant is not defined for non-square matrices or scalar matrices.")
+#
+#     def norm(self, p: int = 2) -> float:
+#         """
+#         Calculate the norm of the Matrix.
+#
+#         :param p:
+#         :return:
+#         """
+#         return math.pow(sum(math.pow(abs(d), p) for d in self), 1 / p)
+#
+#     def cross(self, other: "Matrix") -> "Matrix":
+#         """
+#         Calculate the cross-product of two vectors.
+#
+#         :param other:
+#         :raise ValueError:
+#         :raise TypeError:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             if self.is_3d_vector and other.is_3d_vector:
+#                 s = self
+#                 if self.is_row_vector:
+#                     s = self.t
+#
+#                 o = other
+#                 if self.is_row_vector:
+#                     o = other.t
+#
+#                 return Matrix(self.shape, (
+#                     s[1] * o[2] - s[2] * o[1],
+#                     s[2] * o[0] - s[0] * o[2],
+#                     s[0] * o[1] - s[1] * o[0]
+#                 ))
+#             else:
+#                 raise ValueError("Expected a vector with three dimensions, got '{}'.".format(other))
+#         else:
+#             raise TypeError("unsupported operand type(s) for cross() '{}' and '{}'".format(type(self), type(other)))
+#
+#     def __init__(self,
+#                  shape: Tuple[int, ...],
+#                  data: Optional[Union[Iterable[Real], Real]] = None,
+#                  data_type: str = "f",
+#                  transposed: bool = False
+#                  ):
+#         """
+#         Create a Matrix instance from a shape and either an iterable, a scalar number, or no arguments.
+#         Using only the shape creates an identity matrix if the shape is square.
+#
+#         :param shape:
+#         :param data:
+#         :param data_type:
+#         :param transposed:
+#         """
+#         self._transposed = transposed
+#
+#         # Set the shape of the matrix
+#         if isinstance(shape, tuple) and len(shape) == 2 and all(isinstance(s, int) and s > 0 for s in shape):
+#             self._shape = shape
+#         else:
+#             raise ValueError("The parameter 'shape' must be a 2-tuple of positive integers.")
+#
+#         # Set the matrix data
+#         length = shape[0] * shape[1]
+#         if data is not None:
+#             if isinstance(data, array.ArrayType):
+#                 self._data = data
+#                 if len(self._data) != length:
+#                     raise ValueError("Expected an ArrayType of length '{}', got '{}'.".format(length, len(self._data)))
+#             elif isinstance(data, collections.abc.Iterable):
+#                 self._data = array.array(data_type, data)
+#                 if len(self._data) != length:
+#                     raise ValueError("Expected an iterable of length '{}', got '{}'.".format(length, len(self._data)))
+#             elif isinstance(data, (int, float)):
+#                 self._data = array.array(data_type, length * [data])
+#             else:
+#                 raise TypeError("Expected either an ArrayType, an iterable or a scalar number as positional argument.")
+#         else:
+#             if shape[0] == shape[1]:
+#                 self._data = array.array(data_type,
+#                                          (1 if i in range(0, length, shape[0] + 1) else 0 for i in range(length)))
+#             else:
+#                 self._data = array.array(data_type, (0 for _ in range(length)))
+#
+#     def __str__(self) -> str:
+#         """
+#         Return a human-readable representation.
+#
+#         :return:
+#         """
+#         lines = list()
+#         for i in range(self.shape[0]):
+#             d = self[i, :]
+#             if isinstance(d, Matrix):
+#                 lines.append("[{}]".format(", ".join("{:.2e}".format(e) for e in d)))
+#             else:
+#                 lines.append("[{}]".format(d))
+#
+#         return "[{}]".format("; ".join(lines))
+#
+#     def __repr__(self) -> str:
+#         """
+#         Return a eval-compatible representation.
+#
+#         :return:
+#         """
+#         return "{}({}, ({}), data_type={}, transposed={})".format(
+#             self.__class__.__name__, self._shape, ", ".join("{:e}".format(e) for e in self),
+#             self._data.typecode, self._transposed
+#         )
+#
+#     def __bytes__(self) -> bytes:
+#         """
+#         Return a bytes representation of the matrix.
+#
+#         :return:
+#         """
+#         return self._data.tobytes()
+#
+#     def __len__(self) -> int:
+#         """
+#         Return the number of matrix elements.
+#
+#         :return:
+#         """
+#         return functools.reduce(operator.mul, self._shape)
+#
+#     def __iter__(self):
+#         """
+#         Provide an iterator interface.
+#
+#         :return:
+#         """
+#         for d in self._data:
+#             yield d
+#
+#     def __reversed__(self):
+#         """
+#         Provide a reverse iterator.
+#
+#         :return:
+#         """
+#         for d in reversed(self._data):
+#             yield d
+#
+#     def __contains__(self, item: Any) -> bool:
+#         """
+#         Provide the contains interface.
+#
+#         :param item:
+#         :return:
+#         """
+#         return item in self._data
+#
+#     def __getitem__(self, key: Union[int, slice, Tuple[Union[int, slice, Tuple[int, ...]], ...]]) -> Union["Matrix", int]:
+#         """
+#         Provide angle-bracket element access to the matrix.
+#
+#         :param key:
+#         :raise TypeError:
+#         :return:
+#         """
+#         if isinstance(key, (int, slice)):
+#             # noinspection PyTypeChecker
+#             key = (key, slice(None))
+#         elif isinstance(key, tuple):
+#             if len(key) == 1:
+#                 # noinspection PyTypeChecker
+#                 key = (key[0], slice(None))
+#
+#         if isinstance(key, tuple):
+#             # Flip the keys if the matrix is transposed
+#             key = key if not self._transposed else key[::-1]
+#
+#             # Calculate the shape of the resulting sub-matrix
+#             sub_shape = get_sub_shape(self._shape, key)
+#
+#             # Calculate the linear indices into the super-matrix.
+#             sub_idx = linearize_indices(self._shape, key)
+#
+#             if len(sub_idx) == 1:
+#                 return self._data[sub_idx[0]]
+#             else:
+#                 return Matrix(sub_shape, (self._data[i] for i in sub_idx))
+#         else:
+#             raise TypeError("Expected indices of type int, slice or tuple.")
+#
+#     def __setitem__(self, key: Union[int, slice, Tuple[Union[int, slice, Tuple[int, ...]], ...]],
+#                     value: Union[Real, "Matrix", Sequence[Real]]):
+#         """
+#         Provide angle-bracket element setting to the matrix.
+#
+#         :param key:
+#         :param value:
+#         :raise ValueError:
+#         :raise TypeError:
+#         :return:
+#         """
+#         if isinstance(key, (int, slice)):
+#             # noinspection PyTypeChecker
+#             key = (key, slice(None))
+#         elif isinstance(key, tuple) and len(key) == 1:
+#             # noinspection PyTypeChecker
+#             key = (key[0], slice(None))
+#
+#         if isinstance(key, tuple):
+#             # Flip the keys if the matrix is transposed
+#             key = key if not self._transposed else key[::-1]
+#
+#             # Calculate the shape of the resulting sub-matrix
+#             sub_shape = get_sub_shape(self._shape, key)
+#
+#             # Calculate the linear indices into the super-matrix.
+#             sub_idx = linearize_indices(self._shape, key)
+#
+#             if isinstance(value, Matrix) and value.shape == sub_shape:
+#                 for j, i in enumerate(sub_idx):
+#                     self._data[i] = value.data[j]
+#             elif isinstance(value, collections.abc.Sequence) and len(value) == functools.reduce(operator.mul,
+#                                                                                                 sub_shape):
+#                 for j, i in enumerate(sub_idx):
+#                     self._data[i] = value[j]
+#             elif isinstance(value, (int, float)):
+#                 for i in sub_idx:
+#                     self._data[i] = value
+#             else:
+#                 raise ValueError("The shape/length of the value must equal the shape/length of the indexed range.")
+#         else:
+#             raise TypeError("Expected indices of type int, slice or tuple, not '{}'.".format(type(key)))
+#
+#     def __lt__(self, other: Union["Matrix", Real]) -> bool:
+#         """
+#         Implement the element-wise less than operation.
+#
+#         :param other:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             return self.shape == other.shape and all(s < o for s, o in zip(self, other))
+#         elif isinstance(other, (int, float)):
+#             return all(s < other for s in self)
+#         else:
+#             return NotImplemented
+#
+#     def __le__(self, other: Union["Matrix", Real]) -> bool:
+#         """
+#         Implement the element-wise less than or equal to operation.
+#
+#         :param other:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             return self.shape == other.shape and all(s <= o for s, o in zip(self, other))
+#         elif isinstance(other, (int, float)):
+#             return all(s <= other for s in self)
+#         else:
+#             return NotImplemented
+#
+#     def __eq__(self, other: Union["Matrix", Real]) -> bool:
+#         """
+#         Return True if all elements of two matrices compare equal.
+#
+#         :param other:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             return self.shape == other.shape and all(s == o for s, o in zip(self, other))
+#         elif isinstance(other, (int, float)):
+#             return all(s == other for s in self)
+#         else:
+#             return NotImplemented
+#
+#     def __gt__(self, other: Union["Matrix", Real]) -> bool:
+#         """
+#         Implement the element-wise greater than operation.
+#
+#         :param other:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             return self.shape == other.shape and all(s > o for s, o in zip(self, other))
+#         elif isinstance(other, (int, float)):
+#             return all(s > other for s in self)
+#         else:
+#             return NotImplemented
+#
+#     def __ge__(self, other: Union["Matrix", Real]) -> bool:
+#         """
+#         Implement the element-wise greater than or equal to operation.
+#
+#         :param other:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             return self.shape == other.shape and all(s >= o for s, o in zip(self, other))
+#         elif isinstance(other, (int, float)):
+#             return all(s >= other for s in self)
+#         else:
+#             return NotImplemented
+#
+#     def __neg__(self) -> "Matrix":
+#         """
+#         Perform an element-wise negation.
+#
+#         :return:
+#         """
+#         result = Matrix(self.shape, 0)
+#         for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#             result[i, j] = -self[i, j]
+#         return result
+#
+#     def __pos__(self) -> "Matrix":
+#         """
+#         Perform an element-wise positive unary operation.
+#
+#         :return:
+#         """
+#         result = Matrix(self.shape, 0)
+#         for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#             result[i, j] = +self[i, j]
+#         return result
+#
+#     def __abs__(self) -> "Matrix":
+#         """
+#         Perform the abs() unary operation.
+#
+#         :return:
+#         """
+#         result = Matrix(self.shape, 0)
+#         for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#             result[i, j] = abs(self[i, j])
+#         return result
+#
+#     def __add__(self, other: Union["Matrix", Real]) -> "Matrix":
+#         """
+#         Perform a left-sided element-wise addition.
+#
+#         :param other:
+#         :raise ValueError:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             if self.shape == other.shape:
+#                 result = Matrix(self.shape, 0)
+#                 for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                     result[i, j] = self[i, j] + other[i, j]
+#                 return result
+#             else:
+#                 raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
+#         elif isinstance(other, (int, float)):
+#             result = Matrix(self.shape, 0)
+#             for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                 result[i, j] = self[i, j] + other
+#             return result
+#         else:
+#             return NotImplemented
+#
+#     def __radd__(self, other: Union["Matrix", Real]) -> "Matrix":
+#         """
+#         Perform a right-sided element-wise addition. Equivalent to __add__.
+#
+#         :param other:
+#         :return:
+#         """
+#         return self + other
+#
+#     def __sub__(self, other: Union["Matrix", Real]) -> "Matrix":
+#         """
+#         Perform a left-sided element-wise subtraction.
+#
+#         :param other:
+#         :return:
+#         """
+#         return self + -other
+#
+#     def __rsub__(self, other: Union["Matrix", Real]) -> "Matrix":
+#         """
+#         Perform a right-sided element-wise subtraction.
+#
+#         :param other:
+#         :return:
+#         """
+#         return other + -self
+#
+#     def __mul__(self, other: Union["Matrix", Real]) -> "Matrix":
+#         """
+#         Perform a left-sided element-wise multiplication.
+#
+#         :param other:
+#         :raise ValueError:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             if self.shape == other.shape:
+#                 result = Matrix(self.shape, 0)
+#                 for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                     result[i, j] = self[i, j] * other[i, j]
+#                 return result
+#             else:
+#                 raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
+#         elif isinstance(other, (int, float)):
+#             result = Matrix(self.shape, 0)
+#             for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                 result[i, j] = self[i, j] * other
+#             return result
+#         else:
+#             return NotImplemented
+#
+#     def __rmul__(self, other: Union["Matrix", Real]) -> "Matrix":
+#         """
+#         Perform a right-sided element-wise multiplication. Equivalent to __mul__.
+#
+#         :param other:
+#         :return:
+#         """
+#         return self * other
+#
+#     def __truediv__(self, other: Union["Matrix", Real]) -> "Matrix":
+#         """
+#         Perform a left-sided element-wise division.
+#
+#         :param other:
+#         :raise ValueError:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             if self.shape == other.shape:
+#                 result = Matrix(self.shape, 0)
+#                 for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                     result[i, j] = self[i, j] / other[i, j]
+#                 return result
+#             else:
+#                 raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
+#         elif isinstance(other, (int, float)):
+#             result = Matrix(self.shape, 0)
+#             for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                 result[i, j] = self[i, j] / other
+#             return result
+#         else:
+#             return NotImplemented
+#
+#     def __rtruediv__(self, other: Union["Matrix", Real]) -> "Matrix":
+#         """
+#         Perform a right-sided element wise division.
+#
+#         :param other:
+#         :raise ValueError:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             if self.shape == other.shape:
+#                 result = Matrix(self.shape, 0)
+#                 for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                     result[i, j] = other[i, j] / self[i, j]
+#                 return result
+#             else:
+#                 raise ValueError("Shape mismatch: '{}' must be equal to '{}'".format(self.shape, other.shape))
+#         elif isinstance(other, (int, float)):
+#             result = Matrix(self.shape, 0)
+#             for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                 result[i, j] = other / self[i, j]
+#             return result
+#         else:
+#             return NotImplemented
+#
+#     def __matmul__(self, other: "Matrix") -> "Matrix":
+#         """
+#         Perform a left-sided matrix multiplication.
+#
+#         :param other:
+#         :raise ValueError:
+#         :return:
+#         """
+#         if isinstance(other, Matrix):
+#             if self.shape[-1] == other.shape[0] and self.shape[-1] > 1:
+#                 result_shape = self.shape[:-1] + other.shape[1:]
+#                 if result_shape == (1, 1):
+#                     return sum(a * b for a, b in zip(self, other))
+#                 else:
+#                     result = Matrix(result_shape, 0)
+#                     for i, j in itertools.product(range(result.shape[0]), range(result.shape[1])):
+#                         result[i, j] = sum(a * b for a, b in zip(self[i, :], other[:, j]))
+#
+#                     return result
+#             else:
+#                 raise ValueError(
+#                     "Last dimension of '{}' and first dimension of '{}' do not match or are 1.".format(self.shape,
+#                                                                                                        other.shape))
+#         else:
+#             return NotImplemented
 
 
 class Quaternion(object):

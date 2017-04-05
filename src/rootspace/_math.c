@@ -5,6 +5,7 @@
 #include "_matrix_container.h"
 #include "_matrix.h"
 #include "_matrix_iterator.h"
+// #include "_physics.h"
 
 
 static PyMethodDef MathMethods[] = {
@@ -12,6 +13,11 @@ static PyMethodDef MathMethods[] = {
     {"linearize_indices", math_linearize_indices, METH_VARARGS, math_linearize_indices_doc},
     {"complete_indices", math_complete_indices, METH_VARARGS, math_complete_indices_doc},
     {"select_all", math_select_all, METH_VARARGS, math_select_all_doc},
+    // {"euler_step", math_euler_step, METH_VARARGS, math_euler_step_doc},
+    // {"runge_kutta_4", math_runge_kutta_4, METH_VARARGS, math_runge_kutta_4_doc},
+    // {"velocity_verlet", math_velocity_verlet, METH_VARARGS, math_velocity_verlet_doc},
+    // {"equations_of_motion", math_equations_of_motion, METH_VARARGS, math_equations_of_motion_doc},
+    // {"aabb_overlap", math_aabb_overlap, METH_VARARGS, math_aabb_overlap_doc},
     {NULL, NULL, 0, NULL}
 };
 
