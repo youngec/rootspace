@@ -338,16 +338,6 @@ class TestMatrix(object):
             Matrix.from_iterable(data)
 
     @pytest.mark.skip
-    def test_zeros(self):
-        assert Matrix.zeros(4) == Matrix((4, 1), 0)
-        assert Matrix.zeros((4, 4)) == Matrix((4, 4), 0)
-
-    @pytest.mark.skip
-    def test_ones(self):
-        assert Matrix.ones(4) == Matrix((4, 1), 1)
-        assert Matrix.ones((4, 4)) == Matrix((4, 4), 1)
-
-    @pytest.mark.skip
     def test_translation(self):
         assert Matrix.translation(2, 2, 2) == Matrix((4, 4), (
             1, 0, 0, 2,
@@ -624,6 +614,10 @@ def test_get_sub_shape(N, M, t, idx, e):
     assert get_sub_shape(N, M, t, idx) == e
 
 
+def test_benchmark_get_sub_shape(benchmark):
+    assert benchmark(get_sub_shape, 2, 3, False, ((0, 1), slice(None, None, None))) == (2, 3)
+
+
 @pytest.mark.parametrize("N,M,t,idx,e", (
     (2, 3, False, (0, 0), (0,)),
     (2, 3, False, (0, 1), (1,)),
@@ -800,6 +794,10 @@ def test_linearize_indices(N, M, t, idx, e):
     assert linearize_indices(N, M, t, idx) == e
 
 
+def test_benchmark_linearize_indices(benchmark):
+    assert benchmark(linearize_indices, 2, 3, True, (slice(None, None, None), slice(None, None, None))) == (0, 3, 1, 4, 2, 5)
+
+
 @pytest.mark.parametrize("idx,e", (
     (0, (0, slice(None, None, None))),
     (((0, 1),), ((0, 1), slice(None, None, None))),
@@ -809,9 +807,17 @@ def test_complete_indices(idx, e):
     assert complete_indices(idx) == e
 
 
+def test_benchmark_complete_indices(benchmark):
+    assert benchmark(complete_indices, slice(None, None, None)) == (slice(None, None, None), slice(None, None, None))
+
+
 @pytest.mark.parametrize("N,M,t,e", (
     (2, 3, False, (0, 1, 2, 3, 4, 5)),
     (2, 3, True, (0, 3, 1, 4, 2, 5)),
 ))
 def test_select_all(N, M, t, e):
     assert select_all(N, M, t) == e
+
+
+def test_benchmark_select_all(benchmark):
+    assert benchmark(select_all, 2, 3, True) == (0, 3, 1, 4, 2, 5)

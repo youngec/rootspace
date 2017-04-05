@@ -103,7 +103,8 @@ if __name__ == "__main__":
         tests_require=[
             "pytest",
             "pytest-pep8",
-            "pytest-mock"
+            "pytest-mock",
+            "pytest-benchmark"
         ],
         entry_points={
             "console_scripts": [
