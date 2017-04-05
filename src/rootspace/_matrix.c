@@ -1703,6 +1703,45 @@ static PyObject* Matrix_Perspective(PyTypeObject* cls, PyObject* args) {
     return (PyObject*) self;
 }
 
+static PyObject* Matrix_UnitVectorX(PyTypeObject* cls, PyObject* args) {
+    Matrix* self = Matrix_NewInternal(3, 1, 0);
+    if (self == NULL) {
+        return NULL;
+    }
+
+    Matrix_DATA(self)[0] = 1.0;
+    Matrix_DATA(self)[1] = 0.0;
+    Matrix_DATA(self)[2] = 0.0;
+
+    return (PyObject*) self;
+}
+
+static PyObject* Matrix_UnitVectorY(PyTypeObject* cls, PyObject* args) {
+    Matrix* self = Matrix_NewInternal(3, 1, 0);
+    if (self == NULL) {
+        return NULL;
+    }
+
+    Matrix_DATA(self)[0] = 0.0;
+    Matrix_DATA(self)[1] = 1.0;
+    Matrix_DATA(self)[2] = 0.0;
+
+    return (PyObject*) self;
+}
+
+static PyObject* Matrix_UnitVectorZ(PyTypeObject* cls, PyObject* args) {
+    Matrix* self = Matrix_NewInternal(3, 1, 0);
+    if (self == NULL) {
+        return NULL;
+    }
+
+    Matrix_DATA(self)[0] = 0.0;
+    Matrix_DATA(self)[1] = 0.0;
+    Matrix_DATA(self)[2] = 1.0;
+
+    return (PyObject*) self;
+}
+
 static PyObject* Matrix_GetShape(Matrix* self, void* closure) {
     return Py_BuildValue("(nn)", Matrix_SHAPE_I(self), Matrix_SHAPE_J(self));
 }
@@ -1766,14 +1805,17 @@ static PyMappingMethods Matrix_AsMapping = {
 };
 
 static PyMethodDef Matrix_Methods[] = {
-    {"all_close", (PyCFunction) Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
-    {"norm", (PyCFunction) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
+    {"all_close", (PyCFunctionWithKeywords) Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
+    {"norm", (PyCFunctionWithKeywords) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
     {"cross", (PyCFunction) Matrix_Cross, METH_VARARGS, "Calculate the cross product of two vectors."},
     {"identity", (PyCFunction) Matrix_Identity, METH_VARARGS | METH_CLASS, "Create an identity matrix."},
     {"translation", (PyCFunction) Matrix_Translation, METH_VARARGS | METH_CLASS, "Create a translation matrix."},
     {"scaling", (PyCFunction) Matrix_Scaling, METH_VARARGS | METH_CLASS, "Create a scaling matrix."},
     {"orthographic", (PyCFunction) Matrix_Orthographic, METH_VARARGS | METH_CLASS, "Create an orthographic projection matrix."},
     {"perspective", (PyCFunction) Matrix_Perspective, METH_VARARGS | METH_CLASS, "Create a perspective projection matrix."},
+    {"ex", (PyCFunction) Matrix_UnitVectorX, METH_NOARGS | METH_CLASS, "Create a unit vector along the x-axis."},
+    {"ey", (PyCFunction) Matrix_UnitVectorY, METH_NOARGS | METH_CLASS, "Create a unit vector along the y-axis."},
+    {"ez", (PyCFunction) Matrix_UnitVectorZ, METH_NOARGS | METH_CLASS, "Create a unit vector along the z-axis."},
     {NULL, NULL, 0, NULL}
 };
 
