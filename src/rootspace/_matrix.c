@@ -1648,6 +1648,61 @@ static PyObject* Matrix_Scaling(PyTypeObject* cls, PyObject* args) {
     return (PyObject*) self;
 }
 
+static PyObject* Matrix_Orthographic(PyTypeObject* cls, PyObject* args) {
+    double l = 0.0;
+    double r = 0.0;
+    double b = 0.0;
+    double t = 0.0;
+    double n = 0.0;
+    double f = 0.0;
+    if (!PyArg_ParseTuple(args, "dddddd", &l, &r, &b, &t, &n, &f)) {
+        return NULL;
+    }
+    Matrix* self = Matrix_IdentityInternal(4);
+    if (self == NULL) {
+        return NULL;
+    }
+
+    Matrix_DATA(self)[0] = (MatrixDataType) (2.0 / (r - l));
+    Matrix_DATA(self)[5] = (MatrixDataType) (2.0 / (t - b));
+    Matrix_DATA(self)[10] = (MatrixDataType) (2.0 / (n - f));
+    Matrix_DATA(self)[3] = (MatrixDataType) ((r + l) / (l - r));
+    Matrix_DATA(self)[7] = (MatrixDataType) ((t + b) / (b - t));
+    Matrix_DATA(self)[11] = (MatrixDataType) ((f + n) / (n - f));
+
+    return (PyObject*) self;
+}
+
+static PyObject* Matrix_Perspective(PyTypeObject* cls, PyObject* args) {
+    double fov = 1.0;
+    double vr = 1.0;
+    double n = 0.0;
+    double f = 0.0;
+    if (!PyArg_ParseTuple(args, "dddd", &fov, &vr, &n, &f)) {
+        return NULL;
+    }
+
+    double y_scale = 1.0 / tan(fov / 2.0);
+    double x_scale = y_scale / vr;
+    double z_sum = n + f;
+    double z_diff = n - f;
+    double z_prod = n * f;
+
+    Matrix* self = Matrix_IdentityInternal(4);
+    if (self == NULL) {
+        return NULL;
+    }
+
+    Matrix_DATA(self)[0] = (MatrixDataType) x_scale;
+    Matrix_DATA(self)[5] = (MatrixDataType) y_scale;
+    Matrix_DATA(self)[10] = (MatrixDataType) (z_sum / z_diff);
+    Matrix_DATA(self)[11] = (MatrixDataType) (2.0 * z_prod / z_diff);
+    Matrix_DATA(self)[14] = -1.0;
+    Matrix_DATA(self)[15] = 0.0;
+
+    return (PyObject*) self;
+}
+
 static PyObject* Matrix_GetShape(Matrix* self, void* closure) {
     return Py_BuildValue("(nn)", Matrix_SHAPE_I(self), Matrix_SHAPE_J(self));
 }
@@ -1717,6 +1772,8 @@ static PyMethodDef Matrix_Methods[] = {
     {"identity", (PyCFunction) Matrix_Identity, METH_VARARGS | METH_CLASS, "Create an identity matrix."},
     {"translation", (PyCFunction) Matrix_Translation, METH_VARARGS | METH_CLASS, "Create a translation matrix."},
     {"scaling", (PyCFunction) Matrix_Scaling, METH_VARARGS | METH_CLASS, "Create a scaling matrix."},
+    {"orthographic", (PyCFunction) Matrix_Orthographic, METH_VARARGS | METH_CLASS, "Create an orthographic projection matrix."},
+    {"perspective", (PyCFunction) Matrix_Perspective, METH_VARARGS | METH_CLASS, "Create a perspective projection matrix."},
     {NULL, NULL, 0, NULL}
 };
 

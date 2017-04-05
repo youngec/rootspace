@@ -330,16 +330,6 @@ class TestMatrix(object):
             0, 0, 0, 1
         ))
 
-    @pytest.mark.skip
-    def test_shearing(self):
-        assert Matrix.shearing(2, 0, 2) == Matrix((4, 4), (
-            1, 0, 2, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-        ))
-
-    @pytest.mark.skip
     def test_orthographic(self):
         assert Matrix.orthographic(-1 , 1, -1, 1, 0.1, 100) == Matrix((4, 4), (
             1, 0, 0, 0,
@@ -348,7 +338,6 @@ class TestMatrix(object):
             0, 0, 0, 1
         ))
 
-    @pytest.mark.skip
     def test_perspective(self):
         assert Matrix.perspective(math.pi/4, 1, 0.1, 100) == Matrix((4, 4), (
             1/math.tan(math.pi/8), 0, 0, 0,
