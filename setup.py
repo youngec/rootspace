@@ -92,19 +92,19 @@ if __name__ == "__main__":
         platforms="any",
         ext_modules=[math_opt],
         install_requires=[
-            "attrs",
-            "glfw",
-            "pyopengl",
-            "xxhash",
-            "pillow",
-            "pyparsing",
-            "regex"
+            "attrs == 16.3.0",
+            "glfw == 1.4.0",
+            "pyopengl == 3.1.0",
+            "xxhash == 1.0.1",
+            "pillow == 4.1.0",
+            "pyparsing == 2.2.0",
+            "regex == 2017.2.8"
         ],
         tests_require=[
-            "pytest",
-            "pytest-pep8",
-            "pytest-mock",
-            "pytest-benchmark"
+            "pytest == 3.0.7",
+            "pytest-pep8 == 1.0.6",
+            "pytest-mock == 1.6.0",
+            "pytest-benchmark == 3.0.0"
         ],
         entry_points={
             "console_scripts": [
