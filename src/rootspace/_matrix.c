@@ -48,6 +48,21 @@ Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed) {
     return Matrix_NewInternalShallow(N, M, transposed, container);
 }
 
+Matrix* Matrix_IdentityInternal(Py_ssize_t d) {
+    Matrix* self = Matrix_NewInternal(d, d, 0);
+    if (self == NULL) {
+        return NULL;
+    }
+    for (Py_ssize_t i = 0; i < Matrix_SIZE(self); i++) {
+        if (i == ((d + 1) * (i % d))) {
+            Matrix_DATA(self)[i] = 1.0;
+        } else {
+            Matrix_DATA(self)[i] = 0.0;
+        }
+    }
+    return self;
+}
+
 static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs) {
     Py_ssize_t N = 1;
     Py_ssize_t M = 1;
@@ -1592,17 +1607,25 @@ static PyObject* Matrix_Identity(PyTypeObject* cls, PyObject* args) {
     if (!PyArg_ParseTuple(args, "n", &d)) {
         return NULL;
     }
-    Matrix* self = Matrix_NewInternal(d, d, 0);
+    return (PyObject*) Matrix_IdentityInternal(d);
+}
+
+static PyObject* Matrix_Translation(PyTypeObject* cls, PyObject* args) {
+    double tx = 0.0;
+    double ty = 0.0;
+    double tz = 0.0;
+    if (!PyArg_ParseTuple(args, "ddd", &tx, &ty, &tz)) {
+        return NULL;
+    }
+    Matrix* self = Matrix_IdentityInternal(4);
     if (self == NULL) {
         return NULL;
     }
-    for (Py_ssize_t i = 0; i < Matrix_SIZE(self); i++) {
-        if (i == ((d + 1) * (i % d))) {
-            Matrix_DATA(self)[i] = 1.0;
-        } else {
-            Matrix_DATA(self)[i] = 0.0;
-        }
-    }
+
+    Matrix_DATA(self)[3] = (MatrixDataType) tx;
+    Matrix_DATA(self)[7] = (MatrixDataType) ty;
+    Matrix_DATA(self)[11] = (MatrixDataType) tz;
+
     return (PyObject*) self;
 }
 
@@ -1673,6 +1696,7 @@ static PyMethodDef Matrix_Methods[] = {
     {"norm", (PyCFunction) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
     {"cross", (PyCFunction) Matrix_Cross, METH_VARARGS, "Calculate the cross product of two vectors."},
     {"identity", (PyCFunction) Matrix_Identity, METH_VARARGS | METH_CLASS, "Create an identity matrix."},
+    {"translation", (PyCFunction) Matrix_Translation, METH_VARARGS | METH_CLASS, "Create a translation matrix."},
     {NULL, NULL, 0, NULL}
 };
 

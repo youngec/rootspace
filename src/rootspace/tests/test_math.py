@@ -314,30 +314,6 @@ class TestMatrix(object):
         for d in range(1, 5):
             assert Matrix.identity(d) == Matrix((d, d), [1 if i in range(0, d * d, d + 1) else 0 for i in range(d * d)])
 
-    @pytest.mark.skip
-    def test_from_iterable(self):
-        data = (
-            (0, 1),
-            (2, 3)
-        )
-
-        assert Matrix.from_iterable(data) == Matrix((2, 2), range(4))
-
-        data = (
-            0, 1, 2, 3
-        )
-
-        assert Matrix.from_iterable(data) == Matrix((4, 1), range(4))
-
-        data = (
-            (0, 1),
-            (0, 1, 2)
-        )
-
-        with pytest.raises(ValueError):
-            Matrix.from_iterable(data)
-
-    @pytest.mark.skip
     def test_translation(self):
         assert Matrix.translation(2, 2, 2) == Matrix((4, 4), (
             1, 0, 0, 2,
@@ -414,6 +390,29 @@ class TestMatrix(object):
             0, 0, -100.1/99.9, -20/99.9,
             0, 0, -1, 0
         ))
+
+    @pytest.mark.skip
+    def test_from_iterable(self):
+        data = (
+            (0, 1),
+            (2, 3)
+        )
+
+        assert Matrix.from_iterable(data) == Matrix((2, 2), range(4))
+
+        data = (
+            0, 1, 2, 3
+        )
+
+        assert Matrix.from_iterable(data) == Matrix((4, 1), range(4))
+
+        data = (
+            (0, 1),
+            (0, 1, 2)
+        )
+
+        with pytest.raises(ValueError):
+            Matrix.from_iterable(data)
 
 
 @pytest.mark.skip

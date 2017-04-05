@@ -50,6 +50,11 @@ Matrix* Matrix_NewInternalShallow(Py_ssize_t N, Py_ssize_t M, int transposed, Ma
 /// Does not check for the sanity of arguments!
 Matrix* Matrix_NewInternal(Py_ssize_t N, Py_ssize_t M, int transposed);
 
+/// *Internal* Create a new identity matrix object. Accepts a single
+/// integer that indicates the dimension of the matrix.
+/// Does not check for the sanity of arguments!
+Matrix* Matrix_IdentityInternal(Py_ssize_t d);
+
 /// Matrix_GetItem is used by MatrixIterator in MatrixIterator_Next.
 PyObject* Matrix_GetItem(Matrix* self, PyObject* key);
 #endif
