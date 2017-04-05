@@ -1805,8 +1805,8 @@ static PyMappingMethods Matrix_AsMapping = {
 };
 
 static PyMethodDef Matrix_Methods[] = {
-    {"all_close", (PyCFunctionWithKeywords) Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
-    {"norm", (PyCFunctionWithKeywords) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
+    {"all_close", (PyCFunction) Matrix_AllClose, METH_VARARGS | METH_KEYWORDS, "Return True if all elements compare approximately equal."},
+    {"norm", (PyCFunction) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
     {"cross", (PyCFunction) Matrix_Cross, METH_VARARGS, "Calculate the cross product of two vectors."},
     {"identity", (PyCFunction) Matrix_Identity, METH_VARARGS | METH_CLASS, "Create an identity matrix."},
     {"translation", (PyCFunction) Matrix_Translation, METH_VARARGS | METH_CLASS, "Create a translation matrix."},
