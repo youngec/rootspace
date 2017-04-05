@@ -7,7 +7,7 @@ import operator
 
 import pytest
 
-from rootspace.math import all_close, Quaternion
+from rootspace.math import Quaternion
 from rootspace._math import Matrix, get_sub_shape, linearize_indices, \
     complete_indices, select_all
 
@@ -195,12 +195,12 @@ class TestMatrix(object):
         b = Matrix(shape, range(4, length + 4))
         a_inv = Matrix(shape, [1 / i for i in range(1, length + 1)])
 
-        assert all_close(Matrix(shape, 1) / a, a_inv)
-        assert all_close(1 / a, a_inv)
-        assert all_close(1.0 / a, a_inv)
-        assert all_close(a * (Matrix(shape, 1) / b), a / b)
-        assert all_close(a * (1 / b), a / b)
-        assert all_close(a * (1.0 / b), a / b)
+        assert (Matrix(shape, 1) / a).all_close(a_inv)
+        assert (1 / a).all_close(a_inv)
+        assert (1.0 / a).all_close(a_inv)
+        assert (a * (Matrix(shape, 1) / b)).all_close(a / b)
+        assert (a * (1 / b)).all_close(a / b)
+        assert (a * (1.0 / b)).all_close(a / b)
 
     def test_multiplication_commutativity(self, shape):
         length = functools.reduce(operator.mul, shape)
@@ -538,11 +538,6 @@ class TestQuaternion(object):
         b = Matrix((4, 1), (1, 2, 3, 4))
 
         assert a @ b @ a.inverse() == Quaternion(1, 2, 3, 4)
-
-
-@pytest.mark.xfail
-def test_all_close():
-    raise NotImplementedError()
 
 
 @pytest.mark.xfail
