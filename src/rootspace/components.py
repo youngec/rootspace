@@ -253,22 +253,22 @@ class Model(Component):
         mesh = context.model_parser.load(mesh_path)
 
         if mesh.vertex_shader is None and vertex_shader_path is None:
-            raise ValueError("There must be at least one vertex shader path specified.")
-        elif mesh.vertex_shader is None and vertex_shader_path is not None:
+            raise ValueError("Either the Mesh or the Scene must define a vertex shader. The latter takes precedence.")
+        elif vertex_shader_path is not None:
             mesh.vertex_shader = vertex_shader_path.read_text()
 
         if mesh.fragment_shader is None and fragment_shader_path is None:
-            raise ValueError("There must be at least one fragment shader path specified.")
-        elif mesh.fragment_shader is None and fragment_shader_path is not None:
+            raise ValueError("Either the Mesh or the Scene must define a fragment shader. The latter takes precedence.")
+        elif fragment_shader_path is not None:
             mesh.fragment_shader = fragment_shader_path.read_text()
 
         if mesh.requires_texture and mesh.texture is None and texture_path is None:
-            raise ValueError("The mesh requires texture data, but none was given.")
-        elif mesh.requires_texture and mesh.texture is None and texture_path is not None:
+            raise ValueError("The Mesh requires a texture, thus either the Mesh or the Scene must provide one. The latter takes precedence.")
+        elif mesh.requires_texture and texture_path is not None:
             with PIL.Image.open(texture_path) as i:
                 mesh.texture = i
         elif not mesh.requires_texture and (mesh.texture is not None or texture_path is not None):
-            warnings.warn("Texture data was provided but the model data does not use any.", FixmeWarning)
+            warnings.warn("Texture data was provided but the Mesh does not require one.", FixmeWarning)
 
         with contextlib.ExitStack() as ctx:
             # Create and bind the Vertex Array Object
