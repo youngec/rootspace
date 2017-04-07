@@ -110,15 +110,18 @@ class CollisionSystem(UpdateSystem):
 
     def update(self, time, delta_time, world, components):
         for trf, bv, prp, state in components:
-            d_min = trf.t @ trf.r @ trf.s @ bv.minimum
-            d_max = trf.t @ trf.r @ trf.s @ bv.maximum
+            if any(state.momentum):
+                d_mat = trf.t @ trf.r @ trf.s
+                d_min = d_mat @ bv.minimum
+                d_max = d_mat @ bv.maximum
 
-            for s in world.get_entities(StaticObject):
-                s_min = s.transform.t @ s.transform.r @ s.transform.s @ s.bounding_volume.minimum
-                s_max = s.transform.t @ s.transform.r @ s.transform.s @ s.bounding_volume.maximum
-                if aabb_overlap(d_min, d_max, s_min, s_max):
-                    state.momentum = Matrix((3, 1), 0)
-                    state.force = -prp.mass * prp.g
+                for s in world.get_entities(StaticObject):
+                    s_mat = s.transform.t @ s.transform.r @ s.transform.s
+                    s_min = s_mat @ s.bounding_volume.minimum
+                    s_max = s_mat @ s.bounding_volume.maximum
+                    if aabb_overlap(d_min, d_max, s_min, s_max):
+                        state.momentum = Matrix((3, 1), 0)
+                        state.force = -prp.mass * prp.g
 
 
 @attr.s
