@@ -5,6 +5,7 @@
 #include "_matrix_container.h"
 #include "_matrix.h"
 #include "_matrix_iterator.h"
+#include "_quaternion.h"
 // #include "_physics.h"
 
 
@@ -48,6 +49,10 @@ PyMODINIT_FUNC PyInit__math(void) {
         return NULL;
     }
 
+    if (PyType_Ready(&QuaternionType) < 0) {
+        return NULL;
+    }
+
     PyObject* m = PyModule_Create(&MathModule);
     if (m == NULL) {
         return NULL;
@@ -61,5 +66,8 @@ PyMODINIT_FUNC PyInit__math(void) {
 
     Py_INCREF(&MatrixIteratorType);
     PyModule_AddObject(m, "_MatrixIterator", (PyObject*) &MatrixIteratorType);
+
+    Py_INCREF(&QuaternionType);
+    PyModule_AddObject(m, "Quaternion", (PyObject*) &QuaternionType);
     return m;
 }
