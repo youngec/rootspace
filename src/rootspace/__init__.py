@@ -3,8 +3,6 @@
 import sys
 import os
 
-import OpenGL
-
 from ._version import get_versions
 
 

@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import collections.abc
 import math
 import array
-import functools
-import operator
-import itertools
-from typing import Any, Union, Tuple, Iterable, Sequence, Optional
+from typing import Any, Union, Tuple
 from numbers import Real
 
-from .utilities import get_sub_shape, linearize_indices
 from ._math import Matrix
 
 
@@ -1216,33 +1211,6 @@ class Quaternion(object):
             return NotImplemented
 
 
-def all_close(a: Any, b: Any, rel_tol: float = 1e-05, abs_tol: float = 1e-08) -> bool:
-    """
-    Return true if objects a and b are approximately equal.
-
-    :param a:
-    :param b:
-    :param rel_tol:
-    :param abs_tol:
-    :raise TypeError:
-    :return:
-    """
-    if hasattr(a, "all_close"):
-        r = a.all_close(b, rel_tol, abs_tol)
-        if r is NotImplemented:
-            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
-        else:
-            return r
-    elif hasattr(b, "all_close"):
-        r = b.all_close(a, rel_tol, abs_tol)
-        if r is NotImplemented:
-            raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
-        else:
-            return r
-    else:
-        raise TypeError("unsupported operand type(s) for all_close() '{}' and '{}'".format(type(a), type(b)))
-
-
 def euler_step(delta_time: float, momentum: Matrix, force: Matrix, dm: Matrix, df: Matrix) -> Tuple[Matrix, Matrix]:
     """
     Evaluate the current integral step.
@@ -1254,10 +1222,7 @@ def euler_step(delta_time: float, momentum: Matrix, force: Matrix, dm: Matrix, d
     :param df:
     :return:
     """
-    dm_n = momentum + dm * delta_time
-    df_n = force + df * delta_time
-
-    return dm_n, df_n
+    return momentum + dm * delta_time, force + df * delta_time
 
 
 def runge_kutta_4(delta_time: float, momentum: Matrix, force: Matrix, mass: float) -> Tuple[Matrix, Matrix]:
