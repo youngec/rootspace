@@ -2,29 +2,27 @@
 
 """Provides wrappers for OpenGL concepts."""
 
-import contextlib
-import logging
-import warnings
+from pathlib import Path
+from typing import Tuple, Any, Type
+from contextlib import ExitStack
 
 import PIL.Image
 import OpenGL.GL as gl
-import attr
-from attr.validators import instance_of
 
-from .exceptions import OpenGLError, FixmeWarning
+from .exceptions import OpenGLError
 from .math import Matrix
 
 
-@attr.s
 class Shader(object):
     """
     Shader is an on-CPU representation of a shader program.
     """
-    vertex_source = attr.ib(validator=instance_of(str))
-    fragment_source = attr.ib(validator=instance_of(str))
+    def __init__(self, vertex_source: str, fragment_source: str) -> None:
+        self.vertex_source = vertex_source
+        self.fragment_source = fragment_source
 
     @classmethod
-    def create(cls, vertex_shader_path, fragment_shader_path):
+    def create(cls, vertex_shader_path: Path, fragment_shader_path: Path) -> "Shader":
         """
         Create an on-CPU representation of a shader.
 
@@ -32,20 +30,13 @@ class Shader(object):
         :param fragment_shader_path:
         :return:
         """
-        vertex_source = vertex_shader_path.read_text()
-        fragment_source = fragment_shader_path.read_text()
-        return cls(vertex_source, fragment_source)
+        return cls(vertex_shader_path.read_text(), fragment_shader_path.read_text())
 
 
-@attr.s
 class Texture(object):
     """
     OpenGlTexture encapsulates an OpenGL texture.
     """
-    _obj = attr.ib(validator=instance_of(int))
-    _shape = attr.ib(validator=instance_of(tuple))
-    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
-
     texture_formats = {
         "L": gl.GL_RED,
         "LA": gl.GL_RG,
@@ -61,27 +52,29 @@ class Texture(object):
         "F": gl.GL_FLOAT
     }
 
+    def __init__(self, obj: int, shape: Tuple[int, int], ctx_exit: ExitStack) -> None:
+        self.obj = obj
+        self.shape = shape
+        self._ctx_exit = ctx_exit
+
     @classmethod
-    def _delete_textures(cls, obj):
+    def _delete_textures(cls, obj: int) -> None:
         if bool(gl.glDeleteTextures) and obj > 0:
-            warnings.warn("glDeleteTextures throws an 'invalid operation (1282)' sometimes.", FixmeWarning)
             gl.glDeleteTextures(obj)
 
     @classmethod
-    def texture_format(cls, data):
-        return cls.texture_formats[data.mode]
+    def create(cls, data: PIL.Image.Image,
+               min_filter: int = gl.GL_LINEAR,
+               mag_filter: int = gl.GL_LINEAR,
+               wrap_mode: int = gl.GL_CLAMP_TO_EDGE,
+               flip_lr: bool = False,
+               flip_tb: bool = True) -> "Texture":
+        # Extract type and size information from the image
+        image_format = cls.texture_formats[data.mode]
+        image_dtype = cls.texture_data_types[data.mode]
+        shape = data.size
 
-    @classmethod
-    def texture_dtype(cls, data):
-        return cls.texture_data_types[data.mode]
-
-    @classmethod
-    def create(cls, data, min_filter=gl.GL_LINEAR, mag_filter=gl.GL_LINEAR, wrap_mode=gl.GL_CLAMP_TO_EDGE, flip_lr=False, flip_tb=True):
-        with contextlib.ExitStack() as ctx_mgr:
-            image_format = cls.texture_format(data)
-            image_dtype = cls.texture_dtype(data)
-            shape = data.size
-
+        with ExitStack() as ctx_mgr:
             # Create the texture object
             obj = gl.glGenTextures(1)
             if obj == 0:
@@ -103,44 +96,32 @@ class Texture(object):
 
             # Set the texture data
             gl.glTexImage2D(
-                gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, image_dtype,
-                data.tobytes()
+                gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0,
+                image_format, image_dtype, data.tobytes()
             )
             gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
-            ctx_exit = ctx_mgr.pop_all()
-
-            return cls(obj, shape, ctx_exit)
+            return cls(obj, shape, ctx_mgr.pop_all())
 
     def __del__(self):
         self._ctx_exit.close()
 
     @property
-    def obj(self):
-        return self._obj
+    def enabled(self) -> bool:
+        return gl.glGetIntegerv(gl.GL_TEXTURE_BINDING_2D) == self.obj
 
-    @property
-    def shape(self):
-        return self._shape
-
-    @property
-    def enabled(self):
-        return gl.glGetIntegerv(gl.GL_TEXTURE_BINDING_2D) == self._obj
-
-    def __enter__(self):
+    def __enter__(self) -> "Texture":
         """
         Enable the texture.
 
         :return:
         """
         if not self.enabled:
-            gl.glBindTexture(gl.GL_TEXTURE_2D, self._obj)
-        else:
-            self._log.warning("Attempting to enable an active texture.")
+            gl.glBindTexture(gl.GL_TEXTURE_2D, self.obj)
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Type[Exception], exc_val: Exception, exc_tb: Any) -> bool:
         """
         Disable the texture.
 
@@ -151,30 +132,25 @@ class Texture(object):
         """
         if self.enabled:
             gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
-        else:
-            self._log.warning("Attempting to disable an inactive texture.")
 
         return False
 
 
-@attr.s
 class OpenGlShader(object):
     """OpenGlShader encapsulates an OpenGL shader."""
 
-    _obj = attr.ib(validator=instance_of(int))
-    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
+    def __init__(self, obj: int, ctx_exit: ExitStack) -> None:
+        self.obj = obj
+        self._ctx_exit = ctx_exit
 
     @classmethod
-    def _delete_shader(cls, obj):
+    def _delete_shader(cls, obj: int) -> None:
         if bool(gl.glDeleteShader) and obj > 0:
-            # This fails for an unknown reason and throws an INVALID_OPERATION (1282).
-            # glDeleteShader is not supposed to do that.
-            #gl.glDeleteShader(obj)
-            pass
+            gl.glDeleteShader(obj)
 
     @classmethod
-    def create(cls, shader_type, shader_source):
-        with contextlib.ExitStack() as ctx_mgr:
+    def create(cls, shader_type: int, shader_source: str) -> "OpenGlShader":
+        with ExitStack() as ctx_mgr:
             # Create the shader object
             obj = int(gl.glCreateShader(shader_type))
             if obj == 0:
@@ -192,35 +168,28 @@ class OpenGlShader(object):
                 log_string = gl.glGetShaderInfoLog(obj)
                 raise OpenGLError(log_string.decode("utf-8"))
 
-            ctx_exit = ctx_mgr.pop_all()
-
-            return cls(obj, ctx_exit)
+            return cls(obj, ctx_mgr.pop_all())
 
     def __del__(self):
         self._ctx_exit.close()
 
-    @property
-    def obj(self):
-        return self._obj
 
-
-@attr.s
 class OpenGlProgram(object):
     """
     OpenGlProgram encapsulates an OpenGL shader program.
     """
-    _obj = attr.ib(validator=instance_of(int))
-    _log = attr.ib(validator=instance_of(logging.Logger), repr=False)
-    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
+    def __init__(self, obj: int, ctx_exit: ExitStack) -> None:
+        self.obj = obj
+        self._ctx_exit = ctx_exit
 
     @classmethod
-    def _delete_program(cls, obj):
+    def _delete_program(cls, obj: int) -> None:
         if bool(gl.glDeleteProgram) and obj > 0:
             gl.glDeleteProgram(obj)
 
     @classmethod
-    def create(cls, *shaders):
-        with contextlib.ExitStack() as ctx_mgr:
+    def create(cls, *shaders) -> "OpenGlProgram":
+        with ExitStack() as ctx_mgr:
             # Create the shader program
             obj = int(gl.glCreateProgram())
             if obj == 0:
@@ -243,38 +212,30 @@ class OpenGlProgram(object):
                 log_string = gl.glGetProgramInfoLog(obj)
                 raise OpenGLError(log_string.decode("utf-8"))
 
-            log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
-
-            ctx_exit = ctx_mgr.pop_all()
-
-            return cls(obj, log, ctx_exit)
+            return cls(obj, ctx_mgr.pop_all())
 
     def __del__(self):
         self._ctx_exit.close()
 
     @property
-    def obj(self):
-        return self._obj
+    def enabled(self) -> bool:
+        return gl.glGetIntegerv(gl.GL_CURRENT_PROGRAM) == self.obj
 
-    @property
-    def enabled(self):
-        return gl.glGetIntegerv(gl.GL_CURRENT_PROGRAM) == self._obj
-
-    def uniform_location(self, name):
-        loc = gl.glGetUniformLocation(self._obj, name)
+    def uniform_location(self, name: str) -> int:
+        loc = gl.glGetUniformLocation(self.obj, name)
         if loc == -1:
             raise OpenGLError("Could not find the shader uniform '{}'.".format(name))
         else:
             return loc
 
-    def attribute_location(self, name):
-        loc = gl.glGetAttribLocation(self._obj, name)
+    def attribute_location(self, name: str) -> int:
+        loc = gl.glGetAttribLocation(self.obj, name)
         if loc == -1:
             raise OpenGLError("Could not find the shader attribute '{}'.".format(name))
         else:
             return loc
 
-    def uniform(self, name, value):
+    def uniform(self, name: str, value: Any) -> None:
         loc = self.uniform_location(name)
         if isinstance(value, Matrix):
             if value.shape == (4, 4):
@@ -288,20 +249,18 @@ class OpenGlProgram(object):
         else:
             raise NotImplementedError("Cannot set any other data types yet.")
 
-    def __enter__(self):
+    def __enter__(self) -> "OpenGlProgram":
         """
         Enable the program.
 
         :return:
         """
         if not self.enabled:
-            gl.glUseProgram(self._obj)
-        else:
-            self._log.warning("Attempting to enable an active shader program.")
+            gl.glUseProgram(self.obj)
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Type[Exception], exc_val: Exception, exc_tb: Any) -> bool:
         """
         Disable the program.
 
@@ -312,7 +271,5 @@ class OpenGlProgram(object):
         """
         if self.enabled:
             gl.glUseProgram(0)
-        else:
-            self._log.warning("Attempting to disable an inactive shader program.")
 
         return False
