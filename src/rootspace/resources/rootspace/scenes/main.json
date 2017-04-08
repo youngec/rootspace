@@ -47,6 +47,14 @@
         "physics_properties": "cube_prp",
         "physics_state": "cube_sta"
       }
+    },
+    "table": {
+      "class": "static_object",
+      "kwargs": {
+        "transform": "table_trf",
+        "model": "table_mdl",
+        "bounding_volume": "table_bv"
+      }
     }
   },
   "components": {
@@ -88,23 +96,29 @@
         "scale": [0.5, 0.5, 0.5]
       }
     },
+    "table_trf": {
+      "class": "transform",
+      "kwargs": {
+        "position": [5, 0, -10],
+        "orientation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
     "cam_bv": {
       "class": "bounding_volume",
-      "kwargs": {
-
-      }
+      "kwargs": {}
     },
     "floor_bv": {
       "class": "bounding_volume",
-      "kwargs": {
-
-      }
+      "kwargs": {}
     },
     "cube_bv": {
       "class": "bounding_volume",
-      "kwargs": {
-
-      }
+      "kwargs": {}
+    },
+    "table_bv": {
+      "class": "bounding_volume",
+      "kwargs": {}
     },
     "floor_mdl": {
       "class": "model",
@@ -120,6 +134,15 @@
         "mesh_path": "models/cube.ply",
         "vertex_shader_path": "shaders/cube-vertex.glsl",
         "fragment_shader_path": "shaders/cube-fragment.glsl"
+      }
+    },
+    "table_mdl": {
+      "class": "model",
+      "kwargs": {
+        "mesh_path": "models/table.ply",
+        "vertex_shader_path": "shaders/table-vertex.glsl",
+        "fragment_shader_path": "shaders/table-fragment.glsl",
+        "texture_path": "textures/table.png"
       }
     },
     "cube_prp": {"class": "physics_properties", "kwargs": {}},
