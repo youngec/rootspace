@@ -253,8 +253,7 @@ class PlyParser(object):
                         elif comment.getName() == "fragment_shader_file":
                             fragment_shader = (self.base_shader_path / comment[0]).read_text()
                         elif comment.getName() == "texture_file":
-                            with PIL.Image.open(self.base_texture_path / comment[0]) as img:
-                                texture = img
+                            texture = PIL.Image.open(self.base_texture_path / comment[0])
                         else:
                             raise ValueError("Unkown ParseResult: '{}'.".format(comment))
                 comments = tuple(comments)

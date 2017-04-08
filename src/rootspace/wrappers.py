@@ -76,7 +76,7 @@ class Texture(object):
         return cls.texture_data_types[data.mode]
 
     @classmethod
-    def create(cls, data, min_filter=gl.GL_LINEAR, mag_filter=gl.GL_LINEAR, wrap_mode=gl.GL_CLAMP_TO_EDGE):
+    def create(cls, data, min_filter=gl.GL_LINEAR, mag_filter=gl.GL_LINEAR, wrap_mode=gl.GL_CLAMP_TO_EDGE, flip_lr=False, flip_tb=True):
         with contextlib.ExitStack() as ctx_mgr:
             image_format = cls.texture_format(data)
             image_dtype = cls.texture_dtype(data)
@@ -95,10 +95,16 @@ class Texture(object):
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, wrap_mode)
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, wrap_mode)
 
+            if flip_lr:
+                data = data.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+
+            if flip_tb:
+                data = data.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+
             # Set the texture data
             gl.glTexImage2D(
                 gl.GL_TEXTURE_2D, 0, image_format, shape[0], shape[1], 0, image_format, image_dtype,
-                data.transpose(PIL.Image.FLIP_LEFT_RIGHT).transpose(PIL.Image.FLIP_TOP_BOTTOM).tobytes()
+                data.tobytes()
             )
             gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 

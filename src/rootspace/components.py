@@ -265,8 +265,7 @@ class Model(Component):
         if mesh.requires_texture and mesh.texture is None and texture_path is None:
             raise ValueError("The Mesh requires a texture, thus either the Mesh or the Scene must provide one. The latter takes precedence.")
         elif mesh.requires_texture and texture_path is not None:
-            with PIL.Image.open(texture_path) as i:
-                mesh.texture = i
+            mesh.texture = PIL.Image.open(texture_path)
         elif not mesh.requires_texture and (mesh.texture is not None or texture_path is not None):
             warnings.warn("Texture data was provided but the Mesh does not require one.", FixmeWarning)
 
