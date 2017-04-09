@@ -80,7 +80,7 @@ static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs
 
     if (data == NULL) {
         for (Py_ssize_t idx = 0; idx < Matrix_SIZE(self); idx++) {
-            Matrix_DATA(self)[idx] = (MatrixDataType) 0;
+            Matrix_DATA(self)[idx] = 0.0;
         }
     } else if (PyLong_Check(data)) {
         for (Py_ssize_t idx = 0; idx < Matrix_SIZE(self); idx++) {
