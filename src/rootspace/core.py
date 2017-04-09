@@ -150,6 +150,7 @@ class World(object):
         :param entity:
         :return:
         """
+        self._log.debug("Adding Entity '{}'.".format(entity))
         self._add_components(entity)
         self._entities.add(entity)
 
