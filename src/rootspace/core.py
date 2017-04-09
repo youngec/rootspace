@@ -9,7 +9,8 @@ import weakref
 import collections
 import os
 from pathlib import Path
-from typing import Tuple, Type, Optional, Dict, Union, List, Any, Generator, Set
+from typing import Tuple, Type, Optional, Dict, List, Any, Generator, \
+    Set, Sequence
 
 import OpenGL.GL as gl
 import glfw
@@ -152,7 +153,7 @@ class World(object):
         self._add_components(entity)
         self._entities.add(entity)
 
-    def add_entities(self, *entities) -> None:
+    def add_entities(self, entities: Sequence[Entity]) -> None:
         """
         Add multiple entities to the world.
 
@@ -162,7 +163,7 @@ class World(object):
         for entity in entities:
             self._add_entity(entity)
 
-    def set_entities(self, *entities) -> None:
+    def set_entities(self, entities: Sequence[Entity]) -> None:
         """
         Replace the current entities with the given ones.
 
@@ -171,8 +172,8 @@ class World(object):
         """
         for_removal = [e for e in self._entities if e not in entities]
         for_addition = [e for e in entities if e not in self._entities]
-        self.remove_entities(*for_removal)
-        self.add_entities(*for_addition)
+        self.remove_entities(for_removal)
+        self.add_entities(for_addition)
 
     def _remove_entity(self, entity: Entity) -> None:
         """
@@ -184,7 +185,7 @@ class World(object):
         self._remove_components(entity)
         self._entities.discard(entity)
 
-    def remove_entities(self, *entities) -> None:
+    def remove_entities(self, entities: Sequence[Entity]) -> None:
         """
         Remove the specified Entities from the World.
 
@@ -225,7 +226,7 @@ class World(object):
                 "Tried to add a duplicate system: '{}'.".format(type(system))
             )
 
-    def add_systems(self, *systems) -> None:
+    def add_systems(self, systems: Sequence[System]) -> None:
         """
         Add multiple systems to the world.
 
@@ -235,7 +236,7 @@ class World(object):
         for system in systems:
             self._add_system(system)
 
-    def set_systems(self, *systems) -> None:
+    def set_systems(self, systems: Sequence[System]) -> None:
         """
         Replace the registered Systems with the specified.
 
@@ -244,8 +245,8 @@ class World(object):
         """
         for_removal = [s for s in self.systems if s not in systems]
         for_addition = [s for s in systems if s not in self.systems]
-        self.remove_systems(*for_removal)
-        self.add_systems(*for_addition)
+        self.remove_systems(for_removal)
+        self.add_systems(for_addition)
 
     def _remove_system(self, system: System) -> None:
         """
@@ -261,7 +262,7 @@ class World(object):
         elif system in self._event_systems:
             self._event_systems.remove(system)
 
-    def remove_systems(self, *systems) -> None:
+    def remove_systems(self, systems: Sequence[System]) -> None:
         """
         Remove the specified Systems.
 
@@ -468,46 +469,32 @@ class World(object):
         else:
             gl.glDisable(gl.GL_CULL_FACE)
 
-    def _load_objects(self,
-                      scene: Scene,
-                      object_tree: Union[Tuple[Dict[str, str]], Dict[str, Dict[str, str]]],
-                      class_registry: Dict[str, type],
-                      reference_tree: Optional[Dict[str, object]] = None) -> Union[List, Dict]:
-        """
-        Load all objects from a given serialization dictionary.
-        You must provide a reference to the World,
-        the soon-to-be active Scene, a class registry.
-        Optionally, you may provide a reference dictionary to provide
-        additional lookup for serialized object references within the Scene.
+    def _load_list_objects(self, scene, object_list, class_registry, reference_tree = None) -> Tuple[Any, ...]:
+        objects = list()
+        for v in object_list:
+            cls = class_registry[v["class"]]
+            kwargs = self._parse_arguments(scene, v, reference_tree)
 
-        :param scene:
-        :param object_tree:
-        :param class_registry:
-        :param reference_tree:
-        :return:
-        """
-        if isinstance(object_tree, dict):
-            objects: Dict[str, Any] = dict()
-            for k, v in object_tree.items():
-                cls = class_registry[v["class"]]
-                kwargs = self._parse_arguments(scene, v, reference_tree)
+            if hasattr(cls, "create"):
+                objects.append(cls.create(self.ctx, **kwargs))
+            else:
+                objects.append(cls(**kwargs))
 
-                if hasattr(cls, "create"):
-                    objects[k] = cls.create(self.ctx, **kwargs)
-                else:
-                    objects[k] = cls(**kwargs)
-        else:
-            objects: List[Any] = list()
-            for v in object_tree:
-                cls = class_registry[v["class"]]
-                kwargs = self._parse_arguments(scene, v, reference_tree)
+        return tuple(objects)
 
-                if hasattr(cls, "create"):
-                    objects.append(cls.create(self.ctx, **kwargs))
-                else:
-                    objects.append(cls(**kwargs))
+    def _load_dict_objects(self, scene, object_dict, class_registry, reference_tree = None) -> Dict[str, Any]:
+        objects: Dict[str, Any] = dict()
+        for k, v in object_dict.items():
+            cls = class_registry[v["class"]]
+            kwargs = self._parse_arguments(scene, v, reference_tree)
+
+            if hasattr(cls, "create"):
+                objects[k] = cls.create(self.ctx, **kwargs)
+            else:
+                objects[k] = cls(**kwargs)
 
         return objects
+
 
     def _parse_arguments(self,
                          scene: Scene,
@@ -549,14 +536,14 @@ class World(object):
         :return:
         """
         # Load the components into memory
-        components = self._load_objects(
+        components = self._load_dict_objects(
             new_scene,
             new_scene.components,
             ComponentMeta.classes
         )
 
         # Load the entities into memory
-        entities = self._load_objects(
+        entities = self._load_list_objects(
             new_scene,
             new_scene.entities,
             EntityMeta.classes,
@@ -564,14 +551,14 @@ class World(object):
         )
 
         # Load the systems into memory
-        systems = self._load_objects(
+        systems = self._load_list_objects(
             new_scene,
             new_scene.systems,
             SystemMeta.classes
         )
 
-        self.set_entities(*entities.values())
-        self.set_systems(*systems)
+        self.set_entities(entities)
+        self.set_systems(systems)
 
 
 class Context(object):

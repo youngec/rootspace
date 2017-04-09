@@ -19,10 +19,11 @@
     {"class": "collision_system", "kwargs": {}},
     {"class": "open_gl_renderer", "kwargs": {}}
   ],
-  "entities": {
-    "camera": {
+  "entities": [
+    {
       "class": "camera",
       "kwargs": {
+        "name": "camera",
         "transform": "cam_trf",
         "projection": "cam_proj",
         "bounding_volume": "cam_bv",
@@ -30,17 +31,19 @@
         "physics_state": "cam_phys_state"
       }
     },
-    "floor": {
+    {
       "class": "static_object",
       "kwargs": {
+        "name": "floor",
         "transform": "floor_trf",
         "model": "cube_mdl",
         "bounding_volume": "floor_bv"
       }
     },
-    "cube": {
+    {
       "class": "dynamic_object",
       "kwargs": {
+        "name": "cube",
         "transform": "cube_trf",
         "model": "cube_mdl",
         "bounding_volume": "cube_bv",
@@ -48,15 +51,16 @@
         "physics_state": "cube_sta"
       }
     },
-    "table": {
+    {
       "class": "static_object",
       "kwargs": {
+        "name": "table",
         "transform": "table_trf",
         "model": "table_mdl",
         "bounding_volume": "table_bv"
       }
     }
-  },
+  ],
   "components": {
     "cam_trf": {
       "class": "transform",

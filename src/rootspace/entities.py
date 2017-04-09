@@ -30,6 +30,8 @@ class Entity(object, metaclass=EntityMeta):
     """
     An entity is a container with a unique identifier.
     """
+    _name = attr.ib(validator=instance_of(str))
+
     @property
     def components(self):
         return attr.astuple(self, recurse=False, filter=lambda a, c: not a.name.startswith("_"))

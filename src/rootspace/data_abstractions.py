@@ -204,7 +204,7 @@ class Scene(DataModel):
 
     # Actual scene data
     systems = attr.ib(default=attr.Factory(tuple), validator=instance_of(tuple), convert=tuple)
-    entities = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
+    entities = attr.ib(default=attr.Factory(tuple), validator=instance_of(tuple), convert=tuple)
     components = attr.ib(default=attr.Factory(dict), validator=instance_of(dict))
 
 
