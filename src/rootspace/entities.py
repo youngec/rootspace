@@ -29,10 +29,6 @@ class Entity(object, metaclass=EntityMeta):
         self.name = name
         self._ident = uuid.uuid4()
 
-    @property
-    def components(self):
-        raise NotImplementedError()
-
     def __hash__(self) -> int:
         return self._ident.int
 
@@ -41,6 +37,10 @@ class Entity(object, metaclass=EntityMeta):
 
     def __str__(self) -> str:
         return "{} ({})".format(self.name, self.__class__.__name__)
+
+    @property
+    def components(self):
+        raise NotImplementedError()
 
 
 class Camera(Entity):
