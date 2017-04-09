@@ -73,6 +73,7 @@
         "far_plane": "far_plane"
       }
     },
+    "cam_bv": {"class": "bounding_volume", "kwargs": {}},
     "cam_phys_prop": {
       "class": "physics_properties",
       "kwargs": {
@@ -88,38 +89,7 @@
         "scale": [8, 0.1, 8]
       }
     },
-    "cube_trf": {
-      "class": "transform",
-      "kwargs": {
-        "position": [0, 1, -10],
-        "orientation": [0, 0, 0, 1],
-        "scale": [0.5, 0.5, 0.5]
-      }
-    },
-    "table_trf": {
-      "class": "transform",
-      "kwargs": {
-        "position": [10, 0, -10],
-        "orientation": [0, 0, 0, 1],
-        "scale": [1, 1, 1]
-      }
-    },
-    "cam_bv": {
-      "class": "bounding_volume",
-      "kwargs": {}
-    },
-    "floor_bv": {
-      "class": "bounding_volume",
-      "kwargs": {}
-    },
-    "cube_bv": {
-      "class": "bounding_volume",
-      "kwargs": {}
-    },
-    "table_bv": {
-      "class": "bounding_volume",
-      "kwargs": {}
-    },
+    "floor_bv": {"class": "bounding_volume", "kwargs": {}},
     "floor_mdl": {
       "class": "model",
       "kwargs": {
@@ -128,6 +98,15 @@
         "fragment_shader_path": "shaders/floor-fragment.glsl"
       }
     },
+    "cube_trf": {
+      "class": "transform",
+      "kwargs": {
+        "position": [0, 1, -10],
+        "orientation": [0, 0, 0, 1],
+        "scale": [0.5, 0.5, 0.5]
+      }
+    },
+    "cube_bv": {"class": "bounding_volume", "kwargs": {}},
     "cube_mdl": {
       "class": "model",
       "kwargs": {
@@ -136,6 +115,17 @@
         "fragment_shader_path": "shaders/cube-fragment.glsl"
       }
     },
+    "cube_prp": {"class": "physics_properties", "kwargs": {}},
+    "cube_sta": {"class": "physics_state", "kwargs": {}},
+    "table_trf": {
+      "class": "transform",
+      "kwargs": {
+        "position": [10, 0, -10],
+        "orientation": [0, 0, 0, 1],
+        "scale": [1, 1, 1]
+      }
+    },
+    "table_bv": {"class": "bounding_volume", "kwargs": {}},
     "table_mdl": {
       "class": "model",
       "kwargs": {
@@ -144,8 +134,6 @@
         "fragment_shader_path": "shaders/table-fragment.glsl",
         "texture_path": "textures/table.png"
       }
-    },
-    "cube_prp": {"class": "physics_properties", "kwargs": {}},
-    "cube_sta": {"class": "physics_state", "kwargs": {}}
+    }
   }
 }
