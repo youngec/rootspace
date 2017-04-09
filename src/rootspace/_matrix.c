@@ -11,18 +11,15 @@ const char Matrix_Docstring[] =
     "ValueError if the two-dimensional shape is not larger or equal to (1, 1).";
 
 int is_close(double a, double b, double rel_tol, double abs_tol) {
-    // Catch total equality early.
+    // Catch exact equality early.
     if (a == b) {
         return 1;
     }
-
     // Catch the occurrence of infinity.
     if (isinf(a) || isinf(b)) {
         return 0;
     }
-
     double diff = fabs(b - a);
-
     return (((diff <= rel_tol * fabs(b)) || (diff <= rel_tol * fabs(a))) || (diff < abs_tol));
 }
 
@@ -31,12 +28,10 @@ Matrix* Matrix_NewInternalShallow(Py_ssize_t N, Py_ssize_t M, int transposed, Ma
     if (matrix == NULL) {
         return NULL;
     }
-
     matrix->container = container;
     matrix->N = N;
     matrix->M = M;
     matrix->transposed = transposed;
-
     return matrix;
 }
 
