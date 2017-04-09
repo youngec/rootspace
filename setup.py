@@ -99,7 +99,7 @@ if __name__ == "__main__":
             "xxhash == 1.0.1",
             "pillow == 4.1.0",
             "pyparsing == 2.2.0",
-            "regex == 2017.2.8"
+            "regex == 2017.4.5"
         ],
         tests_require=[
             "pytest == 3.0.7",
