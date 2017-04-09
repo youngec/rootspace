@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import itertools
+from typing import Optional, Any
 
 import OpenGL.GL as gl
 import glfw
-import attr
-from attr.validators import optional, instance_of
 
 from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties, BoundingVolume
 from .entities import Camera, StaticObject
@@ -21,12 +19,12 @@ class SystemMeta(type):
     """
     classes = dict()
 
-    def __new__(meta, name, bases, cls_dict):
+    def __new__(mcs, name, bases, cls_dict):
         register = cls_dict.pop("register", True)
         cls_dict["_log"] = logging.getLogger("{}.{}".format(__name__, name))
-        cls = super(SystemMeta, meta).__new__(meta, name, bases, cls_dict)
+        cls = super(SystemMeta, mcs).__new__(mcs, name, bases, cls_dict)
         if register:
-            meta.classes[camelcase_to_underscore(cls.__name__)] = cls
+            mcs.classes[camelcase_to_underscore(cls.__name__)] = cls
 
         return cls
 
@@ -46,7 +44,13 @@ class System(object, metaclass=SystemMeta):
     component_types = tuple()
     is_applicator = True
 
-    def __eq__(self, other):
+    def __str__(self) -> str:
+        return self.__class__.__name__
+
+    def __repr__(self) -> str:
+        return "{}()".format(self.__class__.__name__)
+
+    def __eq__(self, other: Any) -> bool:
         return type(self) is type(other)
 
 
@@ -100,7 +104,6 @@ class EventSystem(System):
         pass
 
 
-@attr.s
 class CollisionSystem(UpdateSystem):
     """
     Detect collisions between objects.
@@ -124,7 +127,6 @@ class CollisionSystem(UpdateSystem):
                         state.force = -prp.mass * prp.g
 
 
-@attr.s
 class PhysicsSystem(UpdateSystem):
     """
     Simulate the equations of motion.
@@ -150,7 +152,6 @@ class PhysicsSystem(UpdateSystem):
                 state.momentum = m
 
 
-@attr.s
 class PlayerMovementSystem(EventSystem):
     """
     PlayerMovementSystem causes the Camera to react on the basis of keyboard button presses.
@@ -190,13 +191,13 @@ class PlayerMovementSystem(EventSystem):
                     state.momentum = direction
 
 
-@attr.s
 class CameraControlSystem(EventSystem):
     component_types = (Transform, Projection)
     is_applicator = True
     event_types = (CursorEvent,)
 
-    cursor = attr.ib(default=None, validator=optional(instance_of(Matrix)))
+    def __init__(self):
+        self.cursor: Optional[Matrix] = None
 
     def process(self, event, world, components):
         multiplier = 0.04
@@ -221,7 +222,6 @@ class CameraControlSystem(EventSystem):
                 transform.r @= rot_along_up.matrix
 
 
-@attr.s
 class OpenGlRenderer(RenderSystem):
     """
     The OpenGLRenderer renders those Entities within the World that have Transform and Model components.
