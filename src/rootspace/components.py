@@ -2,15 +2,14 @@
 
 import enum
 import math
+from typing import Optional
+from contextlib import ExitStack
 
 import xxhash
-import contextlib
 import warnings
 
-import attr
 import OpenGL.GL as gl
 import PIL.Image
-from attr.validators import instance_of
 from OpenGL.constant import Constant
 
 from .math import Quaternion, Matrix
@@ -36,13 +35,17 @@ class ComponentMeta(type):
 
 
 class Component(object, metaclass=ComponentMeta):
-    pass
+    def __repr__(self):
+        return "{}(...)".format(self.__class__.__name__)
+
+    def __str__(self):
+        return self.__class__.__name__
 
 
-@attr.s
 class BoundingVolume(Component):
-    minimum = attr.ib(validator=instance_of(Matrix))
-    maximum = attr.ib(validator=instance_of(Matrix))
+    def __init__(self, minimum: Matrix, maximum: Matrix) -> None:
+        self.minimum = minimum
+        self.maximum = maximum
 
     @classmethod
     def create(cls, context, minimum=(-1, -1, -1), maximum=(1, 1, 1)):
@@ -60,12 +63,12 @@ class BoundingVolume(Component):
         )
 
 
-@attr.s
 class PhysicsProperties(Component):
-    mass = attr.ib(validator=instance_of(float))
-    inertia = attr.ib(validator=instance_of(float))
-    center_of_mass = attr.ib(validator=instance_of(Matrix))
-    g = attr.ib(validator=instance_of(Matrix))
+    def __init__(self, mass: float, inertia: float, center_of_mass: Matrix, g: Matrix) -> None:
+        self.mass = mass
+        self.inertia = inertia
+        self.center_of_mass = center_of_mass
+        self.g = g
 
     @classmethod
     def create(cls, context, mass=1.0, inertia=1.0, center_of_mass=(0, 0, 0), g=(0, -9.80665, 0)):
@@ -86,10 +89,10 @@ class PhysicsProperties(Component):
         )
 
 
-@attr.s
 class PhysicsState(Component):
-    momentum = attr.ib(validator=instance_of(Matrix))
-    force = attr.ib(validator=instance_of(Matrix))
+    def __init__(self, momentum: Matrix, force: Matrix) -> None:
+        self.momentum = momentum
+        self.force = force
 
     @classmethod
     def create(cls, context, momentum=(0, 0, 0), force=(0, 0, 0)):
@@ -111,12 +114,12 @@ class PhysicsState(Component):
         self.force = Matrix((3, 1), 0)
 
 
-@attr.s
 class Transform(Component):
-    t = attr.ib(validator=instance_of(Matrix))
-    r = attr.ib(validator=instance_of(Matrix))
-    s = attr.ib(validator=instance_of(Matrix))
-    camera = attr.ib(validator=instance_of(bool))
+    def __init__(self, t: Matrix, r: Matrix, s: Matrix, camera: bool) -> None:
+        self.t = t
+        self.r = r
+        self.s = s
+        self.camera = camera
 
     @classmethod
     def create(cls, context, position=(0, 0, 0), orientation=(0, 0, 0, 1), scale=(1, 1, 1), camera=False):
@@ -170,9 +173,9 @@ class Transform(Component):
         self.s = Matrix((4, 4))
 
 
-@attr.s
 class Projection(Component):
-    p = attr.ib(validator=instance_of(Matrix))
+    def __init__(self, p: Matrix) -> None:
+        self.p = p
 
     @classmethod
     def create(cls, context, field_of_view=math.pi / 4, window_shape=(800, 600), near_plane=0 - 1, far_plane=1000):
@@ -195,22 +198,10 @@ class Projection(Component):
         return self.p
 
 
-@attr.s
 class Model(Component):
     """
     OpenGlModel encapsulates all that belongs to a graphical representation of an object, stored on the GPU.
     """
-    _vao = attr.ib(validator=instance_of(int))
-    _vbo = attr.ib(validator=instance_of(int))
-    _ibo = attr.ib(validator=instance_of(int))
-    _draw_mode = attr.ib(validator=instance_of(Constant))
-    _index_len = attr.ib(validator=instance_of(int))
-    _index_type = attr.ib(validator=instance_of(Constant))
-    _texture = attr.ib(validator=instance_of((type(None), Texture)))
-    _program = attr.ib(validator=instance_of(OpenGlProgram))
-    _ctx_exit = attr.ib(validator=instance_of(contextlib.ExitStack), repr=False)
-    _render_exit = attr.ib(default=None, validator=instance_of((type(None), contextlib.ExitStack)), repr=False)
-
     data_types = {
         "b": gl.GL_BYTE,
         "B": gl.GL_UNSIGNED_BYTE,
@@ -236,6 +227,65 @@ class Model(Component):
         Mesh.DrawMode.TrianglesAdjacency: gl.GL_TRIANGLES_ADJACENCY,
         Mesh.DrawMode.Patches: gl.GL_PATCHES
     }
+
+    def __init__(self, vao: int, vbo: int, ibo: int, draw_mode: Constant,
+                 index_len: int,
+                 index_type: Constant, texture: Optional[Texture],
+                 program: OpenGlProgram, ctx_exit: ExitStack,
+                 render_exit: Optional[ExitStack] = None) -> None:
+        self._vao = vao
+        self._vbo = vbo
+        self._ibo = ibo
+        self._draw_mode = draw_mode
+        self._index_len = index_len
+        self._index_type = index_type
+        self._texture = texture
+        self._program = program
+        self._ctx_exit = ctx_exit
+        self._render_exit = render_exit
+
+    def __del__(self):
+        self._ctx_exit.close()
+
+    def __enter__(self):
+        """
+        Enable the model.
+
+        :return:
+        """
+        with ExitStack() as ctx_mgr:
+            ctx_mgr.enter_context(self._program)
+
+            if self._texture is not None:
+                ctx_mgr.enter_context(self._texture)
+
+            gl.glBindVertexArray(self._vao)
+            ctx_mgr.callback(gl.glBindVertexArray, 0)
+
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self._vbo)
+            ctx_mgr.callback(gl.glBindBuffer, gl.GL_ARRAY_BUFFER, 0)
+
+            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self._ibo)
+            ctx_mgr.callback(gl.glBindBuffer, gl.GL_ELEMENT_ARRAY_BUFFER, 0)
+
+            self._render_exit = ctx_mgr.pop_all()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Disable the model.
+
+        :param exc_type:
+        :param exc_val:
+        :param exc_tb:
+        :return:
+        """
+        if self._render_exit is not None:
+            self._render_exit.close()
+            self._render_exit = None
+
+        return False
+
 
     @classmethod
     def delete_vertex_arrays(cls, num, obj):
@@ -269,7 +319,7 @@ class Model(Component):
         elif not mesh.requires_texture and (mesh.texture is not None or texture_path is not None):
             warnings.warn("Texture data was provided but the Mesh does not require one.", FixmeWarning)
 
-        with contextlib.ExitStack() as ctx:
+        with ExitStack() as ctx:
             # Create and bind the Vertex Array Object
             vao = int(gl.glGenVertexArrays(1))
             ctx.callback(cls.delete_vertex_arrays, 1, vao)
@@ -315,62 +365,25 @@ class Model(Component):
                 tex, program, ctx_exit
             )
 
-    def draw(self, matrix):
+    def draw(self, matrix: Matrix) -> None:
         """
         Draw the current model.
 
         :param matrix:
         :return:
         """
-        warnings.warn("I should probably not hard-code the uniform variable names.", FixmeWarning)
-        self._program.uniform("mvp_matrix", matrix)
-        if self._texture is not None:
-            gl.glActiveTexture(gl.GL_TEXTURE0)
-            self._program.uniform("active_tex", 0)
-
-        gl.glDrawElements(self._draw_mode, self._index_len, self._index_type, None)
-
-    def __del__(self):
-        self._ctx_exit.close()
-
-    def __enter__(self):
-        """
-        Enable the model.
-
-        :return:
-        """
-        with contextlib.ExitStack() as ctx_mgr:
-            ctx_mgr.enter_context(self._program)
-
+        if self._render_exit is not None:
+            warnings.warn("I should probably not hard-code the uniform variable names.", FixmeWarning)
+            self._program.uniform("mvp_matrix", matrix)
             if self._texture is not None:
-                ctx_mgr.enter_context(self._texture)
+                gl.glActiveTexture(gl.GL_TEXTURE0)
+                self._program.uniform("active_tex", 0)
 
-            gl.glBindVertexArray(self._vao)
-            ctx_mgr.callback(gl.glBindVertexArray, 0)
-
-            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self._vbo)
-            ctx_mgr.callback(gl.glBindBuffer, gl.GL_ARRAY_BUFFER, 0)
-
-            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self._ibo)
-            ctx_mgr.callback(gl.glBindBuffer, gl.GL_ELEMENT_ARRAY_BUFFER, 0)
-
-            self._render_exit = ctx_mgr.pop_all()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Disable the model.
-
-        :param exc_type:
-        :param exc_val:
-        :param exc_tb:
-        :return:
-        """
-        self._render_exit.close()
-        return False
+            gl.glDrawElements(self._draw_mode, self._index_len, self._index_type, None)
+        else:
+            raise RuntimeError("Cannot render outside of Model context manager.")
 
 
-@attr.s
 class MachineState(Component):
     """
     Describe whether a particular entity is in working order or not.
@@ -385,8 +398,9 @@ class MachineState(Component):
         ready = 2
         power_down = 3
 
-    _platform = attr.ib(default="", validator=instance_of(str))
-    _state = attr.ib(default=MSE.power_off, validator=instance_of(MSE))
+    def __init__(self, platform: str, state: MSE) -> None:
+        self._platform = platform
+        self._state = state
 
     @property
     def fatal(self):
@@ -434,25 +448,25 @@ class MachineState(Component):
             self._state = MachineState.MSE.power_down
 
 
-@attr.s
 class NetworkState(Component):
     """
     Describe the state of the network subsystem.
     """
-    address = attr.ib(default=0, validator=instance_of(int))
-    connected = attr.ib(default=attr.Factory(list), validator=instance_of(list))
+    def __init__(self, address: int, connected: list) -> None:
+        self.address = address
+        self.connected = connected
 
 
-@attr.s
 class DisplayBuffer(Component):
     """
     Describe the state of the display buffer of the simulated display.
     """
-    _buffer = attr.ib(validator=instance_of(Matrix))
-    _cursor_x = attr.ib(default=0, validator=instance_of(int))
-    _cursor_y = attr.ib(default=0, validator=instance_of(int))
-    _hasher = attr.ib(default=attr.Factory(xxhash.xxh64), validator=instance_of(xxhash.xxh64))
-    _digest = attr.ib(default=b"", validator=instance_of(bytes))
+    def __init__(self, buffer: Matrix, cursor_x: int, cursor_y: int, hasher: xxhash.xxh64, digest: bytes) -> None:
+        self._buffer = buffer
+        self._cursor_x = cursor_x
+        self._cursor_y = cursor_y
+        self._hasher = hasher
+        self._digest = digest
 
     @property
     def buffer(self):
@@ -511,7 +525,6 @@ class DisplayBuffer(Component):
         return self.to_bytes().decode(encoding)
 
 
-@attr.s
 class InputOutputStream(Component):
     """
     Model input and output streams.
@@ -521,11 +534,11 @@ class InputOutputStream(Component):
         "utf-8"
     )
 
-    input = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
-    output = attr.ib(default=test_output, validator=instance_of(bytearray))
+    def __init__(self, in_stream: bytearray, out_stream: bytearray) -> None:
+        self.input = in_stream
+        self.output = out_stream
 
 
-@attr.s
 class ShellState(Component):
     """
     Model the environment of a shell.
@@ -536,12 +549,10 @@ class ShellState(Component):
         "PATH": ""
     }
 
-    env = attr.ib(default=default_env, validator=instance_of(dict))
-    line_buffer = attr.ib(default=attr.Factory(bytearray), validator=instance_of(bytearray))
-    path_sep = attr.ib(default=":", validator=instance_of(str))
-
-    # stdin = attr.ib()
-    # stdout = attr.ib()
+    def __init__(self, env: dict, line_buffer: bytearray, path_sep: str) -> None:
+        self.env = env
+        self.line_buffer = line_buffer
+        self.path_sep = path_sep
 
     @property
     def uid(self):
