@@ -97,7 +97,7 @@ class World(object):
         comp_type = type(component)
         if comp_type not in self._components:
             self._components[comp_type] = dict()
-        self._components[type(component)][entity] = component
+        self._components[comp_type][entity] = component
 
     def _add_components(self, entity: Entity) -> None:
         """
