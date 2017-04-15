@@ -864,7 +864,7 @@ class Loop(object):
         :return:
         """
         user_home = Path.home()
-        engine_location = Path(__file__).parent
+        engine_location = Path(__file__).parent.parent.parent
 
         self._log.debug("The user home is at '{}'.".format(user_home))
         self._log.debug("The engine is located at '{}'.".format(engine_location))
