@@ -36,7 +36,7 @@
       "kwargs": {
         "name": "floor",
         "transform": "floor_trf",
-        "model": "cube_mdl",
+        "model": "floor_mdl",
         "bounding_volume": "floor_bv"
       }
     },
