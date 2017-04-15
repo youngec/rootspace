@@ -168,9 +168,9 @@ class Transform(Component):
             self.t[0:3, 3] = value
 
     def reset(self):
-        self.t = Matrix((4, 4))
-        self.r = Matrix((4, 4))
-        self.s = Matrix((4, 4))
+        self.t = Matrix.identity(4)
+        self.r = Matrix.identity(4)
+        self.s = Matrix.identity(4)
 
 
 class Projection(Component):
