@@ -5,6 +5,7 @@ include DESCRIPTION.rst
 
 # If using Python 2.6 or less, then have to include package data, even though
 # it's already declared in setup.py
-#recursive-include resources
+recursive-include src/rootspace/resources *
 include versioneer.py
 include src/rootspace/_version.py
+include src/rootspace/external/glfw3.dll

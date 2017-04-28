@@ -114,5 +114,5 @@ if __name__ == "__main__":
         },
         packages=find_packages(where="src"),
         package_dir={"": "src"},
-        package_data={}
+        include_package_data=True,
     )
