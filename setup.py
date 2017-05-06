@@ -69,7 +69,7 @@ if __name__ == "__main__":
         "src/rootspace/_quaternion.c"
     ])
 
-    long_description = pathlib.Path("README.rst")
+    long_description = pathlib.Path("README.md")
 
     setup(
         name="rootspace",
