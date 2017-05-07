@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from typing import Optional, Any
+from typing import Optional, Any, Generator, Sequence, Type
 
 import OpenGL.GL as gl
 import glfw
 
-from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties, BoundingVolume
+from .components import Component, Transform, Projection, Model, \
+    PhysicsState, PhysicsProperties, BoundingVolume
 from .entities import Camera, StaticObject
-from .events import KeyEvent, CursorEvent
+from .events import Event, KeyEvent, CursorEvent
 from .utilities import camelcase_to_underscore
 from .math import Matrix, Quaternion, equations_of_motion, aabb_overlap
 
@@ -41,8 +42,8 @@ class System(object, metaclass=SystemMeta):
     Also, the processing system does not know about any specific entity,
     but only is aware of the data carried by all entities.
     """
-    component_types = tuple()
-    is_applicator = True
+    component_types: Sequence[Type[Component]] = tuple()
+    is_applicator: bool = True
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -58,15 +59,10 @@ class UpdateSystem(System):
     """
     A processing system for component data. Business logic variant.
     """
-    def update(self, time, delta_time, world, components):
+    def update(self, time: float, delta_time: float, world: Any,
+               components: Generator[Component, None, None]) -> None:
         """
         Update the current World simulation.
-
-        :param float time:
-        :param float delta_time:
-        :param World world:
-        :param components:
-        :return:
         """
         pass
 
@@ -75,13 +71,10 @@ class RenderSystem(System):
     """
     A processing system for component data. Rendering variant.
     """
-    def render(self, world, components):
+    def render(self, world: Any, components: Generator[Component, None, None]
+               ) -> None:
         """
         Render the current World to display.
-
-        :param world:
-        :param components:
-        :return:
         """
         pass
 
@@ -90,16 +83,12 @@ class EventSystem(System):
     """
     A processing system for component data. Event variant.
     """
-    event_types = tuple()
+    event_types: Sequence[Type[Event]] = tuple()
 
-    def process(self, event, world, components):
+    def process(self, event: Event, world: Any,
+                components: Generator[Component, None, None]) -> None:
         """
         Dispatch an Event to the current set of Components.
-
-        :param event:
-        :param world:
-        :param components:
-        :return:
         """
         pass
 
@@ -108,7 +97,8 @@ class CollisionSystem(UpdateSystem):
     """
     Detect collisions between objects.
     """
-    component_types = (Transform, BoundingVolume, PhysicsProperties, PhysicsState)
+    component_types = (Transform, BoundingVolume, PhysicsProperties,
+                       PhysicsState)
     is_applicator = True
 
     def update(self, time, delta_time, world, components):
@@ -137,24 +127,21 @@ class PhysicsSystem(UpdateSystem):
     def update(self, time, delta_time, world, components):
         """
         Update the current position of a simulation of a physics-bound object.
-
-        :param time:
-        :param delta_time:
-        :param world:
-        :param components:
-        :return:
         """
         for transform, properties, state in components:
             force = state.force + (properties.mass * properties.g)
             if any(state.momentum) or any(force):
-                p, m = equations_of_motion(delta_time, transform.position, state.momentum, force, properties.mass)
+                p, m = equations_of_motion(delta_time, transform.position,
+                                           state.momentum, force,
+                                           properties.mass)
                 transform.position = p
                 state.momentum = m
 
 
 class PlayerMovementSystem(EventSystem):
     """
-    PlayerMovementSystem causes the Camera to react on the basis of keyboard button presses.
+    PlayerMovementSystem causes the Camera to react on the basis of keyboard 
+    button presses.
     """
     component_types = (Transform, PhysicsState, Projection)
     is_applicator = True
@@ -216,7 +203,8 @@ class CameraControlSystem(EventSystem):
             self.cursor = cursor
             delta /= delta.norm() / multiplier
             for transform, projection in components:
-                rot_along_right = Quaternion.from_axis(transform.right, delta[1])
+                rot_along_right = Quaternion.from_axis(transform.right,
+                                                       delta[1])
                 transform.r @= rot_along_right.matrix
                 rot_along_up = Quaternion.from_axis(Matrix.ey(), -delta[0])
                 transform.r @= rot_along_up.matrix
@@ -224,7 +212,8 @@ class CameraControlSystem(EventSystem):
 
 class OpenGlRenderer(RenderSystem):
     """
-    The OpenGLRenderer renders those Entities within the World that have Transform and Model components.
+    The OpenGLRenderer renders those Entities within the World that have 
+    Transform and Model components.
     """
     component_types = (Transform, Model)
     is_applicator = True
@@ -232,7 +221,8 @@ class OpenGlRenderer(RenderSystem):
     def render(self, world, components):
         # Get a reference to the camera
         for camera in world.get_entities(Camera):
-            pv = camera.projection.matrix @ camera.transform.s @ camera.transform.r @ camera.transform.t
+            pv = camera.projection.matrix @ camera.transform.s @ \
+                 camera.transform.r @ camera.transform.t
 
             # Clear the render buffers
             gl.glClear(world.scene.clear_bits)
