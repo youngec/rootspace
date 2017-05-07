@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from typing import Optional, Any, Generator, Sequence, Type, Dict
+from typing import Optional, Any, Sequence, Type, Dict, Iterable
 
 import OpenGL.GL as gl
 import glfw
@@ -43,7 +43,6 @@ class System(object, metaclass=SystemMeta):
     but only is aware of the data carried by all entities.
     """
     component_types: Sequence[Type[Component]] = tuple()
-    is_applicator: bool = True
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -60,7 +59,7 @@ class UpdateSystem(System):
     A processing system for component data. Business logic variant.
     """
     def update(self, time: float, delta_time: float, world: Any,
-               components: Generator[Component, None, None]) -> None:
+               components: Iterable[Sequence[Component]]) -> None:
         """
         Update the current World simulation.
         """
@@ -71,8 +70,8 @@ class RenderSystem(System):
     """
     A processing system for component data. Rendering variant.
     """
-    def render(self, world: Any, components: Generator[Component, None, None]
-               ) -> None:
+    def render(self, world: Any,
+               components: Iterable[Sequence[Component]]) -> None:
         """
         Render the current World to display.
         """
@@ -86,7 +85,7 @@ class EventSystem(System):
     event_types: Sequence[Type[Event]] = tuple()
 
     def process(self, event: Event, world: Any,
-                components: Generator[Component, None, None]) -> None:
+                components: Iterable[Sequence[Component]]) -> None:
         """
         Dispatch an Event to the current set of Components.
         """
@@ -99,7 +98,6 @@ class CollisionSystem(UpdateSystem):
     """
     component_types = (Transform, BoundingVolume, PhysicsProperties,
                        PhysicsState)
-    is_applicator = True
 
     def update(self, time, delta_time, world, components):
         for trf, bv, prp, state in components:
@@ -122,7 +120,6 @@ class PhysicsSystem(UpdateSystem):
     Simulate the equations of motion.
     """
     component_types = (Transform, PhysicsProperties, PhysicsState)
-    is_applicator = True
 
     def update(self, time, delta_time, world, components):
         """
@@ -144,7 +141,6 @@ class PlayerMovementSystem(EventSystem):
     button presses.
     """
     component_types = (Transform, PhysicsState, Projection)
-    is_applicator = True
     event_types = (KeyEvent,)
 
     def process(self, event, world, components):
@@ -180,7 +176,6 @@ class PlayerMovementSystem(EventSystem):
 
 class CameraControlSystem(EventSystem):
     component_types = (Transform, Projection)
-    is_applicator = True
     event_types = (CursorEvent,)
 
     def __init__(self):
@@ -216,7 +211,6 @@ class OpenGlRenderer(RenderSystem):
     Transform and Model components.
     """
     component_types = (Transform, Model)
-    is_applicator = True
 
     def render(self, world, components):
         # Get a reference to the camera

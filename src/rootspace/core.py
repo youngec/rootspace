@@ -56,8 +56,8 @@ class World(object):
     def scene(self) -> Scene:
         return self._scene
 
-    def _combined_components(self, comp_types: Tuple[Type[Component], ...]
-                             ) -> Generator[Tuple[Component], None, None]:
+    def _get_components(self, comp_types: Sequence[Type[Component]]
+                        ) -> Generator[Sequence[Component], None, None]:
         """
         Combine the sets of components.
         """
@@ -223,25 +223,16 @@ class World(object):
         except for the render system.
         """
         for system in self._update_systems:
-            if system.is_applicator:
-                comps = self._combined_components(system.component_types)
-                system.update(t, dt, self, comps)
-            else:
-                for comp_type in system.component_types:
-                    system.update(
-                        t, dt, self, self._components[comp_type].values())
+            comps = self._get_components(system.component_types)
+            system.update(t, dt, self, comps)
 
     def render(self) -> None:
         """
         Process the components that correspond to the render system.
         """
         for system in self._render_systems:
-            if system.is_applicator:
-                comps = self._combined_components(system.component_types)
-                system.render(self, comps)
-            else:
-                for comp_type in system.component_types:
-                    system.render(self, self._components[comp_type].values())
+            comps = self._get_components(system.component_types)
+            system.render(self, comps)
 
     def dispatch(self, event: Event) -> None:
         """
@@ -260,15 +251,8 @@ class World(object):
             else:
                 for system in self._event_systems:
                     if isinstance(event, system.event_types):
-                        if system.is_applicator:
-                            comps = self._combined_components(
-                                system.component_types)
-                            system.process(event, self, comps)
-                        else:
-                            for comp_type in system.component_types:
-                                system.process(
-                                    event, self,
-                                    self._components[comp_type].values())
+                        comps = self._get_components(system.component_types)
+                        system.process(event, self, comps)
 
     def register_callbacks(self, window: Any) -> None:
         """
@@ -368,7 +352,7 @@ class World(object):
             gl.glDisable(gl.GL_CULL_FACE)
 
     def _load_list_objects(self, scene, object_list, class_registry,
-                           reference_tree=None) -> Tuple[Any, ...]:
+                           reference_tree=None) -> Sequence[Any]:
         objects = list()
         for v in object_list:
             cls = class_registry[v["class"]]
