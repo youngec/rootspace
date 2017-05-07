@@ -1,24 +1,26 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""Implements parsers for resource files."""
+"""
+Implements parsers for resource files.
+"""
 
 import array
-import pathlib
-import mmap
-import struct
 import enum
+import io
+import mmap
+import pathlib
+import struct
+from typing import Union, Tuple, Optional, Sequence, Dict, Generator, Any
 
 import PIL.Image
-import attr
-from attr.validators import instance_of
-from pyparsing import pyparsing_common, ParserElement, Group, And, MatchFirst, CaselessKeyword, Optional, \
-    OneOrMore, replaceWith, Suppress, countedArray, ParseResults, Word, printables, ZeroOrMore, alphanums, NotAny
+from pyparsing import pyparsing_common, ParserElement, Group, And, MatchFirst, \
+    CaselessKeyword, Optional, \
+    OneOrMore, replaceWith, Suppress, countedArray, ParseResults, Word, \
+    printables, ZeroOrMore, alphanums, NotAny
 
 from .data_abstractions import Attribute, Mesh
 
 
-@attr.s
 class PlyParser(object):
     """
     Parse PLY Stanford Polygon Files
@@ -50,9 +52,13 @@ class PlyParser(object):
     prop_list_data   ::= list_length (NUMBER * list_length)
     list_length      ::= NUMBER
     """
-    header_grammar = attr.ib(validator=instance_of(ParserElement))
-    base_shader_path = attr.ib(validator=instance_of(pathlib.Path))
-    base_texture_path = attr.ib(validator=instance_of(pathlib.Path))
+
+    def __init__(self, header_grammar: ParserElement,
+                 base_shader_path: pathlib.Path,
+                 base_texture_path: pathlib.Path) -> None:
+        self.header_grammar = header_grammar
+        self.base_shader_path = base_shader_path
+        self.base_texture_path = base_texture_path
 
     class FormatType(enum.Enum):
         ASCII = 0
@@ -110,13 +116,10 @@ class PlyParser(object):
     default_index_type = "I"
 
     @classmethod
-    def create(cls, base_shader_path, base_texture_path):
+    def create(cls, base_shader_path: pathlib.Path,
+               base_texture_path: pathlib.Path) -> "PlyParser":
         """
         Create a Stanford polygon file parser (PLY).
-
-        :param base_shader_path:
-        :param base_texture_path:
-        :return:
         """
         # Define the base patterns for parsing
         real = pyparsing_common.real()
@@ -128,10 +131,17 @@ class PlyParser(object):
 
         # Define the grammar of a comment statement
         comment_keyword = cls._or(cls.comment_keyword, suppress=True)
-        vertex_shader_comment = Group(comment_keyword + Suppress(CaselessKeyword("VertexShaderFile")) + Word(alphanums + ".-_"))("vertex_shader_file")
-        fragment_shader_comment = Group(comment_keyword + Suppress(CaselessKeyword("FragmentShaderFile")) + Word(alphanums + ".-_"))("fragment_shader_file")
-        texture_comment = Group(comment_keyword + Suppress(CaselessKeyword("TextureFile")) + Word(alphanums + ".-_"))("texture_file")
-        other_comment = comment_keyword + NotAny("TextureFile") + Word(printables + " ")
+        vertex_shader_comment = Group(comment_keyword + Suppress(
+            CaselessKeyword("VertexShaderFile")) + Word(alphanums + ".-_"))(
+            "vertex_shader_file")
+        fragment_shader_comment = Group(comment_keyword + Suppress(
+            CaselessKeyword("FragmentShaderFile")) + Word(alphanums + ".-_"))(
+            "fragment_shader_file")
+        texture_comment = Group(
+            comment_keyword + Suppress(CaselessKeyword("TextureFile")) + Word(
+                alphanums + ".-_"))("texture_file")
+        other_comment = comment_keyword + NotAny("TextureFile") + Word(
+            printables + " ")
 
         # Define the grammar of a format statement
         format_keyword = cls._or(cls.format_keyword, suppress=True)
@@ -149,49 +159,70 @@ class PlyParser(object):
         psp = property_keyword + property_type("data_type")
 
         position_keywords = [cls._or(k) for k in ("x", "y", "z")]
-        property_position = cls._aggregate_property("position", psp, *position_keywords)
+        property_position = cls._aggregate_property("position", psp,
+                                                    *position_keywords)
 
         property_color = Group(And([
-            Group(psp + MatchFirst((CaselessKeyword("r"), CaselessKeyword("red")))("name")),
-            Group(psp + MatchFirst((CaselessKeyword("g"), CaselessKeyword("green")))("name")),
-            Group(psp + MatchFirst((CaselessKeyword("b"), CaselessKeyword("blue")))("name")),
-            Optional(Group(psp + MatchFirst((CaselessKeyword("a"), CaselessKeyword("alpha")))("name")),)
+            Group(psp + MatchFirst(
+                (CaselessKeyword("r"), CaselessKeyword("red")))("name")),
+            Group(psp + MatchFirst(
+                (CaselessKeyword("g"), CaselessKeyword("green")))("name")),
+            Group(psp + MatchFirst(
+                (CaselessKeyword("b"), CaselessKeyword("blue")))("name")),
+            Optional(Group(psp + MatchFirst(
+                (CaselessKeyword("a"), CaselessKeyword("alpha")))("name")), )
         ]))("color")
 
-        ambient_keywords = [cls._or(k) for k in ("ambient_red", "ambient_green", "ambient_blue", "ambient_alpha")]
-        property_ambient_color = cls._aggregate_property("ambient_color", psp, *ambient_keywords)
+        ambient_keywords = [cls._or(k) for k in (
+        "ambient_red", "ambient_green", "ambient_blue", "ambient_alpha")]
+        property_ambient_color = cls._aggregate_property("ambient_color", psp,
+                                                         *ambient_keywords)
 
-        diffuse_keywords = [cls._or(k) for k in ("diffuse_red", "diffuse_green", "diffuse_blue", "diffuse_alpha")]
-        property_diffuse_color = cls._aggregate_property("diffuse_color", psp, *diffuse_keywords)
+        diffuse_keywords = [cls._or(k) for k in (
+        "diffuse_red", "diffuse_green", "diffuse_blue", "diffuse_alpha")]
+        property_diffuse_color = cls._aggregate_property("diffuse_color", psp,
+                                                         *diffuse_keywords)
 
-        specular_keywords = [cls._or(k) for k in ("specular_red", "specular_green", "specular_blue", "specular_alpha")]
-        property_specular_color = cls._aggregate_property("specular_color", psp, *specular_keywords)
+        specular_keywords = [cls._or(k) for k in (
+        "specular_red", "specular_green", "specular_blue", "specular_alpha")]
+        property_specular_color = cls._aggregate_property("specular_color", psp,
+                                                          *specular_keywords)
 
-        texture_keywords = [cls._or(*k) for k in (("s", "u", "tx"), ("t", "v", "ty"))]
-        property_texture = cls._aggregate_property("texture", psp, *texture_keywords)
+        texture_keywords = [cls._or(*k) for k in
+                            (("s", "u", "tx"), ("t", "v", "ty"))]
+        property_texture = cls._aggregate_property("texture", psp,
+                                                   *texture_keywords)
 
         normal_keywords = [cls._or(k) for k in ("nx", "ny", "nz")]
-        property_normal = cls._aggregate_property("normal", psp, *normal_keywords)
+        property_normal = cls._aggregate_property("normal", psp,
+                                                  *normal_keywords)
 
         power_keywords = [CaselessKeyword("specular_power")]
-        property_specular_power = cls._aggregate_property("specular_power", psp, *power_keywords)
+        property_specular_power = cls._aggregate_property("specular_power", psp,
+                                                          *power_keywords)
 
         opacity_keywords = [CaselessKeyword("opacity")]
-        property_opacity = cls._aggregate_property("opacity", psp, *opacity_keywords)
+        property_opacity = cls._aggregate_property("opacity", psp,
+                                                   *opacity_keywords)
 
-        plp = property_keyword + list_keyword + property_type("index_type") + property_type("data_type")
+        plp = property_keyword + list_keyword + property_type(
+            "index_type") + property_type("data_type")
 
         vertex_index_keywords = [cls._or("vertex_index", "vertex_indices")]
-        property_vertex_index = cls._aggregate_property("vertex_index", plp, *vertex_index_keywords)
+        property_vertex_index = cls._aggregate_property("vertex_index", plp,
+                                                        *vertex_index_keywords)
 
-        material_index_keywords = [cls._or("material_index", "material_indices")]
-        property_material_index = cls._aggregate_property("material_index", plp, *material_index_keywords)
+        material_index_keywords = [
+            cls._or("material_index", "material_indices")]
+        property_material_index = cls._aggregate_property("material_index", plp,
+                                                          *material_index_keywords)
 
         # Define the grammar of elements
         element_keyword = cls._or(cls.element_keyword, suppress=True)
 
         element_vertex = Group(
-            element_keyword + CaselessKeyword("vertex")("name") + integer("count") +
+            element_keyword + CaselessKeyword("vertex")("name") + integer(
+                "count") +
             Group(
                 OneOrMore(
                     property_position | property_color | property_ambient_color | property_diffuse_color |
@@ -202,38 +233,37 @@ class PlyParser(object):
         )
 
         element_face = Group(
-            element_keyword + CaselessKeyword("face")("name") + integer("count") +
+            element_keyword + CaselessKeyword("face")("name") + integer(
+                "count") +
             Group(property_vertex_index | property_material_index)("properties")
         )
 
         element_group = element_vertex | element_face
 
         declarations = format_expr + \
-                       Group(ZeroOrMore(vertex_shader_comment | fragment_shader_comment | texture_comment | other_comment))("comments") + \
+                       Group(ZeroOrMore(
+                           vertex_shader_comment | fragment_shader_comment | texture_comment | other_comment))(
+                           "comments") + \
                        Group(OneOrMore(element_group))("elements")
 
         header_grammar = start_keyword + declarations + stop_keyword
 
         return cls(header_grammar, base_shader_path, base_texture_path)
 
-    def tokenize_header(self, header_data):
+    def tokenize_header(self, header_data: str) -> ParseResults:
         """
         Tokenize the header portion of the PLY file.
-
-        :param header_data:
-        :return:
         """
         return self.header_grammar.parseString(header_data, parseAll=True)
 
-    def parse(self, file_object):
+    def parse(self, file_object: io.FileIO) -> Mesh:
         """
-        Parse the supplied file object as PLY file and return a Mesh data abstraction object.
-
-        :param file_object:
-        :return:
+        Parse the supplied file object as PLY file and return a Mesh data 
+        abstraction object.
         """
         # Separate the header and the body portion
-        with mmap.mmap(file_object.fileno(), 0, access=mmap.ACCESS_READ) as file_mmap:
+        with mmap.mmap(file_object.fileno(), 0,
+                       access=mmap.ACCESS_READ) as file_mmap:
             # Read and tokenize the header portion
             header_data, data_start_idx = self._extract_header(file_mmap)
             tokens = self.tokenize_header(header_data)
@@ -249,13 +279,17 @@ class PlyParser(object):
                         comments.append(comment)
                     else:
                         if comment.getName() == "vertex_shader_file":
-                            vertex_shader = (self.base_shader_path / comment[0]).read_text()
+                            vertex_shader = (
+                            self.base_shader_path / comment[0]).read_text()
                         elif comment.getName() == "fragment_shader_file":
-                            fragment_shader = (self.base_shader_path / comment[0]).read_text()
+                            fragment_shader = (
+                            self.base_shader_path / comment[0]).read_text()
                         elif comment.getName() == "texture_file":
-                            texture = PIL.Image.open(self.base_texture_path / comment[0])
+                            texture = PIL.Image.open(
+                                self.base_texture_path / comment[0])
                         else:
-                            raise ValueError("Unkown ParseResult: '{}'.".format(comment))
+                            raise ValueError(
+                                "Unkown ParseResult: '{}'.".format(comment))
                 comments = tuple(comments)
             else:
                 comments = ()
@@ -266,17 +300,24 @@ class PlyParser(object):
             # Determine the data types
             aggregate_data_types = {
                 "vertex": self._get_array_type(tokens, "vertex", "f"),
-                "face": self._get_array_type(tokens, "face", self.default_index_type, self.allowed_index_types)
+                "face": self._get_array_type(tokens, "face",
+                                             self.default_index_type,
+                                             self.allowed_index_types)
             }
 
             # Determine the attributes
-            vertex_attributes = self._get_vertex_attributes(tokens, aggregate_data_types["vertex"])
+            vertex_attributes = self._get_vertex_attributes(
+                tokens, aggregate_data_types["vertex"])
 
             # Parse the data of the PLY file
             if tokens.format.file_type == self.FormatType.ASCII:
-                element_data = self._parse_ascii_data(tokens, file_mmap, data_start_idx, aggregate_data_types)
+                element_data = self._parse_ascii_data(tokens, file_mmap,
+                                                      data_start_idx,
+                                                      aggregate_data_types)
             else:
-                element_data = self._parse_binary_data(tokens, file_mmap, data_start_idx, aggregate_data_types)
+                element_data = self._parse_binary_data(tokens, file_mmap,
+                                                       data_start_idx,
+                                                       aggregate_data_types)
 
             # Store the raw data as array
             return Mesh(
@@ -290,12 +331,9 @@ class PlyParser(object):
                 comments=tuple(comments)
             )
 
-    def load(self, file):
+    def load(self, file: Union[str, bytes, pathlib.Path, io.FileIO]) -> Mesh:
         """
         Load the supplied file as PLY file into a Mesh data abstraction object.
-
-        :param file:
-        :return:
         """
         if isinstance(file, (str, bytes)):
             with open(file, "rb")as f:
@@ -306,22 +344,23 @@ class PlyParser(object):
         elif hasattr(file, "mode") and "b" in file.mode:
             return self.parse(file)
         else:
-            raise TypeError("The 'file' parameter must be either a path to a file, a pathlib.Path object, "
-                            "or a binary file object.")
+            raise TypeError(
+                "The 'file' parameter must be either a path to a file, a "
+                "pathlib.Path object, "
+                "or a binary file object.")
 
     @classmethod
-    def _or(cls, *literals, suppress=False):
+    def _or(cls, *literals, suppress: bool = False) -> ParserElement:
         """
-        Return a MatchFirst aggregation of CaselessKeyword literals based on the supplied iterable of strings.
-        If the supplied iterable is a dictionary, replace the keys with the values as a pyparsing parse action.
+        Return a MatchFirst aggregation of CaselessKeyword literals based 
+        on the supplied iterable of strings.
+        If the supplied iterable is a dictionary, replace the keys with the 
+        values as a pyparsing parse action.
         If suppress is True, wrap the output in a Suppress object.
-
-        :param literals:
-        :param suppress:
-        :return:
         """
         if isinstance(literals[0], dict):
-            keywords = (CaselessKeyword(l).addParseAction(replaceWith(d)) for l, d in literals[0].items())
+            keywords = (CaselessKeyword(l).addParseAction(replaceWith(d)) for
+                        l, d in literals[0].items())
         else:
             keywords = (CaselessKeyword(literal) for literal in literals)
 
@@ -333,18 +372,12 @@ class PlyParser(object):
             return match_first
 
     @classmethod
-    def _aggregate_property(cls, name, prefix, *keywords):
+    def _aggregate_property(cls, name: str, prefix: ParserElement,
+                            *keywords) -> ParserElement:
         """
         Create a property group from the specified name,
-        the pattern prefix (a ParseElement instance), and an iterable of keywords.
-
-        Example:
-        aggregate_property('position', CaselessKeyword('property'), *[CaselessKeyword('x'), ...])
-
-        :param name:
-        :param prefix:
-        :param keywords:
-        :return:
+        the pattern prefix (a ParseElement instance), and an iterable 
+        of keywords.
         """
         aggregates = list()
         for keyword in keywords:
@@ -352,18 +385,18 @@ class PlyParser(object):
 
         return Group(And(aggregates))(name)
 
-    def _extract_header(self, file_mmap):
+    def _extract_header(self, file_mmap: mmap.mmap) -> Tuple[str, int]:
         """
-        Given a memory map of a file object, search for a valid PLY header and return the header as a string.
-
-        :param file_mmap:
-        :return:
+        Given a memory map of a file object, search for a valid PLY header 
+        and return the header as a string.
         """
         # Find the indices of the header beginning and end
         begin_idx = file_mmap.find(self.begin_header_keyword.encode("ascii"))
         end_idx = file_mmap.find(self.end_header_keyword.encode("ascii"))
         if begin_idx != 0 or end_idx == -1:
-            raise ValueError("Could not find a valid PLY header portion in the submitted file.")
+            raise ValueError(
+                "Could not find a valid PLY header portion in the "
+                "submitted file.")
 
         # Adjust the header end index to after the keyword
         end_idx += len(self.end_header_keyword)
@@ -380,15 +413,11 @@ class PlyParser(object):
 
         return header_data, end_idx
 
-    def _get_array_type(self, token_tree, element_name, default_data_type, allowed_data_types=None):
+    def _get_array_type(self, token_tree: ParseResults, element_name: str,
+                        default_data_type: str, allowed_data_types=None) -> str:
         """
-        Return the data type for the aggregate array that contains the data of the specified element.
-
-        :param token_tree:
-        :param element_name:
-        :param default_data_type:
-        :param allowed_data_types:
-        :return:
+        Return the data type for the aggregate array that contains the data 
+        of the specified element.
         """
         # Get a list of the data types of all element properties
         candidate_types = list()
@@ -398,9 +427,12 @@ class PlyParser(object):
                     for variable in prop:
                         candidate_types.append(variable.data_type)
 
-        # Sort the list according to the type preference and return the appropriate result
+        # Sort the list according to the type preference and return the
+        # appropriate result
         if len(candidate_types) > 0:
-            priority_type = max(candidate_types, key=lambda e: self.data_type_precedence.index(e))
+            priority_type = max(candidate_types,
+                                key=lambda e: self.data_type_precedence.index(
+                                    e))
 
             if allowed_data_types is not None:
                 if priority_type in allowed_data_types:
@@ -412,20 +444,20 @@ class PlyParser(object):
         else:
             return default_data_type
 
-    def _get_vertex_attributes(self, header_tokens, vertex_data_type, element_name="vertex"):
+    def _get_vertex_attributes(self, header_tokens: ParseResults,
+                               vertex_data_type: str,
+                               element_name: str = "vertex") -> Sequence[
+        Attribute]:
         """
-        From the header tokens, extract a tuple of Attribute instances that describe the vertex data.
-
-        :param header_tokens:
-        :param vertex_data_type:
-        :param element_name:
-        :return:
+        From the header tokens, extract a tuple of Attribute instances that 
+        describe the vertex data.
         """
         vertex_attributes = list()
         start_index = 0
         for element in header_tokens.elements:
             if element.name == element_name:
-                stride = sum(len(prop) for name, prop in element.properties.items())
+                stride = sum(
+                    len(prop) for name, prop in element.properties.items())
                 for name, prop in element.properties.items():
                     vertex_attributes.append(Attribute(
                         name, vertex_data_type, len(prop), stride, start_index
@@ -434,15 +466,12 @@ class PlyParser(object):
 
         return tuple(vertex_attributes)
 
-    def _parse_ascii_data(self, header_tokens, file_mmap, buffer_offset, aggregate_data_types):
+    def _parse_ascii_data(self, header_tokens: ParseResults,
+                          file_mmap: mmap.mmap, buffer_offset: int,
+                          aggregate_data_types: Dict[str, str]) -> Dict[
+        str, array.ArrayType]:
         """
         Parse the data portion of a PLY file assuming it uses ASCII format.
-
-        :param header_tokens:
-        :param file_mmap:
-        :param buffer_offset:
-        :param aggregate_data_types:
-        :return:
         """
         # Define the grammar of the body
         number = pyparsing_common.number()
@@ -462,24 +491,23 @@ class PlyParser(object):
         ascii_grammar = And(body_expr)
 
         # Tokenize the body data
-        body_tokens = ascii_grammar.parseString(file_mmap[buffer_offset:].decode("ascii"), parseAll=True)
+        body_tokens = ascii_grammar.parseString(
+            file_mmap[buffer_offset:].decode("ascii"), parseAll=True)
 
         # Convert the data to arrays.
         element_data = dict()
         for name, dtype in aggregate_data_types.items():
-            element_data[name] = array.array(dtype, self._flatten(body_tokens[name]))
+            element_data[name] = array.array(dtype, _flatten(body_tokens[name]))
 
         return element_data
 
-    def _parse_binary_data(self, header_tokens, file_mmap, buffer_offset, aggregate_data_types):
+    def _parse_binary_data(self, header_tokens: ParseResults,
+                           file_mmap: mmap.mmap, buffer_offset: int,
+                           aggregate_data_types: Dict[str, str]) -> Dict[
+        str, array.ArrayType]:
         """
-        Parse the data portion of a PLY file assuming it uses one of the two binary formats.
-
-        :param header_tokens:
-        :param file_mmap:
-        :param buffer_offset:
-        :param aggregate_data_types:
-        :return:
+        Parse the data portion of a PLY file assuming it uses one of the 
+        two binary formats.
         """
         # Determine the byte order of the data
         byte_order = self.byte_order_map[header_tokens.format.file_type]
@@ -492,98 +520,112 @@ class PlyParser(object):
             for prop in element.properties:
                 for variable in prop:
                     if "index_type" in variable:
-                        data_types.append((variable.index_type, variable.data_type))
+                        data_types.append(
+                            (variable.index_type, variable.data_type))
                     else:
                         data_types.append(variable.data_type)
 
             aggregate_data_type = aggregate_data_types.get(element.name, "f")
 
             if all(isinstance(dt, str) for dt in data_types):
-                data_format_spec = "{}{}".format(byte_order, "".join(data_types))
-                data = self._flatten(self._unpack_property_simple(data_format_spec, element.count, file_mmap, buffer_idx))
-                element_data[element.name] = array.array(aggregate_data_type, data)
+                data_format_spec = "{}{}".format(byte_order,
+                                                 "".join(data_types))
+                data = _flatten(
+                    _unpack_property_simple(data_format_spec,
+                                                 element.count, file_mmap,
+                                                 buffer_idx))
+                element_data[element.name] = array.array(aggregate_data_type,
+                                                         data)
                 buffer_idx += struct.calcsize(data_format_spec) * element.count
-            elif all(isinstance(dt, tuple) for dt in data_types) and len(data_types) == 1:
+            elif all(isinstance(dt, tuple) for dt in data_types) and len(
+                    data_types) == 1:
                 index_format_spec = "{}{}".format(byte_order, data_types[0][0])
-                raw_data_format_spec = "{}{}{}".format(byte_order, "{}", data_types[0][1])
-                data = self._flatten(self._unpack_property_list(index_format_spec, raw_data_format_spec, element.count, file_mmap, buffer_idx))
-                element_data[element.name] = array.array(aggregate_data_type, data)
-                buffer_idx += self._calculate_property_list_size(index_format_spec, raw_data_format_spec, element.count, file_mmap, buffer_idx)
+                raw_data_format_spec = "{}{}{}".format(byte_order, "{}",
+                                                       data_types[0][1])
+                data = _flatten(
+                    _unpack_property_list(index_format_spec,
+                                               raw_data_format_spec,
+                                               element.count, file_mmap,
+                                               buffer_idx))
+                element_data[element.name] = array.array(aggregate_data_type,
+                                                         data)
+                buffer_idx += _calculate_property_list_size(
+                    index_format_spec, raw_data_format_spec, element.count,
+                    file_mmap, buffer_idx)
             else:
-                raise NotImplementedError("Currently cannot parse mixed simple and list properties per element. "
-                                          "If a list property is present, it must be the only one for that element.")
+                raise NotImplementedError(
+                    "Currently cannot parse mixed simple and list properties "
+                    "per element. "
+                    "If a list property is present, it must be the only one "
+                    "for that element.")
 
         return element_data
 
-    def _unpack_property_simple(self, format_string, count, file_mmap, buffer_offset):
-        """
-        Unpack binary data from a simple property. Works as generator.
 
-        :param format_string:
-        :param count:
-        :param file_mmap:
-        :param buffer_offset:
-        :return:
-        """
-        pattern_size = struct.calcsize(format_string)
-        for i in range(count):
-            yield struct.unpack_from(format_string, file_mmap, buffer_offset + i * pattern_size)
+def _unpack_property_simple(format_string: str, count: int,
+                            file_mmap: mmap.mmap, buffer_offset: int
+                            ) -> Generator[Sequence[Any], None, None]:
+    """
+    Unpack binary data from a simple property. Works as generator.
+    """
+    pattern_size = struct.calcsize(format_string)
+    for i in range(count):
+        yield struct.unpack_from(format_string, file_mmap,
+                                 buffer_offset + i * pattern_size)
 
-    def _calculate_property_list_size(self, index_format_string, raw_data_format_string, count, file_mmap, buffer_offset):
-        """
 
-        :param index_format_string:
-        :param raw_data_format_string:
-        :param count:
-        :param file_mmap:
-        :param buffer_offset:
-        :return:
-        """
-        index_size = struct.calcsize(index_format_string)
-        data_block_size = 0
-        for i in range(count):
-            num_values = struct.unpack_from(index_format_string, file_mmap, buffer_offset + data_block_size)[0]
-            data_format_string = raw_data_format_string.format(num_values)
-            data_size = struct.calcsize(data_format_string)
-            data_block_size += index_size + data_size
+def _calculate_property_list_size(index_format_string: str,
+                                  raw_data_format_string: str, count: int,
+                                  file_mmap: mmap.mmap,
+                                  buffer_offset: int) -> int:
+    """
+    Calculate the length of a PLY list property in the binary file format.
+    """
+    index_size = struct.calcsize(index_format_string)
+    data_block_size = 0
+    for i in range(count):
+        num_values = struct.unpack_from(index_format_string, file_mmap,
+                                        buffer_offset + data_block_size)[0]
+        data_format_string = raw_data_format_string.format(num_values)
+        data_size = struct.calcsize(data_format_string)
+        data_block_size += index_size + data_size
 
-        return data_block_size
+    return data_block_size
 
-    def _unpack_property_list(self, index_format_string, raw_data_format_string, count, file_mmap, buffer_offset):
-        """
-        Unpack binary data from a list property. Works as generator.
 
-        :param index_format_string:
-        :param raw_data_format_string:
-        :param count:
-        :param file_mmap:
-        :param buffer_offset:
-        :return:
-        """
-        index_size = struct.calcsize(index_format_string)
-        secondary_offset = 0
-        for i in range(count):
-            num_values = struct.unpack_from(index_format_string, file_mmap, buffer_offset + secondary_offset)[0]
-            data_format_string = raw_data_format_string.format(num_values)
-            data_size = struct.calcsize(data_format_string)
-            data = struct.unpack_from(data_format_string, file_mmap, buffer_offset + secondary_offset + index_size)
-            secondary_offset += index_size + data_size
-            yield data
+def _unpack_property_list(index_format_string: str,
+                          raw_data_format_string: str, count: int,
+                          file_mmap: mmap.mmap, buffer_offset: int
+                          ) -> Generator[Sequence[Any], None, None]:
+    """
+    Unpack binary data from a list property. Works as generator.
+    """
+    index_size = struct.calcsize(index_format_string)
+    secondary_offset = 0
+    for i in range(count):
+        num_values = struct.unpack_from(index_format_string, file_mmap,
+                                        buffer_offset + secondary_offset)[0]
+        data_format_string = raw_data_format_string.format(num_values)
+        data_size = struct.calcsize(data_format_string)
+        data = struct.unpack_from(data_format_string, file_mmap,
+                                  buffer_offset + secondary_offset +
+                                  index_size)
+        secondary_offset += index_size + data_size
+        yield data
 
-    def _flatten(self, nested_iterable):
-        """
-        Flatten a nested iterable. Is capable of flattening up to three levels, and works as generator.
 
-        :param nested_iterable:
-        :return:
-        """
-        for d in nested_iterable:
-            if isinstance(d, (tuple, ParseResults)):
-                for e in d:
-                    if isinstance(e, ParseResults):
-                        for f in e:
-                            yield f
-                    else:
-                        yield e
-            else:
-                yield d
+def _flatten(nested_iterable: Any) -> Generator[Any, None, None]:
+    """
+    Flatten a nested iterable. Is capable of flattening up to three 
+    levels, and works as generator.
+    """
+    for d in nested_iterable:
+        if isinstance(d, (tuple, ParseResults)):
+            for e in d:
+                if isinstance(e, ParseResults):
+                    for f in e:
+                        yield f
+                else:
+                    yield e
+        else:
+            yield d
