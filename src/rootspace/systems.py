@@ -99,7 +99,8 @@ class CollisionSystem(UpdateSystem):
     component_types = (Transform, BoundingVolume, PhysicsProperties,
                        PhysicsState)
 
-    def update(self, time, delta_time, world, components):
+    def update(self, time: float, delta_time: float, world: Any,
+               components: Iterable[Sequence[Component]]) -> None:
         for trf, bv, prp, state in components:
             if any(state.momentum):
                 d_mat = trf.t @ trf.r @ trf.s
@@ -121,7 +122,8 @@ class PhysicsSystem(UpdateSystem):
     """
     component_types = (Transform, PhysicsProperties, PhysicsState)
 
-    def update(self, time, delta_time, world, components):
+    def update(self, time: float, delta_time: float, world: Any,
+               components: Iterable[Sequence[Component]]) -> None:
         """
         Update the current position of a simulation of a physics-bound object.
         """
@@ -143,7 +145,8 @@ class PlayerMovementSystem(EventSystem):
     component_types = (Transform, PhysicsState, Projection)
     event_types = (KeyEvent,)
 
-    def process(self, event, world, components):
+    def process(self, event: Event, world: Any,
+                components: Iterable[Sequence[Component]]) -> None:
         key_map = world.ctx.key_map
         multiplier = 1
 
@@ -181,7 +184,8 @@ class CameraControlSystem(EventSystem):
     def __init__(self):
         self.cursor: Optional[Matrix] = None
 
-    def process(self, event, world, components):
+    def process(self, event: Event, world: Any,
+                components: Iterable[Sequence[Component]]) -> None:
         multiplier = 0.04
         window_shape = world.ctx.data.window_shape
         cursor = Matrix((3, 1), (
@@ -212,7 +216,8 @@ class OpenGlRenderer(RenderSystem):
     """
     component_types = (Transform, Model)
 
-    def render(self, world, components):
+    def render(self, world: Any,
+               components: Iterable[Sequence[Component]]) -> None:
         # Get a reference to the camera
         for camera in world.get_entities(Camera):
             pv = camera.projection.matrix @ camera.transform.s @ \

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import uuid
+from typing import Dict, Sequence
 
-from .components import Transform, Projection, Model, PhysicsState, PhysicsProperties, BoundingVolume
+from .components import Component, Transform, Projection, Model, PhysicsState, \
+    PhysicsProperties, BoundingVolume
 from .utilities import camelcase_to_underscore
 
 
@@ -10,7 +12,7 @@ class EntityMeta(type):
     """
     EntityMeta registers all Entities in EntityMeta.classes
     """
-    classes = dict()
+    classes: Dict[str, "Entity"] = dict()
 
     def __new__(mcs, name, bases, cls_dict):
         register = cls_dict.pop("register", True)
@@ -39,7 +41,7 @@ class Entity(object, metaclass=EntityMeta):
         return "{} ({})".format(self.name, self.__class__.__name__)
 
     @property
-    def components(self):
+    def components(self) -> Sequence[Component]:
         raise NotImplementedError()
 
 
@@ -56,7 +58,7 @@ class Camera(Entity):
         self.physics_state = physics_state
 
     @property
-    def components(self):
+    def components(self) -> Sequence[Component]:
         return (self.transform, self.projection, self.bounding_volume,
                 self.physics_properties, self.physics_state)
 
@@ -70,8 +72,8 @@ class StaticObject(Entity):
         self.bounding_volume = bounding_volume
 
     @property
-    def components(self):
-        return (self.transform, self.model, self.bounding_volume)
+    def components(self) -> Sequence[Component]:
+        return self.transform, self.model, self.bounding_volume
 
 
 class DynamicObject(Entity):
@@ -87,7 +89,6 @@ class DynamicObject(Entity):
         self.physics_state = physics_state
 
     @property
-    def components(self):
+    def components(self) -> Sequence[Component]:
         return (self.transform, self.model, self.bounding_volume,
                 self.physics_properties, self.physics_state)
-
