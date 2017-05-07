@@ -2,35 +2,34 @@
 
 """Provides wrappers for OpenGL concepts."""
 
-from pathlib import Path
+import contextlib
+import pathlib
 from typing import Tuple, Any, Type
-from contextlib import ExitStack
 
-import PIL.Image
 import OpenGL.GL as gl
+import PIL.Image
 
+from ._math import Matrix
 from .exceptions import OpenGLError
-from .math import Matrix
 
 
 class Shader(object):
     """
     Shader is an on-CPU representation of a shader program.
     """
+
     def __init__(self, vertex_source: str, fragment_source: str) -> None:
         self.vertex_source = vertex_source
         self.fragment_source = fragment_source
 
     @classmethod
-    def create(cls, vertex_shader_path: Path, fragment_shader_path: Path) -> "Shader":
+    def create(cls, vertex_shader_path: pathlib.Path,
+               fragment_shader_path: pathlib.Path) -> "Shader":
         """
         Create an on-CPU representation of a shader.
-
-        :param vertex_shader_path:
-        :param fragment_shader_path:
-        :return:
         """
-        return cls(vertex_shader_path.read_text(), fragment_shader_path.read_text())
+        return cls(vertex_shader_path.read_text(),
+                   fragment_shader_path.read_text())
 
 
 class Texture(object):
@@ -52,7 +51,8 @@ class Texture(object):
         "F": gl.GL_FLOAT
     }
 
-    def __init__(self, obj: int, shape: Tuple[int, int], ctx_exit: ExitStack) -> None:
+    def __init__(self, obj: int, shape: Tuple[int, int],
+                 ctx_exit: contextlib.ExitStack) -> None:
         self.obj = obj
         self.shape = shape
         self._ctx_exit = ctx_exit
@@ -74,7 +74,7 @@ class Texture(object):
         image_dtype = cls.texture_data_types[data.mode]
         shape = data.size
 
-        with ExitStack() as ctx_mgr:
+        with contextlib.ExitStack() as ctx_mgr:
             # Create the texture object
             obj = gl.glGenTextures(1)
             if obj == 0:
@@ -83,10 +83,14 @@ class Texture(object):
 
             # Set texture parameters
             gl.glBindTexture(gl.GL_TEXTURE_2D, obj)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, min_filter)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, mag_filter)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, wrap_mode)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, wrap_mode)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER,
+                               min_filter)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER,
+                               mag_filter)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S,
+                               wrap_mode)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T,
+                               wrap_mode)
 
             if flip_lr:
                 data = data.transpose(PIL.Image.FLIP_LEFT_RIGHT)
@@ -121,7 +125,8 @@ class Texture(object):
 
         return self
 
-    def __exit__(self, exc_type: Type[Exception], exc_val: Exception, exc_tb: Any) -> bool:
+    def __exit__(self, exc_type: Type[Exception], exc_val: Exception,
+                 exc_tb: Any) -> bool:
         """
         Disable the texture.
 
@@ -139,7 +144,7 @@ class Texture(object):
 class OpenGlShader(object):
     """OpenGlShader encapsulates an OpenGL shader."""
 
-    def __init__(self, obj: int, ctx_exit: ExitStack) -> None:
+    def __init__(self, obj: int, ctx_exit: contextlib.ExitStack) -> None:
         self.obj = obj
         self._ctx_exit = ctx_exit
 
@@ -150,7 +155,7 @@ class OpenGlShader(object):
 
     @classmethod
     def create(cls, shader_type: int, shader_source: str) -> "OpenGlShader":
-        with ExitStack() as ctx_mgr:
+        with contextlib.ExitStack() as ctx_mgr:
             # Create the shader object
             obj = int(gl.glCreateShader(shader_type))
             if obj == 0:
@@ -178,7 +183,8 @@ class OpenGlProgram(object):
     """
     OpenGlProgram encapsulates an OpenGL shader program.
     """
-    def __init__(self, obj: int, ctx_exit: ExitStack) -> None:
+
+    def __init__(self, obj: int, ctx_exit: contextlib.ExitStack) -> None:
         self.obj = obj
         self._ctx_exit = ctx_exit
 
@@ -189,7 +195,7 @@ class OpenGlProgram(object):
 
     @classmethod
     def create(cls, *shaders) -> "OpenGlProgram":
-        with ExitStack() as ctx_mgr:
+        with contextlib.ExitStack() as ctx_mgr:
             # Create the shader program
             obj = int(gl.glCreateProgram())
             if obj == 0:
@@ -224,14 +230,16 @@ class OpenGlProgram(object):
     def uniform_location(self, name: str) -> int:
         loc = gl.glGetUniformLocation(self.obj, name)
         if loc == -1:
-            raise OpenGLError("Could not find the shader uniform '{}'.".format(name))
+            raise OpenGLError(
+                "Could not find the shader uniform '{}'.".format(name))
         else:
             return loc
 
     def attribute_location(self, name: str) -> int:
         loc = gl.glGetAttribLocation(self.obj, name)
         if loc == -1:
-            raise OpenGLError("Could not find the shader attribute '{}'.".format(name))
+            raise OpenGLError(
+                "Could not find the shader attribute '{}'.".format(name))
         else:
             return loc
 
@@ -241,7 +249,8 @@ class OpenGlProgram(object):
             if value.shape == (4, 4):
                 gl.glUniformMatrix4fv(loc, 1, True, value.to_bytes())
             else:
-                raise NotImplementedError("Cannot set any other matrix shapes yet.")
+                raise NotImplementedError(
+                    "Cannot set any other matrix shapes yet.")
         elif isinstance(value, int):
             gl.glUniform1i(loc, value)
         elif isinstance(value, float):
@@ -260,7 +269,8 @@ class OpenGlProgram(object):
 
         return self
 
-    def __exit__(self, exc_type: Type[Exception], exc_val: Exception, exc_tb: Any) -> bool:
+    def __exit__(self, exc_type: Type[Exception], exc_val: Exception,
+                 exc_tb: Any) -> bool:
         """
         Disable the program.
 
