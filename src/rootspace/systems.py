@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from typing import Optional, Any, Generator, Sequence, Type
+from typing import Optional, Any, Generator, Sequence, Type, Dict
 
 import OpenGL.GL as gl
 import glfw
@@ -18,7 +18,7 @@ class SystemMeta(type):
     """
     SystemMeta registers all Systems in SystemMeta.classes
     """
-    classes = dict()
+    classes: Dict[str, Type["System"]] = dict()
 
     def __new__(mcs, name, bases, cls_dict):
         register = cls_dict.pop("register", True)
