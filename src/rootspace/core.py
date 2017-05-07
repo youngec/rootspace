@@ -4,36 +4,38 @@
 The engine core holds the entry point into the game execution.
 """
 
+import collections
 import contextlib
 import logging
-import shutil
-import weakref
-import collections
 import os
 import pathlib
+import shutil
+import weakref
 from typing import Tuple, Type, Optional, Dict, List, Any, Generator, \
     Set, Sequence
 
 import OpenGL.GL as gl
 import glfw
 
-from .systems import SystemMeta, System, UpdateSystem, RenderSystem, EventSystem
-from .entities import EntityMeta, Entity, Camera
 from .components import ComponentMeta, Component
+from .data_abstractions import KeyMap, ContextData, Scene
+from .entities import EntityMeta, Entity, Camera
 from .events import Event, KeyEvent, CharEvent, CursorEvent, SceneEvent
 from .exceptions import GLFWError
-from .data_abstractions import KeyMap, ContextData, Scene
 from .model_parser import PlyParser
+from .systems import SystemMeta, System, UpdateSystem, RenderSystem, EventSystem
 
 
 class World(object):
     """
     A simple application world.
     """
+
     def __init__(self, context: "Context") -> None:
         self._ctx = weakref.ref(context)
         self._entities: Set[Entity] = set()
-        self._components: Dict[Type[Component], Dict[Entity, Component]] = dict()
+        self._components: Dict[
+            Type[Component], Dict[Entity, Component]] = dict()
         self._update_systems: List[UpdateSystem] = list()
         self._render_systems: List[RenderSystem] = list()
         self._event_systems: List[EventSystem] = list()
@@ -322,7 +324,7 @@ class World(object):
         """
         # Create the new scene
         scene_path = self.ctx.resources / self.ctx.data.default_scenes_dir \
-                     / event.name
+             / event.name
         new_scene = Scene.from_json(scene_path)
 
         # Update the OpenGL context according to the scene data
@@ -366,7 +368,7 @@ class World(object):
             gl.glDisable(gl.GL_CULL_FACE)
 
     def _load_list_objects(self, scene, object_list, class_registry,
-                           reference_tree = None) -> Tuple[Any, ...]:
+                           reference_tree=None) -> Tuple[Any, ...]:
         objects = list()
         for v in object_list:
             cls = class_registry[v["class"]]
@@ -380,7 +382,7 @@ class World(object):
         return tuple(objects)
 
     def _load_dict_objects(self, scene, object_dict, class_registry,
-                           reference_tree = None) -> Dict[str, Any]:
+                           reference_tree=None) -> Dict[str, Any]:
         objects: Dict[str, Any] = dict()
         for k, v in object_dict.items():
             cls = class_registry[v["class"]]
@@ -392,7 +394,6 @@ class World(object):
                 objects[k] = cls(**kwargs)
 
         return objects
-
 
     def _parse_arguments(self,
                          scene: Scene,
@@ -456,6 +457,7 @@ class Context(object):
     The Context is used by the Engine to set the main loop parameters,
     the systems, entities, resources, states, etc.
     """
+
     def __init__(self, name: str, rpath: pathlib.Path, spath: pathlib.Path,
                  ctx_data: ContextData, key_map: KeyMap, debug: bool,
                  log: logging.Logger) -> None:
@@ -728,6 +730,7 @@ class Loop(object):
     """
     The Loop runs a fixed time step implementation of the main loop.
     """
+
     def __init__(self, name: str, context_type: Type[Context],
                  initialize: bool, debug: bool) -> None:
         self._name = name
