@@ -1,60 +1,92 @@
 # -*- coding: utf-8 -*-
 
-"""The following classes encapsulate GLFW event concepts."""
+"""
+The following classes encapsulate GLFW events.
+"""
 
-import attr
+import abc
+from typing import Any
 
-from attr.validators import instance_of
 
-
-@attr.s
-class Event(object):
+class Event(object, metaclass=abc.ABCMeta):
+    """
+    Abstract base class of an event.
+    """
     pass
 
 
-@attr.s
 class KeyEvent(Event):
-    window = attr.ib()
-    key = attr.ib()
-    scancode = attr.ib()
-    action = attr.ib()
-    mods = attr.ib()
+    """
+    A wrapper around the GLFW key event. 
+    Contains information about key presses.
+    """
+    def __init__(self, window: Any, key: int,
+                 scan_code: int, action: int, mods: int) -> None:
+        self.window = window
+        self.key = key
+        self.scan_code = scan_code
+        self.action = action
+        self.mods = mods
 
 
-@attr.s
 class CharEvent(Event):
-    window = attr.ib()
-    codepoint = attr.ib()
+    """
+    A wrapper around the GLFW character event. 
+    Contains text input information.
+    """
+    def __init__(self, window: Any, code_point: int) -> None:
+        self.window = window
+        self.code_point = code_point
 
 
-@attr.s
 class CursorEvent(Event):
-    window = attr.ib()
-    xpos = attr.ib()
-    ypos = attr.ib()
+    """
+    A wrapper around the GLFW cursor event. 
+    Contains cursor movement information.
+    """
+    def __init__(self, window: Any, xpos, ypos) -> None:
+        self.window = window
+        self.xpos = xpos
+        self.ypos = ypos
 
 
-@attr.s
 class CursorEnterEvent(Event):
-    window = attr.ib()
-    entered = attr.ib()
+    """
+    A wrapper around the GLFW cursor enter event.
+    Contains information about whether the cursor resides within the window.
+    """
+    def __init__(self, window: Any, entered: bool) -> None:
+        self.window = window
+        self.entered = entered
 
 
-@attr.s
 class MouseButtonEvent(Event):
-    window = attr.ib()
-    button = attr.ib()
-    action = attr.ib()
-    mods = attr.ib()
+    """
+    A wrapper around the GLFW mouse button event.
+    Contains information about the mouse button clicks.
+    """
+    def __init__(self, window: Any, button, action, mods) -> None:
+        self.window = window
+        self.button = button
+        self.action = action
+        self.mods = mods
 
 
-@attr.s
 class ScrollEvent(Event):
-    window = attr.ib()
-    xoffset = attr.ib()
-    yoffset = attr.ib()
+    """
+    A wrapper around the GLFW scroll wheel event.
+    Contains information about the mouse scroll wheel.
+    """
+    def __init__(self, window: Any, xoffset: int,
+                 yoffset: int) -> None:
+        self.window = window
+        self.xoffset = xoffset
+        self.yoffset = yoffset
 
 
-@attr.s
 class SceneEvent(Event):
-    name = attr.ib(validator=instance_of(str))
+    """
+    Describes the request for a scene change.
+    """
+    def __init__(self, name: str) -> None:
+        self.name = name

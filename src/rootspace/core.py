@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-"""The engine core holds the entry point into the game execution."""
+"""
+The engine core holds the entry point into the game execution.
+"""
 
 import contextlib
 import logging
@@ -8,7 +10,7 @@ import shutil
 import weakref
 import collections
 import os
-from pathlib import Path
+import pathlib
 from typing import Tuple, Type, Optional, Dict, List, Any, Generator, \
     Set, Sequence
 
@@ -25,28 +27,8 @@ from .model_parser import PlyParser
 
 
 class World(object):
-    """A simple application world.
-
-    Re-implement the sdl2.ext.World to separate rendering from updating.
-    Why do this? If you check out the main loop in core.Core, you'll see
-    that I use a fixed time-step
-    loop that ensures stable regular execution of the physics update,
-    even if the rendering step takes long,
-    which is the case on slow machines. Thus, I need to keep these two
-    steps (update, render) separated.
-
-    An application world defines the combination of application data and
-    processing logic and how the data will be processed. As such, it is
-    a container object in which the application is defined.
-
-    The application world maintains a set of entities and their related
-    components as well as a set of systems that process the data of the
-    entities. Each processing system within the application world only
-    operates on a certain set of components, but not all components of
-    an entity at once.
-
-    The order in which data is processed depends on the order of the
-    added systems.
+    """
+    A simple application world.
     """
     def __init__(self, context: "Context") -> None:
         self._ctx = weakref.ref(context)
@@ -57,26 +39,25 @@ class World(object):
         self._event_systems: List[EventSystem] = list()
         self._event_queue: collections.deque = collections.deque()
         self._scene: Optional[Scene] = None
-        self._log = logging.getLogger("{}.{}".format(__name__, self.__class__.__name__))
+        self._log = logging.getLogger(
+            "{}.{}".format(__name__, self.__class__.__name__))
 
     @property
     def ctx(self) -> "Context":
         return self._ctx()
 
     @property
-    def systems(self) -> list:
+    def systems(self) -> List[System]:
         return self._update_systems + self._render_systems + self._event_systems
 
     @property
     def scene(self) -> Scene:
         return self._scene
 
-    def _combined_components(self, comp_types: Tuple[Type[Component], ...]) -> Generator[Tuple[Component], None, None]:
+    def _combined_components(self, comp_types: Tuple[Type[Component], ...]
+                             ) -> Generator[Tuple[Component], None, None]:
         """
         Combine the sets of components.
-
-        :param comp_types:
-        :return:
         """
         comps = self._components
         key_sets = [set(comps[ctype]) for ctype in comp_types]
@@ -89,10 +70,6 @@ class World(object):
     def _add_component(self, entity: Entity, component: Component) -> None:
         """
         Add a supported component instance to the world.
-
-        :param entity:
-        :param component:
-        :return:
         """
         comp_type = type(component)
         if comp_type not in self._components:
@@ -102,9 +79,6 @@ class World(object):
     def _add_components(self, entity: Entity) -> None:
         """
         Register all components of an entity.
-
-        :param entity:
-        :return:
         """
         for c in entity.components:
             self._add_component(entity, c)
@@ -112,10 +86,6 @@ class World(object):
     def _remove_component(self, entity: Entity, component: Component) -> None:
         """
         Remove the component instance from the world.
-
-        :param entity:
-        :param component:
-        :return:
         """
         comp_type = type(component)
         self._components[comp_type].pop(entity)
@@ -125,19 +95,14 @@ class World(object):
     def _remove_components(self, entity: Entity) -> None:
         """
         Remove the registered components of an entity.
-
-        :param entity:
-        :return:
         """
         for c in entity.components:
             self._remove_component(entity, c)
 
-    def get_entities(self, entity_type: Type[Entity]) -> Generator[Entity, None, None]:
+    def get_entities(self, entity_type: Type[Entity]
+                     ) -> Generator[Entity, None, None]:
         """
         Get all Entities of the specified class.
-
-        :param entity_type:
-        :return:
         """
         for e in self._entities:
             if isinstance(e, entity_type):
@@ -146,9 +111,6 @@ class World(object):
     def _add_entity(self, entity: Entity) -> None:
         """
         Add an entity to the world.
-
-        :param entity:
-        :return:
         """
         self._log.debug("Adding Entity '{}'.".format(entity))
         self._add_components(entity)
@@ -157,9 +119,6 @@ class World(object):
     def add_entities(self, entities: Sequence[Entity]) -> None:
         """
         Add multiple entities to the world.
-
-        :param entities:
-        :return:
         """
         for entity in entities:
             self._add_entity(entity)
@@ -167,9 +126,6 @@ class World(object):
     def set_entities(self, entities: Sequence[Entity]) -> None:
         """
         Replace the current entities with the given ones.
-
-        :param entities:
-        :return:
         """
         for_removal = [e for e in self._entities if e not in entities]
         for_addition = [e for e in entities if e not in self._entities]
@@ -179,9 +135,6 @@ class World(object):
     def _remove_entity(self, entity: Entity) -> None:
         """
         Remove an entity and all its data from the world.
-
-        :param entity:
-        :return:
         """
         self._remove_components(entity)
         self._entities.discard(entity)
@@ -189,9 +142,6 @@ class World(object):
     def remove_entities(self, entities: Sequence[Entity]) -> None:
         """
         Remove the specified Entities from the World.
-
-        :param entities:
-        :return:
         """
         for entity in entities:
             self._remove_entity(entity)
@@ -199,8 +149,6 @@ class World(object):
     def remove_all_entities(self) -> None:
         """
         Remove all registered Entities.
-
-        :return:
         """
         self._log.debug("Removing all Entities from this World.")
         self._entities.clear()
@@ -208,9 +156,6 @@ class World(object):
     def _add_system(self, system: System) -> None:
         """
         Add the specified system to the world.
-
-        :param system:
-        :return:
         """
         if system not in self.systems:
             self._log.debug("Adding System '{}'.".format(system))
@@ -230,9 +175,6 @@ class World(object):
     def add_systems(self, systems: Sequence[System]) -> None:
         """
         Add multiple systems to the world.
-
-        :param systems:
-        :return:
         """
         for system in systems:
             self._add_system(system)
@@ -240,9 +182,6 @@ class World(object):
     def set_systems(self, systems: Sequence[System]) -> None:
         """
         Replace the registered Systems with the specified.
-
-        :param systems:
-        :return:
         """
         for_removal = [s for s in self.systems if s not in systems]
         for_addition = [s for s in systems if s not in self.systems]
@@ -252,9 +191,6 @@ class World(object):
     def _remove_system(self, system: System) -> None:
         """
         Remove a system from the world.
-
-        :param system:
-        :return:
         """
         if system in self._update_systems:
             self._update_systems.remove(system)
@@ -266,9 +202,6 @@ class World(object):
     def remove_systems(self, systems: Sequence[System]) -> None:
         """
         Remove the specified Systems.
-
-        :param systems:
-        :return:
         """
         for system in systems:
             self._remove_system(system)
@@ -276,8 +209,6 @@ class World(object):
     def remove_all_systems(self) -> None:
         """
         Remove all systems.
-
-        :return:
         """
         self._log.debug("Removing all Systems from this World.")
         self._update_systems.clear()
@@ -286,11 +217,8 @@ class World(object):
 
     def update(self, t: float, dt: float) -> None:
         """
-        Processes all components within their corresponding systems, except for the render system.
-
-        :param t:
-        :param dt:
-        :return:
+        Processes all components within their corresponding systems, 
+        except for the render system.
         """
         for system in self._update_systems:
             if system.is_applicator:
@@ -298,13 +226,12 @@ class World(object):
                 system.update(t, dt, self, comps)
             else:
                 for comp_type in system.component_types:
-                    system.update(t, dt, self, self._components[comp_type].values())
+                    system.update(
+                        t, dt, self, self._components[comp_type].values())
 
     def render(self) -> None:
         """
         Process the components that correspond to the render system.
-
-        :return:
         """
         for system in self._render_systems:
             if system.is_applicator:
@@ -317,17 +244,12 @@ class World(object):
     def dispatch(self, event: Event) -> None:
         """
         Add an event to the queue.
-
-        :param event:
-        :return:
         """
         self._event_queue.append(event)
 
     def process(self) -> None:
         """
         Process all events.
-
-        :return:
         """
         while len(self._event_queue) > 0:
             event = self._event_queue.popleft()
@@ -337,89 +259,66 @@ class World(object):
                 for system in self._event_systems:
                     if isinstance(event, system.event_types):
                         if system.is_applicator:
-                            comps = self._combined_components(system.component_types)
+                            comps = self._combined_components(
+                                system.component_types)
                             system.process(event, self, comps)
                         else:
                             for comp_type in system.component_types:
-                                system.process(event, self, self._components[comp_type].values())
+                                system.process(
+                                    event, self,
+                                    self._components[comp_type].values())
 
-    def register_callbacks(self, window: glfw._GLFWwindow) -> None:
+    def register_callbacks(self, window: Any) -> None:
         """
         Register the GLFW callbacks with the specified window.
-
-        :param window:
-        :return:
         """
         self._log.debug("Registering GLFW event callbacks with World.")
         glfw.set_window_size_callback(window, self.callback_resize)
         glfw.set_key_callback(window, self.callback_key)
         glfw.set_cursor_pos_callback(window, self.callback_cursor)
 
-    def unregister_callbacks(self, window: glfw._GLFWwindow) -> None:
+    def unregister_callbacks(self, window: Any) -> None:
         """
         Clear the GLFW callbacks for the specified window.
-
-        :param window:
-        :return:
         """
         self._log.debug("Clearing GLFW event callbacks.")
         glfw.set_window_size_callback(window, None)
         glfw.set_key_callback(window, None)
         glfw.set_cursor_pos_callback(window, None)
 
-    def callback_resize(self,
-                        window: glfw._GLFWwindow,
-                        width: int,
+    def callback_resize(self, window: Any, width: int,
                         height: int) -> None:
+        """
+        Dispatch a resizing event, as sent by GLFW.
+        """
         for camera in self.get_entities(Camera):
             camera.shape = (width, height)
 
         gl.glViewport(0, 0, width, height)
 
-    def callback_key(self,
-                     window: glfw._GLFWwindow,
-                     key: int,
-                     scancode: int,
-                     action: int,
-                     mode: int) -> None:
+    def callback_key(self, window: Any, key: int, scan_code: int,
+                     action: int, mode: int) -> None:
         """
         Dispatch a Key press event, as sent by GLFW.
-
-        :param window:
-        :param key:
-        :param scancode:
-        :param action:
-        :param mode:
-        :return:
         """
-        self.dispatch(KeyEvent(window, key, scancode, action, mode))
+        self.dispatch(KeyEvent(window, key, scan_code, action, mode))
 
-    def callback_char(self, window: glfw._GLFWwindow, codepoint: int) -> None:
+    def callback_char(self, window: Any, code_point: int) -> None:
         """
         Dispatch a Character entry event, as sent by GLFW.
-
-        :param window:
-        :param codepoint:
-        :return:
         """
-        self.dispatch(CharEvent(window, codepoint))
+        self.dispatch(CharEvent(window, code_point))
 
-    def callback_cursor(self, window: glfw._GLFWwindow, xpos: int, ypos: int) -> None:
+    def callback_cursor(self, window: Any, xpos: int,
+                        ypos: int) -> None:
         """
         Dispatch a cursor movement event, as sent by GLFW.
-
-        :param window:
-        :param xpos:
-        :param ypos:
-        :return:
         """
         self.dispatch(CursorEvent(window, xpos, ypos))
 
-    def _update_scene(self, event: Event) -> None:
+    def _update_scene(self, event: SceneEvent) -> None:
         """
-
-        :param event:
-        :return:
+        Update the current scene based on the supplied event.
         """
         # Create the new scene
         scene_path = self.ctx.resources / self.ctx.data.default_scenes_dir \
@@ -438,10 +337,6 @@ class World(object):
     def _update_context(self, old_scene: Scene, new_scene: Scene) -> None:
         """
         Update the GLFW and OpenGL context according to the Scene change.
-
-        :param old_scene:
-        :param new_scene:
-        :return:
         """
         # Set the cursor behavior
         if not self.ctx.debug:
@@ -470,7 +365,8 @@ class World(object):
         else:
             gl.glDisable(gl.GL_CULL_FACE)
 
-    def _load_list_objects(self, scene, object_list, class_registry, reference_tree = None) -> Tuple[Any, ...]:
+    def _load_list_objects(self, scene, object_list, class_registry,
+                           reference_tree = None) -> Tuple[Any, ...]:
         objects = list()
         for v in object_list:
             cls = class_registry[v["class"]]
@@ -483,7 +379,8 @@ class World(object):
 
         return tuple(objects)
 
-    def _load_dict_objects(self, scene, object_dict, class_registry, reference_tree = None) -> Dict[str, Any]:
+    def _load_dict_objects(self, scene, object_dict, class_registry,
+                           reference_tree = None) -> Dict[str, Any]:
         objects: Dict[str, Any] = dict()
         for k, v in object_dict.items():
             cls = class_registry[v["class"]]
@@ -500,15 +397,11 @@ class World(object):
     def _parse_arguments(self,
                          scene: Scene,
                          obj: Dict[str, Any],
-                         reference_tree: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                         reference_tree: Optional[Dict[str, Any]] = None
+                         ) -> Dict[str, Any]:
         """
         Parse the arguments attached to the object serialization
         and return a dictionary of keyword arguments.
-
-        :param scene:
-        :param obj:
-        :param reference_tree:
-        :return:
         """
         kwargs = dict()
         for name, arg in obj["kwargs"].items():
@@ -531,10 +424,6 @@ class World(object):
     def _update_world(self, old_scene: Scene, new_scene: Scene) -> None:
         """
         Update the World according to the Scene change.
-
-        :param old_scene:
-        :param new_scene:
-        :return:
         """
         # Load the components into memory
         components = self._load_dict_objects(
@@ -567,7 +456,9 @@ class Context(object):
     The Context is used by the Engine to set the main loop parameters,
     the systems, entities, resources, states, etc.
     """
-    def __init__(self, name: str, rpath: Path, spath: Path, ctx_data: ContextData, key_map: KeyMap, debug: bool, log: logging.Logger) -> None:
+    def __init__(self, name: str, rpath: pathlib.Path, spath: pathlib.Path,
+                 ctx_data: ContextData, key_map: KeyMap, debug: bool,
+                 log: logging.Logger) -> None:
         self._name = name
         self._resources_root = rpath
         self._states_root = spath
@@ -575,21 +466,19 @@ class Context(object):
         self._key_map = key_map
         self._debug = debug
         self._log = log
-        self._window: Optional[glfw._GLFWwindow] = None
+        self._window: Optional[Any] = None
         self._model_parser: Optional[PlyParser] = None
         self._world: Optional[World] = None
         self._ctx_exit: Optional[contextlib.ExitStack] = None
 
     @classmethod
-    def _ensure_config(cls, rpath: Path, spath: Path, force: bool = False):
+    def _ensure_config(cls, rpath: pathlib.Path, spath: pathlib.Path,
+                       force: bool = False
+                       ) -> Tuple[pathlib.Path, pathlib.Path]:
         """
-        Initialize the persistent configuration of the context. If force is True,
-        overwrite any existing configuration in the current user directory.
-
-        :param rpath:
-        :param spath:
-        :param force:
-        :return:
+        Initialize the persistent configuration of the context. If force is 
+        True, overwrite any existing configuration in the current user 
+        directory.
         """
         # Specify the configuration file paths
         config_default = rpath / ContextData.default_config_file
@@ -618,23 +507,18 @@ class Context(object):
         return config_user, keymap_user
 
     @classmethod
-    def create(cls, name: str, user_home: Path, engine_location: Path, initialize: bool = False, debug: bool = False) -> "Context":
+    def create(cls, name: str, user_home: pathlib.Path,
+               engine_location: pathlib.Path,
+               initialize: bool = False, debug: bool = False) -> "Context":
         """
         Create a new project instance.
-
-        :param name:
-        :param user_home:
-        :param engine_location:
-        :param initialize:
-        :param debug:
-        :return:
         """
         # Specify the configuration directory and the resources directory
-        resources_path = engine_location / ContextData.default_resources_dir / name
-        states_path = user_home / ContextData.default_config_dir / name
+        rpath = engine_location / ContextData.default_resources_dir / name
+        spath = user_home / ContextData.default_config_dir / name
 
         # Initialize the persistent configuration
-        config_user, keymap_user = cls._ensure_config(resources_path, states_path, initialize)
+        config_user, keymap_user = cls._ensure_config(rpath, spath, initialize)
 
         # Load the configuration
         data = ContextData.from_json(config_user)
@@ -645,10 +529,10 @@ class Context(object):
         # Create the logger
         log = logging.getLogger("{}.{}".format(__name__, cls.__name__))
 
-        return cls(name, resources_path, states_path, data, key_map, debug, log)
+        return cls(name, rpath, spath, data, key_map, debug, log)
 
     @property
-    def resources(self) -> Path:
+    def resources(self) -> pathlib.Path:
         """
         Return the path to the resources directory.
 
@@ -657,7 +541,7 @@ class Context(object):
         return self._resources_root
 
     @property
-    def states(self) -> Path:
+    def states(self) -> pathlib.Path:
         """
         Return the path to the states directory.
 
@@ -684,7 +568,7 @@ class Context(object):
         return self._key_map
 
     @property
-    def window(self) -> glfw._GLFWwindow:
+    def window(self) -> Any:
         """
         Return a reference to the Window or None.
 
@@ -797,16 +681,14 @@ class Context(object):
             # Determine the actual context version information
             context_major = gl.glGetIntegerv(gl.GL_MAJOR_VERSION)
             context_minor = gl.glGetIntegerv(gl.GL_MINOR_VERSION)
-            self._log.debug("Actually received an OpenGL Context {}.{}".format(context_major, context_minor))
-
-            # Determine available OpenGL extensions
-            # num_extensions = gl.glGetIntegerv(gl.GL_NUM_EXTENSIONS)
-            # extensions = (gl.glGetStringi(gl.GL_EXTENSIONS, i).decode("utf-8") for i in range(num_extensions))
-            # self._log.debug("Extensions: {}".format(", ".join(extensions)))
+            self._log.debug(
+                "Actually received an OpenGL Context {}.{}".format(
+                    context_major, context_minor))
 
             # Create the model parser
             self._log.debug("Creating the model parser.")
-            self._model_parser = PlyParser.create(self.resources / "shaders", self.resources / "textures")
+            self._model_parser = PlyParser.create(
+                self.resources / "shaders", self.resources / "textures")
             ctx_mgr.callback(self._del_model_parser)
 
             # Create the World
@@ -829,14 +711,10 @@ class Context(object):
 
             return self
 
-    def __exit__(self, exc_type: Type[Exception], exc_val: Exception, trcbak: Any) -> bool:
+    def __exit__(self, exc_type: Type[Exception], exc_val: Exception,
+                 trcbak: Any) -> bool:
         """
         Exit the context provided by this instance.
-
-        :param exc_type:
-        :param exc_val:
-        :param trcbak:
-        :return:
         """
         if exc_val is not None:
             self._log.error("Context exited prematurely!")
@@ -850,40 +728,41 @@ class Loop(object):
     """
     The Loop runs a fixed time step implementation of the main loop.
     """
-    def __init__(self, name: str, context_type: Type[Context], initialize: bool, debug: bool) -> None:
+    def __init__(self, name: str, context_type: Type[Context],
+                 initialize: bool, debug: bool) -> None:
         self._name = name
         self._ctx = context_type
         self._initialize = initialize
         self._debug = debug
-        self._log = logging.getLogger("{}.{}".format(__name__, self.__class__.__name__))
+        self._log = logging.getLogger(
+            "{}.{}".format(__name__, self.__class__.__name__))
 
     def run(self) -> None:
         """
         Run the main loop.
-
-        :return:
         """
-        user_home = Path.home()
-        engine_location = Path(__file__).parent
+        user_home = pathlib.Path.home()
+        engine_location = pathlib.Path(__file__).parent
 
         self._log.debug("The user home is at '{}'.".format(user_home))
-        self._log.debug("The engine is located at '{}'.".format(engine_location))
+        self._log.debug(
+            "The engine is located at '{}'.".format(engine_location))
 
-        with self._ctx.create(self._name, user_home, engine_location, self._initialize, self._debug) as ctx:
+        with self._ctx.create(self._name, user_home, engine_location,
+                              self._initialize, self._debug) as ctx:
             self._log.debug("Entered context {}.".format(ctx))
             self._loop(ctx)
 
-    def _loop(self, ctx: Context):
+    def _loop(self, ctx: Context) -> None:
         """
         Enter the fixed time-step loop of the game.
 
-        The loop makes sure that the physics update is called at regular intervals based on ctx.data.delta_time.
+        The loop makes sure that the physics update is called at regular 
+        intervals based on ctx.data.delta_time.
         The renderer is called when enough simulation intervals have accumulated
-        to let it take its time even on slow computers without jeopardizing the physics simulation.
+        to let it take its time even on slow computers without jeopardizing 
+        the physics simulation.
         The maximum duration of a frame is set to ctx.data.max_frame_time.
-
-        :param ctx:
-        :return:
         """
         self._log.info("Executing within the engine context.")
 
