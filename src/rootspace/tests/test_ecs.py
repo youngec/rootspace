@@ -4,7 +4,7 @@ from typing import Sequence
 
 import pytest
 
-from rootspace.ecs import Entity, ComponentContainer, ViewTrait, AssemblyTrait, SystemTrait, World
+from rootspace.ecs import Entity, ComponentContainer, ViewTrait, AssemblyTrait, SystemTrait, World, LoopStage
 
 
 class ExampleView(ViewTrait):
@@ -56,7 +56,10 @@ class ExampleSystem(SystemTrait):
     def get_mask(self) -> int:
         return 0b01
 
-    def run(self, components: Sequence[ViewTrait]) -> None:
+    def get_stage(self) -> LoopStage:
+        return LoopStage.Render
+
+    def render(self, components: Sequence[ViewTrait]) -> None:
         print(components)
         assert len(components) == 2
         assert all([c.a is not None for c in components])
@@ -76,4 +79,4 @@ class TestWorld(object):
         world.components.b.add(g, 3.0)
 
         world.add_system(ExampleSystem())
-        world.run()
+        world.render()

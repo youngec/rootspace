@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import abc
-from typing import List, TypeVar, Generic, Optional, Sequence, Type, Deque, Iterator
-from collections import deque
+import enum
+import collections
+from typing import List, TypeVar, Generic, Optional, Sequence, Type, Deque, Iterator, Any
 
 
 C = TypeVar("C")
@@ -146,6 +147,12 @@ class AssemblyTrait(object, metaclass=abc.ABCMeta):
         pass
 
 
+class LoopStage(enum.Enum):
+    Event = 0
+    Update = 1
+    Render = 2
+
+
 class SystemTrait(object, metaclass=abc.ABCMeta):
     __slots__ = ()
 
@@ -158,14 +165,24 @@ class SystemTrait(object, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def run(self, components: Sequence[ViewTrait]) -> None:
+    def get_stage(self) -> LoopStage:
+        pass
+
+    def event(self, components: Sequence[ViewTrait], event: Any) -> None:
+        pass
+
+    def update(self, components: Sequence[ViewTrait], time: float, delta_time: float) -> None:
+        pass
+
+    def render(self, components: Sequence[ViewTrait]) -> None:
         pass
 
 
 class World(object):
     __slots__ = ("next_entity", "free_indices", "entities", "components", "systems")
 
-    def __init__(self, next_entity: Entity, free_indices: Deque[int], entities: ComponentContainer[bool], components: AssemblyTrait, systems: List[SystemTrait]) -> None:
+    def __init__(self, next_entity: Entity, free_indices: Deque[int], entities: ComponentContainer[bool], 
+                 components: AssemblyTrait, systems: List[SystemTrait]) -> None:
         self.next_entity = next_entity
         self.free_indices = free_indices
         self.entities = entities
@@ -176,7 +193,7 @@ class World(object):
     def new(cls, assembly: Type[AssemblyTrait]) -> "World":
         return cls(
             next_entity=Entity(name="", uuid=1, idx=0),
-            free_indices=deque(),
+            free_indices=collections.deque(),
             entities=ComponentContainer.new(),
             components=assembly.new(),
             systems=list()
@@ -200,13 +217,38 @@ class World(object):
     def add_system(self, system: SystemTrait) -> None:
         self.systems.append(system)
 
-    def run(self) -> None:
+    def event(self, event: Any) -> None:
         assembly = self.components
 
         for system in self.systems:
-            mask = system.get_mask()
-            candidates = (e.clone() for e in self.entities.iter_ent() if assembly.match_mask(e, mask))
-            components = [assembly.get_view(e) for e in candidates]
+            if system.get_stage() is LoopStage.Event:
+                mask = system.get_mask()
+                candidates = (e.clone() for e in self.entities.iter_ent() if assembly.match_mask(e, mask))
+                components = [assembly.get_view(e) for e in candidates]
 
-            if len(components) > 0:
-                system.run(components)
+                if len(components) > 0:
+                    system.event(components, event)
+
+    def update(self, time: float, delta_time: float) -> None:
+        assembly = self.components
+
+        for system in self.systems:
+            if system.get_stage() is LoopStage.Update:
+                mask = system.get_mask()
+                candidates = (e.clone() for e in self.entities.iter_ent() if assembly.match_mask(e, mask))
+                components = [assembly.get_view(e) for e in candidates]
+
+                if len(components) > 0:
+                    system.update(components, time, delta_time)
+
+    def render(self) -> None:
+        assembly = self.components
+
+        for system in self.systems:
+            if system.get_stage() is LoopStage.Render:
+                mask = system.get_mask()
+                candidates = (e.clone() for e in self.entities.iter_ent() if assembly.match_mask(e, mask))
+                components = [assembly.get_view(e) for e in candidates]
+
+                if len(components) > 0:
+                    system.render(components)
