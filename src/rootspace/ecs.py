@@ -124,10 +124,6 @@ class ComponentContainer(Generic[C]):
 class ViewTrait(object, metaclass=abc.ABCMeta):
     __slots__ = ()
 
-    @abc.abstractmethod
-    def fetch(self) -> "ViewTrait":
-        pass
-
 
 class AssemblyTrait(object, metaclass=abc.ABCMeta):
     __slots__ = ()

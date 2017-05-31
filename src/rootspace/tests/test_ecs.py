@@ -14,9 +14,6 @@ class ExampleView(ViewTrait):
         self.a = a
         self.b = b
 
-    def fetch(self) -> "ExampleView":
-        return self
-
 
 class ExampleAssembly(AssemblyTrait):
     __slots__ = ("a", "b")
