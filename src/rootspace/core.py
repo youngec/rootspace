@@ -781,12 +781,13 @@ class Loop(object):
             # Run the game update until we have one delta_time for the
             # rendering step.
             while accumulator >= delta_time:
-                # Poll and process events
-                poll_events()
-                process()
                 update(t, delta_time)
                 t += delta_time
                 accumulator -= delta_time
+
+            # Poll for and process events
+            poll_events()
+            process()
 
             # Clear the screen and render the world.
             render()
