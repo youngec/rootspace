@@ -101,10 +101,10 @@ if __name__ == "__main__":
             "xxhash == 1.0.1",
             "pillow == 4.1.1",
             "pyparsing == 2.2.0",
-            "regex == 2017.5.26"
+            "regex == 2017.6.20"
         ],
         tests_require=[
-            "pytest == 3.0.7",
+            "pytest == 3.1.2",
             "pytest-pep8 == 1.0.6",
             "pytest-mock == 1.6.0",
             "pytest-benchmark == 3.0.0"
