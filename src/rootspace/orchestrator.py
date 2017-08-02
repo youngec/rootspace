@@ -203,13 +203,14 @@ class Orchestrator(object):
 
             # Create the World
             self.log.debug("Creating the world.")
-            self.world = World.new(
-                RootspaceAssembly.new(), 
-                scene=Scene.from_json(self.resources / self.default_scenes_dir / self.default_scene_file)
-            )
+            self.world = World.new(RootspaceAssembly.new())
             def del_world() -> None:
                 del self.world
             ctx_mgr.callback(del_world)
+
+            # Load the default scene into the World
+            # Scene.from_json(self.resources / self.default_scenes_dir / self.default_scene_file)
+            raise NotImplementedError()
 
             # Register the GLFW event callbacks
             self.log.debug("Registering GLFW event callbacks.")

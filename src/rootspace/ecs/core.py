@@ -3,9 +3,7 @@
 import abc
 import collections
 import enum
-from typing import Generic, TypeVar, List, Optional, Iterator, Deque, Sequence
-
-from .scene import Scene
+from typing import Generic, TypeVar, List, Optional, Iterator, Deque, Sequence, Any
 
 C = TypeVar("C")
 
@@ -185,6 +183,12 @@ class SystemTrait(object, metaclass=abc.ABCMeta):
     def render(self, components: Sequence[ViewTrait]) -> None:
         pass
 
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, SystemTrait) and other.__class__.__name__ == self.__class__.__name__:
+            return True
+        else:
+            return NotImplemented
+
 
 class World(object):
     __slots__ = ("next_entity", "free_indices", "entities", "components", "systems", "event_queue")
@@ -199,8 +203,8 @@ class World(object):
         self.event_queue = event_queue
 
     @classmethod
-    def new(cls, assembly: AssemblyTrait, scene: Optional[Scene] = None) -> "World":
-        inst = cls(
+    def new(cls, assembly: AssemblyTrait) -> "World":
+        return cls(
             next_entity=Entity(name="", uuid=1, idx=0),
             free_indices=collections.deque(),
             entities=ComponentContainer.new(),
@@ -208,12 +212,6 @@ class World(object):
             systems=list(),
             event_queue=collections.deque(),
         )
-        if scene is not None:
-            inst.load_scene(scene)
-        return inst
-
-    def load_scene(self, scene: Scene) -> None:
-        raise NotImplementedError()
 
     def make(self, name: str) -> Entity:
         entity = Entity(
@@ -231,7 +229,10 @@ class World(object):
         self.components.remove(entity)
 
     def add_system(self, system: SystemTrait) -> None:
-        self.systems.append(system)
+        if system not in self.systems:
+            self.systems.append(system)
+        else:
+            raise ValueError("Attempting to activate an already present system: '{}'".format(system.__class__.__name__))
 
     def process_events(self) -> None:
         while len(self.event_queue) > 0:
