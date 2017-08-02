@@ -1,4 +1,4 @@
-#include "_matrix_container.h"
+#include "matrix_container.h"
 
 const char MatrixContainer_Docstring[] = "Internal matrix data container.";
 

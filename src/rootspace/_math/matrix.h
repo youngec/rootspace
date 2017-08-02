@@ -2,7 +2,7 @@
 #define MATRIX_H
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include "_matrix_container.h"
+#include "matrix_container.h"
 
 /// The Matrix object contains a pointer to a MatrixContainer object,
 /// as well as Matrix shape and transposition variables.

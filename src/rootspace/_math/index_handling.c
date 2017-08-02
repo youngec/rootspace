@@ -1,4 +1,4 @@
-#include "_index_handling.h"
+#include "index_handling.h"
 
 Py_ssize_t linearize_scalar_indices(Py_ssize_t N, Py_ssize_t M, int transposed, Py_ssize_t i, Py_ssize_t j) {
     if (!transposed && 0 <= i && i < N && 0 <= j && j < M) {

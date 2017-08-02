@@ -1,4 +1,4 @@
-#include "_quaternion.h"
+#include "quaternion.h"
 
 const char Quaternion_Docstring[] = "missing docstring";
 

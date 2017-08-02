@@ -61,12 +61,12 @@ if __name__ == "__main__":
 
     # Define the C-extension modules
     math_opt = Extension("rootspace._math", [
-        "src/rootspace/_math.c",
-        "src/rootspace/_matrix.c",
-        "src/rootspace/_matrix_container.c",
-        "src/rootspace/_index_handling.c",
-        "src/rootspace/_matrix_iterator.c",
-        "src/rootspace/_quaternion.c"
+        "src/rootspace/_math/mod.c",
+        "src/rootspace/_math/matrix.c",
+        "src/rootspace/_math/matrix_container.c",
+        "src/rootspace/_math/index_handling.c",
+        "src/rootspace/_math/matrix_iterator.c",
+        "src/rootspace/_math/quaternion.c"
     ])
 
     long_description = pathlib.Path("README.md")
@@ -95,19 +95,19 @@ if __name__ == "__main__":
         platforms="any",
         ext_modules=[math_opt],
         install_requires=[
-            "attrs == 16.3.0",
+            "attrs == 17.2.0",
             "glfw == 1.4.0",
             "pyopengl == 3.1.0",
             "xxhash == 1.0.1",
-            "pillow == 4.1.1",
+            "pillow == 4.2.1",
             "pyparsing == 2.2.0",
-            "regex == 2017.6.20"
+            "regex == 2017.7.28"
         ],
         tests_require=[
-            "pytest == 3.1.2",
+            "pytest == 3.1.3",
             "pytest-pep8 == 1.0.6",
-            "pytest-mock == 1.6.0",
-            "pytest-benchmark == 3.0.0"
+            "pytest-mock == 1.6.2",
+            "pytest-benchmark == 3.1.1"
         ],
         entry_points={
             "console_scripts": ["rootspace = rootspace.main:main"]

@@ -8,9 +8,10 @@ It provides a simple command line interface.
 
 import logging
 import argparse
+import pathlib
 
 from ._version import get_versions
-from .core import Loop, Context
+from .orchestrator import Orchestrator
 from .utilities import get_log_level, configure_logger
 
 
@@ -61,12 +62,19 @@ def main() -> None:
         log_path=args.log_file, with_warnings=args.debug
     )
 
+    # Locate the user home directory and the engine directory tree.
+    user_home = pathlib.Path.home()
+    log.project.debug("User home identified as: '{}'".format(user_home))
+    engine_location = pathlib.Path(__file__).parent
+    log.project.debug("Engine location identified as: '{}'".format(engine_location))
+
     # Create the engine instance
-    loop = Loop(project_name, Context, args.initialize, args.debug)
+    log.project.info("Creating the orchestrator.")
+    orchestrator = Orchestrator.new(project_name, user_home, engine_location, args.initialize, args.debug)
 
     # Run the engine instance
-    log.project.debug("Dispatching: {}".format(loop))
-    loop.run()
+    log.project.info("Entering main loop.")
+    orchestrator.run()
 
     # Kill the logging system
     logging.shutdown()

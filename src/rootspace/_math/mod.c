@@ -1,12 +1,12 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
-#include "_index_handling.h"
-#include "_matrix_container.h"
-#include "_matrix.h"
-#include "_matrix_iterator.h"
-#include "_quaternion.h"
-// #include "_physics.h"
+#include "index_handling.h"
+#include "matrix_container.h"
+#include "matrix.h"
+#include "matrix_iterator.h"
+#include "quaternion.h"
+// #include "physics.h"
 
 
 static PyMethodDef MathMethods[] = {

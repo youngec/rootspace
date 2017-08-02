@@ -67,7 +67,7 @@ class ExampleSystem(SystemTrait):
 
 class TestWorld(object):
     def test_world(self) -> None:
-        world = World.new(ExampleAssembly)
+        world = World.new(ExampleAssembly.new())
         e = world.make("e")
         world.components.a.add(e, 1)
         world.components.b.add(e, 1.0)

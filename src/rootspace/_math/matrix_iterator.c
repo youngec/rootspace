@@ -1,5 +1,5 @@
-#include "_matrix_iterator.h"
-#include "_matrix.h"
+#include "matrix_iterator.h"
+#include "matrix.h"
 
 const char MatrixIterator_Docstring[] = "Provides an iterator interface to Matrix.";
 

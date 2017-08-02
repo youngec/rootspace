@@ -1,6 +1,6 @@
-#include "_matrix.h"
-#include "_index_handling.h"
-#include "_matrix_iterator.h"
+#include "matrix.h"
+#include "index_handling.h"
+#include "matrix_iterator.h"
 
 const char Matrix_Docstring[] =
     "The constructor accepts a shape parameter, and optionally \n"

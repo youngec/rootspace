@@ -1,66 +1,52 @@
 {
-  "version": "1.0.0",
-  "enable_depth_test": true,
-  "depth_function": 513,
-  "enable_face_culling": true,
-  "front_face": 2305,
-  "cull_face": 1029,
-  "clear_color": [0, 0, 0, 1],
-  "clear_bits": 16640,
-  "cursor_mode": 212995,
-  "cursor_origin": [512, 384],
-  "field_of_view": 0.78539716,
-  "near_plane": 0.1,
-  "far_plane": 1000.0,
   "systems": [
-    {"class": "player_movement_system", "kwargs": {}},
-    {"class": "camera_control_system", "kwargs": {}},
-    {"class": "physics_system", "kwargs": {}},
-    {"class": "collision_system", "kwargs": {}},
-    {"class": "open_gl_renderer", "kwargs": {}}
-  ],
-  "entities": [
     {
-      "class": "camera",
-      "kwargs": {
-        "name": "camera",
-        "transform": "cam_trf",
-        "projection": "cam_proj",
-        "bounding_volume": "cam_bv",
-        "physics_properties": "cam_phys_prop",
-        "physics_state": "cam_phys_state"
-      }
+      "class": "player_movement_system",
+      "kwargs": {}
     },
     {
-      "class": "static_object",
-      "kwargs": {
-        "name": "floor",
-        "transform": "floor_trf",
-        "model": "floor_mdl",
-        "bounding_volume": "floor_bv"
-      }
+      "class": "camera_control_system",
+      "kwargs": {}
     },
     {
-      "class": "dynamic_object",
-      "kwargs": {
-        "name": "cube",
-        "transform": "cube_trf",
-        "model": "cube_mdl",
-        "bounding_volume": "cube_bv",
-        "physics_properties": "cube_prp",
-        "physics_state": "cube_sta"
-      }
+      "class": "physics_system",
+      "kwargs": {}
     },
     {
-      "class": "static_object",
-      "kwargs": {
-        "name": "table",
-        "transform": "table_trf",
-        "model": "table_mdl",
-        "bounding_volume": "table_bv"
-      }
+      "class": "collision_system",
+      "kwargs": {}
+    },
+    {
+      "class": "open_gl_renderer",
+      "kwargs": {}
     }
   ],
+  "entities": {
+    "camera": [
+      "cam_trf",
+      "cam_proj",
+      "cam_bv",
+      "cam_phys_prop",
+      "cam_phys_state"
+    ],
+    "floor": [
+      "floor_trf",
+      "floor_mdl",
+      "floor_bv"
+    ],
+    "cube": [
+      "cube_trf",
+      "cube_mdl",
+      "cube_bv",
+      "cube_prp",
+      "cube_sta"
+    ],
+    "table": [
+      "table_trf",
+      "table_mdl",
+      "table_bv"
+    ]
+  },
   "components": {
     "cam_trf": {
       "class": "transform",
@@ -71,29 +57,55 @@
     "cam_proj": {
       "class": "projection",
       "kwargs": {
-        "field_of_view": "field_of_view",
+        "field_of_view": 0.78539716,
         "window_shape": "window_shape",
-        "near_plane": "near_plane",
-        "far_plane": "far_plane"
+        "near_plane": 0.1,
+        "far_plane": 1000.0
       }
     },
-    "cam_bv": {"class": "bounding_volume", "kwargs": {}},
+    "cam_bv": {
+      "class": "bounding_volume",
+      "kwargs": {}
+    },
     "cam_phys_prop": {
       "class": "physics_properties",
       "kwargs": {
-        "g": [0, 0, 0]
+        "g": [
+          0,
+          0,
+          0
+        ]
       }
     },
-    "cam_phys_state": {"class": "physics_state", "kwargs": {}},
+    "cam_phys_state": {
+      "class": "physics_state",
+      "kwargs": {}
+    },
     "floor_trf": {
       "class": "transform",
       "kwargs": {
-        "position": [0, -2, -10],
-        "orientation": [0, 0, 0, 1],
-        "scale": [8, 0.1, 8]
+        "position": [
+          0,
+          -2,
+          -10
+        ],
+        "orientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          8,
+          0.1,
+          8
+        ]
       }
     },
-    "floor_bv": {"class": "bounding_volume", "kwargs": {}},
+    "floor_bv": {
+      "class": "bounding_volume",
+      "kwargs": {}
+    },
     "floor_mdl": {
       "class": "model",
       "kwargs": {
@@ -105,12 +117,28 @@
     "cube_trf": {
       "class": "transform",
       "kwargs": {
-        "position": [0, 1, -10],
-        "orientation": [0, 0, 0, 1],
-        "scale": [0.5, 0.5, 0.5]
+        "position": [
+          0,
+          1,
+          -10
+        ],
+        "orientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          0.5,
+          0.5,
+          0.5
+        ]
       }
     },
-    "cube_bv": {"class": "bounding_volume", "kwargs": {}},
+    "cube_bv": {
+      "class": "bounding_volume",
+      "kwargs": {}
+    },
     "cube_mdl": {
       "class": "model",
       "kwargs": {
@@ -119,17 +147,39 @@
         "fragment_shader_path": "shaders/cube-fragment.glsl"
       }
     },
-    "cube_prp": {"class": "physics_properties", "kwargs": {}},
-    "cube_sta": {"class": "physics_state", "kwargs": {}},
+    "cube_prp": {
+      "class": "physics_properties",
+      "kwargs": {}
+    },
+    "cube_sta": {
+      "class": "physics_state",
+      "kwargs": {}
+    },
     "table_trf": {
       "class": "transform",
       "kwargs": {
-        "position": [10, 0, -10],
-        "orientation": [0, 0, 0, 1],
-        "scale": [1, 1, 1]
+        "position": [
+          10,
+          0,
+          -10
+        ],
+        "orientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
       }
     },
-    "table_bv": {"class": "bounding_volume", "kwargs": {}},
+    "table_bv": {
+      "class": "bounding_volume",
+      "kwargs": {}
+    },
     "table_mdl": {
       "class": "model",
       "kwargs": {

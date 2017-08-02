@@ -2,7 +2,7 @@
 #define MATRIX_ITERATOR_H
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include "_matrix.h"
+#include "matrix.h"
 
 /// The MatrixIterator object contains a pointer to a Matrix object.
 typedef struct {

@@ -2,7 +2,7 @@
 #define QUATERNION_H
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include "_matrix_container.h"
+#include "matrix_container.h"
 
 typedef struct {
     PyObject_HEAD
