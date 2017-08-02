@@ -90,6 +90,9 @@ class Orchestrator(object):
 
     def run(self) -> None:
         with self:
+            if not (isinstance(self.window, glfw._GLFWwindow) and isinstance(self.world, World)):
+                raise AttributeError("The Orchestrator context was not properly initialized.")
+
             # Pull in the necessary references for speed (damn Python)
             window_should_close = glfw.window_should_close
             get_time = glfw.get_time
@@ -160,7 +163,7 @@ class Orchestrator(object):
                 None
             )
             if not self.window:
-                raise GLFWError("Cannot create a GLFW Window.")
+                raise RuntimeError("Cannot create a GLFW Window.")
             else:
                 ctx_mgr.callback(glfw.destroy_window, self.window)
 
