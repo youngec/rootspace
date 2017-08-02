@@ -7,7 +7,7 @@ from typing import Any, Dict, Union, Type
 
 import glfw
 
-from .ecs import SerDeTrait
+from .ecs.serialization import SerDeTrait
 
 
 class Key(enum.IntEnum):

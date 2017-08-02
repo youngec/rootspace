@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from .ecs import AssemblyTrait, ViewTrait, Entity
+from .ecs.core import AssemblyTrait, ViewTrait, Entity
 
 
 class RootspaceView(ViewTrait):

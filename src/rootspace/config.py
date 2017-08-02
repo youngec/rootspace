@@ -2,7 +2,7 @@
 
 from typing import Tuple, Dict, Any, Type
 
-from .ecs import SerDeTrait
+from .ecs.serialization import SerDeTrait
 
 
 class Config(SerDeTrait):

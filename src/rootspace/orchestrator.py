@@ -11,7 +11,8 @@ import OpenGL.GL as gl
 
 from .config import Config
 from .key_map import KeyMap
-from .ecs import World, SceneEvent, Scene
+from .ecs.core import World
+from .ecs.scene import Scene
 from .rootspace_assembly import RootspaceAssembly
 
 
