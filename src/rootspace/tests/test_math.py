@@ -7,7 +7,7 @@ import operator
 
 import pytest
 
-from rootspace.math import Quaternion
+from rootspace.legacy.math import Quaternion
 from rootspace._math import Matrix, get_sub_shape, linearize_indices, \
     complete_indices, select_all
 

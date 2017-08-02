@@ -5,7 +5,7 @@ import ctypes
 
 import pytest
 
-from rootspace.data_abstractions import Attribute, Mesh
+from rootspace.legacy.data_abstractions import Attribute, Mesh
 
 
 class TestAttribute(object):

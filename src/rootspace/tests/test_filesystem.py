@@ -5,8 +5,8 @@ import json
 import uuid
 
 import pytest
-from rootspace.exceptions import RootspacePermissionError, RootspaceFileNotFoundError
-from rootspace.filesystem import Node, DirectoryNode, FileNode, FileSystem
+from rootspace.legacy.exceptions import RootspacePermissionError, RootspaceFileNotFoundError
+from rootspace.legacy.filesystem import Node, DirectoryNode, FileNode, FileSystem
 
 
 class TestNode(object):

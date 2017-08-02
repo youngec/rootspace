@@ -5,7 +5,7 @@ import array
 from typing import Any, Union, Tuple
 from numbers import Real
 
-from ._math import Matrix
+from .._math import Matrix
 
 
 # class Matrix(object):

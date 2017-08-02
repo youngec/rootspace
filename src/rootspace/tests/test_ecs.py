@@ -4,7 +4,7 @@ from typing import Sequence
 
 import pytest
 
-from rootspace.ecs import Entity, ComponentContainer, ViewTrait, AssemblyTrait, SystemTrait, World, LoopStage
+from rootspace.ecs.core import Entity, ComponentContainer, ViewTrait, AssemblyTrait, SystemTrait, World, LoopStage
 
 
 class ExampleView(ViewTrait):

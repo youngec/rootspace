@@ -4,8 +4,8 @@ import array
 import pytest
 import pyparsing
 
-from rootspace.model_parser import PlyParser
-from rootspace.data_abstractions import Attribute, Mesh
+from rootspace.legacy.model_parser import PlyParser
+from rootspace.legacy.data_abstractions import Attribute, Mesh
 
 
 @pytest.fixture()
