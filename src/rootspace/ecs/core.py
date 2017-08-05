@@ -129,12 +129,10 @@ class ComponentContainer(Generic[C]):
 
 
 class ViewTrait(object, metaclass=abc.ABCMeta):
-    __slots__ = ()
+    pass
 
 
 class AssemblyTrait(object, metaclass=abc.ABCMeta):
-    __slots__ = ()
-
     @abc.abstractmethod
     def match_mask(self, entity: Entity, mask: int) -> bool:
         pass

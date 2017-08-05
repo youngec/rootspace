@@ -8,16 +8,12 @@ from rootspace.ecs.core import Entity, ComponentContainer, ViewTrait, AssemblyTr
 
 
 class ExampleView(ViewTrait):
-    __slots__ = ("a", "b")
-
     def __init__(self, a: int, b: float) -> None:
         self.a = a
         self.b = b
 
 
 class ExampleAssembly(AssemblyTrait):
-    __slots__ = ("a", "b")
-
     def __init__(self, a: ComponentContainer[int], b: ComponentContainer[float]) -> None:
         self.a = a
         self.b = b
