@@ -9,14 +9,6 @@ S = TypeVar("S", bound="SerDeTrait")
 
 
 class SerDeTrait(object, metaclass=abc.ABCMeta):
-    @classmethod
-    @abc.abstractmethod
-    def new(cls) -> "SerDeTrait":
-        """
-        Construct a new, default instance.
-        """
-        pass
-
     @abc.abstractmethod
     def to_dict(self) -> Dict[str, Any]:
         """

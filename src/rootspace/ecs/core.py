@@ -135,11 +135,6 @@ class ViewTrait(object, metaclass=abc.ABCMeta):
 class AssemblyTrait(object, metaclass=abc.ABCMeta):
     __slots__ = ()
 
-    @classmethod
-    @abc.abstractmethod
-    def new(cls) -> "AssemblyTrait":
-        pass
-
     @abc.abstractmethod
     def match_mask(self, entity: Entity, mask: int) -> bool:
         pass
@@ -184,7 +179,9 @@ class SystemTrait(object, metaclass=abc.ABCMeta):
         pass
 
     def __eq__(self, other: Any) -> bool:
-        if isinstance(other, SystemTrait) and other.__class__.__name__ == self.__class__.__name__:
+        if isinstance(other, SystemTrait) and other.get_name() == self.get_name():
+            return True
+        elif isinstance(other, str) and other == self.get_name():
             return True
         else:
             return NotImplemented
@@ -233,6 +230,9 @@ class World(object):
             self.systems.append(system)
         else:
             raise ValueError("Attempting to activate an already present system: '{}'".format(system.__class__.__name__))
+
+    def remove_system(self, system_name: str) -> None:
+        self.systems.remove(system_name)
 
     def process_events(self) -> None:
         while len(self.event_queue) > 0:
