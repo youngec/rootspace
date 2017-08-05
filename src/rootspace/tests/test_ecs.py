@@ -65,6 +65,15 @@ class ExampleSystem(SystemTrait):
         assert all([c.a is not None for c in components])
 
 
+class TestSystem(object):
+    def test_system(self) -> None:
+        sys_a = ExampleSystem()
+        sys_b = ExampleSystem()
+
+        assert sys_a == sys_b
+        assert sys_a == "ExampleSystem"
+
+
 class TestWorld(object):
     def test_world(self) -> None:
         world = World.new(ExampleAssembly.new())
@@ -80,3 +89,13 @@ class TestWorld(object):
 
         world.add_system(ExampleSystem())
         world.render()
+
+    def test_system_management(self) -> None:
+        world = World.new(ExampleAssembly.new())
+        world.add_system(ExampleSystem())
+        with pytest.raises(ValueError):
+            world.add_system(ExampleSystem())
+
+        world.remove_system("ExampleSystem")
+        with pytest.raises(ValueError):
+            world.remove_system("ExampleSystem")
