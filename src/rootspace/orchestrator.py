@@ -13,7 +13,7 @@ from .config import Config
 from .key_map import KeyMap
 from .ecs.core import World
 from .ecs.scene import Scene
-from .rootspace_assembly import RootspaceAssembly
+from .game.assembly import Assembly
 
 
 class Orchestrator(object):
@@ -203,7 +203,7 @@ class Orchestrator(object):
 
             # Create the World
             self.log.debug("Creating the world.")
-            self.world = World.new(RootspaceAssembly.new())
+            self.world = World.new(Assembly.new())
             def del_world() -> None:
                 del self.world
             ctx_mgr.callback(del_world)
