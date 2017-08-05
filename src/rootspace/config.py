@@ -2,7 +2,7 @@
 
 from typing import Tuple, Dict, Any, Type
 
-from .ecs.serialization import SerDeTrait
+from .ecs.serialization import SerDeTrait, S
 
 
 class Config(SerDeTrait):
@@ -75,7 +75,7 @@ class Config(SerDeTrait):
         }
     
     @classmethod
-    def from_dict(cls: Type["Config"], obj: Dict[str, Any]) -> "Config":
+    def from_dict(cls: Type[S], obj: Dict[str, Any]) -> S:
         """
         Construct an instance of `Config` from a dictionary.
         """
