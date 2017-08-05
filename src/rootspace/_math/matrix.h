@@ -20,6 +20,11 @@ extern PyTypeObject MatrixType;
 /// Declare the Matrix docstring
 extern const char Matrix_Docstring[];
 
+/// Declare the keyword strings of Matrix parameters
+extern const char Matrix_ShapeKwd[];
+extern const char Matrix_DataKwd[];
+extern const char Matrix_TransposedKwd[];
+
 /// The following macros allow for non-exact and exact type checking against
 /// Matrix.
 #define Matrix_Check(op) PyObject_TypeCheck(op, &MatrixType)

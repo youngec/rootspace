@@ -10,6 +10,10 @@ const char Matrix_Docstring[] =
     "the product of the shape. Raises a ValueError otherwise. Raises a \n"
     "ValueError if the two-dimensional shape is not larger or equal to (1, 1).";
 
+const char Matrix_ShapeKwd[] = "shape";
+const char Matrix_DataKwd[] = "data";
+const char Matrix_TransposedKwd[] = "transposed";
+
 int is_close(double a, double b, double rel_tol, double abs_tol) {
     // Catch exact equality early.
     if (a == b) {
@@ -63,7 +67,7 @@ static PyObject* Matrix_New(PyTypeObject* type, PyObject* args, PyObject* kwargs
     Py_ssize_t M = 1;
     PyObject* data = NULL;
     int transposed = 0;
-    static char* kwlist[] = {"", "data", "transposed", NULL};
+    static char* kwlist[] = {Matrix_ShapeKwd, Matrix_DataKwd, Matrix_TransposedKwd, NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "(ll)|O$p", kwlist, &N, &M, &data, &transposed)) {
         return NULL;
     }
@@ -1606,6 +1610,50 @@ static PyObject* Matrix_ToBytes(Matrix* self, PyObject* args) {
     }
 }
 
+static PyObject* Matrix_ToDict(Matrix* self, PyObject* args) {
+    PyObject* shape = Py_BuildValue("(nn)", self->N, self->M);
+    if (shape == NULL) {
+        return NULL;
+    }
+    PyObject* data = PyTuple_New(Matrix_SIZE(self));
+    if (data == NULL) {
+        Py_DECREF(shape);
+        return NULL;
+    }
+    for (Py_ssize_t idx = 0; idx < Matrix_SIZE(self); idx++) {
+        PyTuple_SetItem(data, idx, PyFloat_FromDouble((double) Matrix_DATA(self)[idx]));
+    }
+    PyObject* transposed = PyBool_FromLong((long) self->transposed);
+    if (transposed == NULL) {
+        Py_DECREF(shape);
+        Py_DECREF(data);
+        return NULL;
+    }
+    PyObject* dict = PyDict_New();
+    if (dict == NULL) {
+        Py_DECREF(shape);
+        Py_DECREF(data);
+        Py_DECREF(transposed);
+        return NULL;
+    }
+    PyDict_SetItemString(dict, Matrix_ShapeKwd, shape);
+    PyDict_SetItemString(dict, Matrix_DataKwd, data);
+    PyDict_SetItemString(dict, Matrix_TransposedKwd, transposed);
+    return dict;
+}
+
+static PyObject* Matrix_FromDict(PyTypeObject* cls, PyObject* args) {
+    PyObject* dict = NULL;
+    if (!PyArg_ParseTuple(args, "O!", &PyDict_Type, &dict)) {
+        return NULL;
+    }
+    PyObject* dummy_tuple = PyTuple_New(0);
+    if (dummy_tuple == NULL) {
+        return NULL;
+    }
+    return Matrix_New(&MatrixType, dummy_tuple, dict);
+}
+
 static PyObject* Matrix_Identity(PyTypeObject* cls, PyObject* args) {
     Py_ssize_t d = 1;
     if (!PyArg_ParseTuple(args, "n", &d)) {
@@ -1823,11 +1871,13 @@ static PyMethodDef Matrix_Methods[] = {
     {"norm", (PyCFunction) Matrix_Norm, METH_VARARGS | METH_KEYWORDS, "Calculate the norm of the matrix. Defaults to the quadratic matrix norm."},
     {"cross", (PyCFunction) Matrix_Cross, METH_VARARGS, "Calculate the cross product of two vectors."},
     {"to_bytes", (PyCFunction) Matrix_ToBytes, METH_NOARGS, "Return a bytes representation of the matrix."},
+    {"to_dict", (PyCFunction) Matrix_ToDict, METH_NOARGS, "Return a dictionary representation of the matrix."},
     {"identity", (PyCFunction) Matrix_Identity, METH_VARARGS | METH_CLASS, "Create an identity matrix."},
     {"translation", (PyCFunction) Matrix_Translation, METH_VARARGS | METH_CLASS, "Create a translation matrix."},
     {"scaling", (PyCFunction) Matrix_Scaling, METH_VARARGS | METH_CLASS, "Create a scaling matrix."},
     {"orthographic", (PyCFunction) Matrix_Orthographic, METH_VARARGS | METH_CLASS, "Create an orthographic projection matrix."},
     {"perspective", (PyCFunction) Matrix_Perspective, METH_VARARGS | METH_CLASS, "Create a perspective projection matrix."},
+    {"from_dict", (PyCFunction) Matrix_FromDict, METH_VARARGS | METH_CLASS, "Create a matrix from a dictionary representation."},
     {"ex", (PyCFunction) Matrix_UnitVectorX, METH_NOARGS | METH_CLASS, "Create a unit vector along the x-axis."},
     {"ey", (PyCFunction) Matrix_UnitVectorY, METH_NOARGS | METH_CLASS, "Create a unit vector along the y-axis."},
     {"ez", (PyCFunction) Matrix_UnitVectorZ, METH_NOARGS | METH_CLASS, "Create a unit vector along the z-axis."},

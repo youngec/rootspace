@@ -24,7 +24,7 @@ static PyObject* MatrixIterator_New(PyTypeObject* type, PyObject* args, PyObject
     Py_ssize_t idx_max = 1;
     int iter_columns = 0;
     static char* kwlist[] = {"", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!nnp", kwlist, MatrixType, &matrix, &idx, &idx_max, &iter_columns)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!nnp", kwlist, &MatrixType, &matrix, &idx, &idx_max, &iter_columns)) {
         return NULL;
     }
     return (PyObject*) MatrixIterator_NewInternal((Matrix*) matrix, idx, idx_max, iter_columns);

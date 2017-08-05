@@ -316,8 +316,14 @@ class TestMatrix(object):
             with pytest.raises(ValueError):
                 Matrix(shape).cross(Matrix(shape))
 
-    def test_to_bytes(self, ):
+    def test_to_bytes(self):
         assert Matrix((2, 3), (0, 1, 2, 3, 4, 5)).to_bytes() == b'\x00\x00\x00\x00\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@\x00\x00\xa0@'
+
+    def test_to_dict(self):
+        assert Matrix((2, 3), (0, 1, 2, 3, 4, 5)).to_dict() == {"shape": (2, 3), "data": (0, 1, 2, 3, 4, 5), "transposed": False}
+
+    def test_from_dict(self):
+        assert Matrix.from_dict({"shape": (2, 3), "data": (0, 1, 2, 3, 4, 5), "transposed": False}) == Matrix((2, 3), (0, 1, 2, 3, 4, 5))
 
     def test_identity(self):
         for d in range(1, 5):
