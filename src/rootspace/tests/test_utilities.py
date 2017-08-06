@@ -3,7 +3,7 @@
 import pytest
 import logging
 
-from rootspace.utilities import get_log_level, configure_logger
+from rootspace.utilities import get_log_level, configure_logger, Loggers
 
 
 @pytest.mark.parametrize(("verbosity", "expected"), (

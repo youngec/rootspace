@@ -270,8 +270,8 @@ class TestDirectoryNode(object):
         uids = (0, 1, 1000)
         gids = (0, 1, 1000)
 
-        mocker.patch("rootspace.filesystem.DirectoryNode.insert_node")
-        mocker.patch("rootspace.filesystem.DirectoryNode.remove_node")
+        mocker.patch("rootspace.legacy.filesystem.DirectoryNode.insert_node")
+        mocker.patch("rootspace.legacy.filesystem.DirectoryNode.remove_node")
 
         for u, g in itertools.product(uids, gids):
             parent_a = DirectoryNode(0, 1, 0o750)
@@ -347,7 +347,7 @@ class TestFileSystem(object):
         assert FileSystem("")._split(path) == expected
 
     def test_separate_calls(self, mocker):
-        mocker.patch("rootspace.filesystem.FileSystem._split")
+        mocker.patch("rootspace.legacy.filesystem.FileSystem._split")
 
         input_path = "/"
         fs = FileSystem("")
