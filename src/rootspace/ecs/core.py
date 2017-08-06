@@ -3,14 +3,19 @@
 import abc
 import collections
 import enum
-from typing import Generic, TypeVar, List, Optional, Iterator, Deque, Sequence, Any
+from typing import Generic, TypeVar, List, Optional, Iterator, Deque, Sequence, Any, Dict, Type, Union
+
+from .serialization import SerDeTrait
 
 C = TypeVar("C")
+A = TypeVar("A", bound="AssemblyTrait")
+E = TypeVar("E", bound="EventTrait")
+S = TypeVar("S", bound="SystemTrait")
 
 
 class EventTrait(object, metaclass=abc.ABCMeta):
     """
-    Abstract base class of an event.
+    Abstract base class of an event. Events should not carry around a lot of data.
     """
     __slots__ = ()
 
@@ -23,6 +28,18 @@ class Entity(object):
         self.uuid = uuid
         self.idx = idx
 
+    def __repr__(self) -> str:
+        return "Entity({})".format(self.name)
+    
+    def __str__(self) -> str:
+        return repr(self)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, Entity):
+            return self.name == other.name and self.uuid == other.uuid and self.idx == other.idx
+        else:
+            return False
+
     def increment(self) -> None:
         self.uuid += 1
         self.idx += 1
@@ -34,11 +51,20 @@ class Entity(object):
             idx=self.idx
         )
 
-    def __repr__(self) -> str:
-        return "Entity({})".format(self.name)
-    
-    def __str__(self) -> str:
-        return repr(self)
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "uuid": self.uuid,
+            "idx": self.idx
+        }
+
+    @classmethod
+    def from_dict(cls, obj: Dict[str, Any]) -> "Entity":
+        return cls(
+            name=str(obj["name"]),
+            uuid=int(obj["uuid"]),
+            idx=int(obj["idx"])
+        )
 
 
 class EntityDataIndex(object):
@@ -47,6 +73,12 @@ class EntityDataIndex(object):
     def __init__(self, uuid: int, data_idx: int) -> None:
         self.uuid = uuid
         self.data_idx = data_idx
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, EntityDataIndex):
+            return self.uuid == other.uuid and self.data_idx == other.data_idx
+        else:
+            return False
 
     @classmethod
     def new(cls) -> "EntityDataIndex":
@@ -61,18 +93,42 @@ class EntityDataIndex(object):
             data_idx=self.data_idx
         )
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "uuid": self.uuid,
+            "data_idx": self.data_idx
+        }
+
+    @classmethod
+    def from_dict(cls, obj: Dict[str, Any]) -> "EntityDataIndex":
+        return cls(
+            uuid=int(obj["uuid"]),
+            data_idx=int(obj["data_idx"])
+        )
+
 
 class ComponentContainer(Generic[C]):
-    __slots__ = ("data", "entities", "indices")
+    __slots__ = ("data_type", "data", "entities", "indices")
 
-    def __init__(self, data: List[C], entities: List[Entity], indices: List[EntityDataIndex]) -> None:
+    def __init__(self, data_type: Type[C], data: List[C], entities: List[Entity], indices: List[EntityDataIndex]) -> None:
+        self.data_type = data_type
         self.data = data
         self.entities = entities
         self.indices = indices
 
+    def __iter__(self) -> Iterator[C]:
+        yield from self.data
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, ComponentContainer):
+            return self.data_type == other.data_type and self.data == other.data and self.entities == other.entities and self.indices == other.indices
+        else:
+            return False
+
     @classmethod
-    def new(cls) -> "ComponentContainer":
+    def new(cls, data_type: Type[C]) -> "ComponentContainer":
         return cls(
+            data_type=data_type,
             data=list(),
             entities=list(),
             indices=list()
@@ -83,6 +139,9 @@ class ComponentContainer(Generic[C]):
         return (entity.idx < len(self.indices)) and (self.indices[entity.idx].uuid == entity.uuid)
 
     def add(self, entity: Entity, component: C) -> None:
+        if not isinstance(component, self.data_type):
+            raise TypeError("This ComponentContainer can only collect objects of type '{}'".format(self.data_type.__name__))
+
         assert(len(self.data) == len(self.entities))
         if self.contains(entity):
             self.data[self.indices[entity.idx].data_idx] = component
@@ -124,26 +183,44 @@ class ComponentContainer(Generic[C]):
     def iter_ent(self) -> Iterator[Entity]:
         yield from self.entities
 
-    def __iter__(self) -> Iterator[C]:
-        yield from self.data
+    def to_dict(self) -> Dict[str, Any]:
+        if all(isinstance(c, (type(None), bool, int, float, str)) for c in self.data):
+            return {
+                "data": [c for c in self.data],
+                "entities": [e.to_dict() for e in self.entities],
+                "indices": [i.to_dict() for i in self.indices]
+            }
+        elif all(isinstance(c, SerDeTrait) for c in self.data):
+            return {
+                "data": [c.to_dict() for c in self.data],
+                "entities": [e.to_dict() for e in self.entities],
+                "indices": [i.to_dict() for i in self.indices]
+            }
+        else:
+            raise TypeError("Cannot serialize the following object: {!r}".format(type(self.data[0])))
+
+    @classmethod
+    def from_dict(cls: Type["ComponentContainer"], component_class: Union[Type[None], Type[bool], Type[int], Type[float], Type[str], Type[SerDeTrait]], obj: Dict[str, Any]) -> "ComponentContainer":
+        if issubclass(component_class, (type(None), bool, int, float, str)):
+            return cls(
+                data_type=component_class,
+                data=[c for c in obj["data"]],
+                entities=[Entity.from_dict(e) for e in obj["entities"]],
+                indices=[EntityDataIndex.from_dict(i) for i in obj["indices"]]
+            )
+        elif issubclass(component_class, SerDeTrait):
+            return cls(
+                data_type=component_class,
+                data=[component_class.from_dict(c) for c in obj["data"]],
+                entities=[Entity.from_dict(e) for e in obj["entities"]],
+                indices=[EntityDataIndex.from_dict(i) for i in obj["indices"]]
+            )
+        else:
+            raise TypeError("Cannot deserialize the following object: {!r}".format(component_class))
 
 
 class ViewTrait(object, metaclass=abc.ABCMeta):
     pass
-
-
-class AssemblyTrait(object, metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def match_mask(self, entity: Entity, mask: int) -> bool:
-        pass
-
-    @abc.abstractmethod
-    def remove(self, entity: Entity) -> None:
-        pass
-
-    @abc.abstractmethod
-    def get_view(self, entity: Entity) -> ViewTrait:
-        pass
 
 
 class LoopStage(enum.Enum):
@@ -154,6 +231,14 @@ class LoopStage(enum.Enum):
 
 class SystemTrait(object, metaclass=abc.ABCMeta):
     __slots__ = ()
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, SystemTrait) and other.get_name() == self.get_name():
+            return True
+        elif isinstance(other, str) and other == self.get_name():
+            return True
+        else:
+            return False
 
     @abc.abstractmethod
     def get_name(self) -> str:
@@ -176,13 +261,40 @@ class SystemTrait(object, metaclass=abc.ABCMeta):
     def render(self, components: Sequence[ViewTrait]) -> None:
         pass
 
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, SystemTrait) and other.get_name() == self.get_name():
-            return True
-        elif isinstance(other, str) and other == self.get_name():
-            return True
-        else:
-            return NotImplemented
+    def to_dict(self) -> Dict[str, Any]:
+        return {}
+
+    @classmethod
+    def from_dict(cls: Type[S], obj: Dict[str, Any]) -> S:
+        return cls()
+
+
+class AssemblyTrait(object, metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def match_mask(self, entity: Entity, mask: int) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def remove(self, entity: Entity) -> None:
+        pass
+
+    @abc.abstractmethod
+    def get_view(self, entity: Entity) -> ViewTrait:
+        pass
+
+    @abc.abstractmethod
+    def to_dict(self) -> Dict[str, Any]:
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def from_dict(cls: Type[A], obj: Dict[str, Any]) -> A:
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def get_known_systems(cls) -> Dict[str, Type[SystemTrait]]:
+        pass
 
 
 class World(object):
@@ -197,12 +309,18 @@ class World(object):
         self.systems = systems
         self.event_queue = event_queue
 
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, World):
+            return self.next_entity == other.next_entity and self.free_indices == other.free_indices and self.entities == other.entities and self.components == other.components and self.systems == other.systems and self.event_queue == other.event_queue
+        else:
+            return False
+
     @classmethod
     def new(cls, assembly: AssemblyTrait) -> "World":
         return cls(
             next_entity=Entity(name="", uuid=1, idx=0),
             free_indices=collections.deque(),
-            entities=ComponentContainer.new(),
+            entities=ComponentContainer.new(bool),
             components=assembly,
             systems=list(),
             event_queue=collections.deque(),
@@ -273,3 +391,24 @@ class World(object):
 
                 if len(components) > 0:
                     system.render(components)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "next_entity": self.next_entity.to_dict(),
+            "free_indices": [i for i in self.free_indices],
+            "entities": self.entities.to_dict(),
+            "components": self.components.to_dict(),
+            "systems": [{"class": s.__class__.__name__, "kwargs": s.to_dict()} for s in self.systems]
+        }
+
+    @classmethod
+    def from_dict(cls, assembly_class: Type[AssemblyTrait], obj: Dict[str, Any]) -> "World":
+        known_systems = assembly_class.get_known_systems()
+        return cls(
+            next_entity=Entity.from_dict(obj["next_entity"]),
+            free_indices=collections.deque(int(i) for i in obj["free_indices"]),
+            entities=ComponentContainer.from_dict(bool, obj["entities"]),
+            components=assembly_class.from_dict(obj["components"]),
+            systems=[known_systems[s["class"]].from_dict(s["kwargs"]) for s in obj["systems"]],
+            event_queue=collections.deque()
+        )

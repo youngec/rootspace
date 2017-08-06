@@ -5,7 +5,7 @@ import json
 import pathlib
 from typing import TypeVar, Type, Dict, Any, Optional
 
-S = TypeVar("S", bound="SerDeTrait")
+SER = TypeVar("SER", bound="SerDeTrait")
 
 
 class SerDeTrait(object, metaclass=abc.ABCMeta):
@@ -25,14 +25,14 @@ class SerDeTrait(object, metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
-    def from_dict(cls: Type[S], obj: Dict[str, Any]) -> S:
+    def from_dict(cls: Type[SER], obj: Dict[str, Any]) -> SER:
         """
         Construct an instance from a dictionary.
         """
         pass
 
     @classmethod
-    def from_json(cls: Type[S], json_file: pathlib.Path) -> S:
+    def from_json(cls: Type[SER], json_file: pathlib.Path) -> SER:
         """
         Deserialize an instance from a JSON file.
         """

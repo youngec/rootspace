@@ -7,7 +7,7 @@ from typing import Any, Dict, Union, Type
 
 import glfw
 
-from .ecs.serialization import SerDeTrait, S
+from .ecs.serialization import SerDeTrait, SER
 
 
 class Key(enum.IntEnum):
@@ -93,7 +93,7 @@ class KeyMap(SerDeTrait):
         }
 
     @classmethod
-    def from_dict(cls: Type[S], obj: Dict[str, Any]) -> S:
+    def from_dict(cls: Type[SER], obj: Dict[str, Any]) -> SER:
         return cls(
             left=Key.to_value(obj["left"]),
             right=Key.to_value(obj["right"]),
