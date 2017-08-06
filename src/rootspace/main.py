@@ -10,9 +10,9 @@ import logging
 import argparse
 import pathlib
 
-from ._version import get_versions
-from .orchestrator import Orchestrator
-from .utilities import get_log_level, configure_logger
+from rootspace._version import get_versions
+from rootspace.orchestrator import Orchestrator
+from rootspace.utilities import get_log_level, configure_logger
 
 
 def main() -> None:

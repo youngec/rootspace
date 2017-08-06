@@ -2,10 +2,10 @@
 
 from typing import Tuple, Optional, Sequence, Type, Dict, Any
 
-from ..ecs.core import AssemblyTrait, ViewTrait, Entity, ComponentContainer, SystemTrait, LoopStage, A
-from .view import View
-from .components import PhysicsProperties, PhysicsState
-from .systems import PhysicsSystem
+from rootspace.ecs.core import AssemblyTrait, ViewTrait, Entity, ComponentContainer, SystemTrait, LoopStage, A
+from rootspace.game.view import View
+from rootspace.game.components import PhysicsProperties, PhysicsState
+from rootspace.game.systems import PhysicsSystem
 
 
 class Assembly(AssemblyTrait):

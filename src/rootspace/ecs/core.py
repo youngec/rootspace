@@ -5,7 +5,7 @@ import collections
 import enum
 from typing import Generic, TypeVar, List, Optional, Iterator, Deque, Sequence, Any, Dict, Type, Union
 
-from .serialization import SerDeTrait
+from rootspace.ecs.serialization import SerDeTrait
 
 C = TypeVar("C")
 A = TypeVar("A", bound="AssemblyTrait")

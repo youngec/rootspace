@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-from ..ecs.core import ViewTrait
-from .components import PhysicsProperties, PhysicsState
+from rootspace.ecs.core import ViewTrait
+from rootspace.game.components import PhysicsProperties, PhysicsState
 
 
 class View(ViewTrait):

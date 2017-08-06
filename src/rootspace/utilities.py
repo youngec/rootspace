@@ -31,12 +31,6 @@ def configure_logger(name: str, log_level: int, log_path: Optional[str] = None, 
     """
     Configure the project logger of the specified name
     using colorlog.
-
-    :param name:
-    :param log_level:
-    :param log_path:
-    :param with_warnings:
-    :return:
     """
     default_handler = None
     if log_path is not None:

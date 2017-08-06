@@ -3,11 +3,11 @@
 import sys
 import os
 
-from ._version import get_versions
+from rootspace._version import get_versions
 
 
 # Determine the project version using versioneer
-__version__ = get_versions()['version']
+__version__ = get_versions()['version'] # type: ignore
 del get_versions
 
 # Add OpenGL to the library path, so that PyOpenGL can find it
@@ -21,7 +21,3 @@ elif sys.platform == "win32":
 
 # Configure PyOpenGL
 # OpenGL.ERROR_ON_COPY = True
-
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions

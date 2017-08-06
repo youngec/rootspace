@@ -9,11 +9,11 @@ from typing import Optional, Tuple, Type, Any
 import glfw
 import OpenGL.GL as gl
 
-from .config import Config
-from .key_map import KeyMap
-from .ecs.core import World
-from .ecs.scene import Scene
-from .game.assembly import Assembly
+from rootspace.config import Config
+from rootspace.key_map import KeyMap
+from rootspace.ecs.core import World
+from rootspace.ecs.scene import Scene
+from rootspace.game.assembly import Assembly
 
 
 class Orchestrator(object):

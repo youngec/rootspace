@@ -2,8 +2,8 @@
 
 from typing import Type, Dict, Any
 
-from ..ecs.serialization import SerDeTrait, SER
-from .._math import Matrix
+from rootspace.ecs.serialization import SerDeTrait, SER
+from rootspace._math import Matrix
 
 
 class PhysicsProperties(SerDeTrait):

@@ -2,7 +2,8 @@
 
 from typing import Sequence
 
-from ..ecs.core import SystemTrait, LoopStage
+from rootspace.ecs.core import SystemTrait, LoopStage
+from rootspace.game.view import View
 
 
 class PhysicsSystem(SystemTrait):

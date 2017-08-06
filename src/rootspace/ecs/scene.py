@@ -2,7 +2,7 @@
 
 from typing import Dict, Union, Sequence, Any, Type
 
-from .serialization import SerDeTrait
+from rootspace.ecs.serialization import SerDeTrait
 
 
 class Scene(SerDeTrait):
