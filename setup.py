@@ -65,7 +65,6 @@ if __name__ == "__main__":
     setup(
         name="rootspace",
         author="Eleanore C. Young",
-        author_email="",
         description="A hackneyed attempt at a Python-based game.",
         long_description=read("README.rst"),
         keywords="game, casual, point-and-click, hacking",
